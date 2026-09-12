@@ -54,19 +54,33 @@ function fmtJoinDate(iso) {
 
 /* ---------- header rank badges + derived stat cards ---------- */
 
+// value's sign is already "positive = improved" from the API (player-get.js
+// flips the raw rank-number diff so a lower rank number reads as a gain,
+// same direction as a pp gain) — this just renders it.
+function rankDeltaHtml(value, days, suffix) {
+    if (value == null || !days || value === 0) return '';
+    const up = value > 0;
+    const shown = `${Math.abs(value).toLocaleString()}${suffix || ''}`;
+    return `<span class="player-rank-badge-delta player-rank-badge-delta--${up ? 'up' : 'down'}">${up ? '▲' : '▼'}${shown} · ${t('rank_delta_days', { n: days })}</span>`;
+}
+
 function rankBadgesHtml(p) {
+    const d = p.rank_delta;
     return `<div class="player-rank-badges">
         <div class="player-rank-badge player-rank-badge--accent">
             <span class="player-rank-badge-label">${t('rank_global')}</span>
             <span class="player-rank-badge-value">#${fmtNum(p.global_rank)}</span>
+            ${d ? rankDeltaHtml(d.global, d.days) : ''}
         </div>
         <div class="player-rank-badge">
             <span class="player-rank-badge-label">${t('rank_country')}${p.country_code ? ` (${escapeHtml(p.country_code)})` : ''}</span>
             <span class="player-rank-badge-value">#${fmtNum(p.country_rank)}</span>
+            ${d ? rankDeltaHtml(d.country, d.days) : ''}
         </div>
         <div class="player-rank-badge player-rank-badge--pp">
             <span class="player-rank-badge-label">${t('total_pp')}</span>
             <span class="player-rank-badge-value">${fmtPP(p.pp)}</span>
+            ${d ? rankDeltaHtml(d.pp, d.days, 'pp') : ''}
         </div>
     </div>`;
 }

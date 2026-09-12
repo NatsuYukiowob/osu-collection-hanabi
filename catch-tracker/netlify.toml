@@ -40,3 +40,10 @@
 # slower than necessary either.
 [functions."peer-crawl-cron"]
   schedule = "*/10 * * * *"
+
+# Daily rank-history snapshot (player page's rank-delta arrows): reads the
+# already-cached rankings:global dataset, no osu! API calls of its own —
+# see _rank-snapshot-core.js. Once a day is plenty; rank movement over a
+# few hours isn't meaningful.
+[functions."rank-snapshot-cron"]
+  schedule = "0 4 * * *"

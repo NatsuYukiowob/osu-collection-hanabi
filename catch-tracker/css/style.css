@@ -1044,6 +1044,9 @@ main:has(.pagination) { padding-bottom: 90px; }
 }
 .player-rank-badge-label { font-size: 0.76rem; color: var(--text-dim); font-weight: 600; }
 .player-rank-badge-value { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--text); }
+.player-rank-badge-delta { display: block; font-size: 0.72rem; font-weight: 700; margin-top: 2px; }
+.player-rank-badge-delta--up { color: var(--success); }
+.player-rank-badge-delta--down { color: var(--danger); }
 .player-rank-badge--accent { border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
 .player-rank-badge--accent .player-rank-badge-value { color: var(--primary); }
 .player-rank-badge--pp .player-rank-badge-value { color: var(--accent); }

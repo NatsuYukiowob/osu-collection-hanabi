@@ -17,6 +17,10 @@ function store(name) {
 // Rankings sweep: `rankings:global` (gzip array of player records) +
 // `rankings-crawl-state` (plain JSON cursor/diagnostics) +
 // `players:index` (plain JSON polling queue, derived from rankings:global).
+// Also holds the daily rank-history snapshots used for the player page's
+// rank-delta arrows (see _rank-snapshot-core.js): `rank-history:index`
+// (plain JSON array of YYYY-MM-DD strings we have a snapshot for) +
+// `rank-history:{date}` (gzip {user_id: [global_rank, country_rank, pp]}).
 function getRankingsStore() {
     return store('catch-tracker-rankings');
 }

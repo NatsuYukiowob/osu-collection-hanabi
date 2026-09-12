@@ -13,6 +13,7 @@ const { getOsuToken } = require('./_osu-auth');
 const { getFeedStore, getRankingsStore } = require('./_blobs-store');
 const { getJSONGz } = require('./_blob-json');
 const { MODE } = require('./_catch-constants');
+const { INDEX_KEY: RANK_HISTORY_INDEX_KEY, snapshotKey: rankSnapshotKey } = require('./_rank-snapshot-core');
 
 function isFC(s) {
     if (s.perfect === true || s.perfect === 1) return true;
@@ -143,6 +144,31 @@ exports.handler = async (event) => {
             // cached rankings sweep's null in place.
             profile.country_rank = stats.country_rank ?? profile.country_rank;
         }
+
+        // Rank-delta arrows: diff today's live numbers against the OLDEST
+        // daily snapshot still retained (see _rank-snapshot-core.js) — not
+        // a fixed "N days ago", since this only started 2026-09-12 and the
+        // real window grows day by day until it hits RETENTION_DAYS.
+        // Positive global/country = moved UP (rank number went down);
+        // positive pp = gained pp. Silently omitted if we have no snapshot
+        // yet or this player wasn't in it.
+        try {
+            const historyIndex = (await rankingsStore.get(RANK_HISTORY_INDEX_KEY, { type: 'json' })) || [];
+            if (historyIndex.length) {
+                const oldestDate = historyIndex[0];
+                const oldSnapshot = (await getJSONGz(rankingsStore, rankSnapshotKey(oldestDate))) || {};
+                const old = oldSnapshot[userId];
+                if (old) {
+                    const [oldGlobal, oldCountry, oldPp] = old;
+                    const days = Math.max(1, Math.round((Date.now() - new Date(`${oldestDate}T00:00:00Z`).getTime()) / 86400000));
+                    const delta = { days };
+                    if (oldGlobal != null && profile.global_rank != null) delta.global = oldGlobal - profile.global_rank;
+                    if (oldCountry != null && profile.country_rank != null) delta.country = oldCountry - profile.country_rank;
+                    if (oldPp != null && profile.pp != null) delta.pp = Math.round((profile.pp - oldPp) * 10) / 10;
+                    profile.rank_delta = delta;
+                }
+            }
+        } catch { /* delta is a nice-to-have; profile still renders without it */ }
 
         const feed = (await getJSONGz(feedStore, 'feed:recent')) || [];
         const recentPlays = feed.filter(r => r.user_id === userId).slice(0, 50);
