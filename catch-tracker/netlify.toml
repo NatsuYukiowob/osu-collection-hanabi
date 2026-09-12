@@ -47,3 +47,12 @@
 # few hours isn't meaningful.
 [functions."rank-snapshot-cron"]
   schedule = "0 4 * * *"
+
+# Country-rank backfill: the bulk rankings endpoint _rankings-crawl-core.js
+# sweeps never returns country_rank, so this round-robins the tracked pool
+# with one live per-user API call each, writing the result into
+# rankings:global — see _country-rank-crawl-core.js. 15 min: a full ~10k
+# sweep spans many ticks regardless, so this just needs to keep pace with
+# a daily rank-snapshot, not be real-time.
+[functions."country-rank-crawl-cron"]
+  schedule = "*/15 * * * *"

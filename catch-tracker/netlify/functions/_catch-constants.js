@@ -40,11 +40,20 @@ const SCORE_POLL_PER_RUN_MANUAL = 30;
 const PEER_CRAWL_PER_RUN_CRON = 150;
 const PEER_CRAWL_PER_RUN_MANUAL = 20;
 
+// Country-rank backfill (_country-rank-crawl-core.js): one GET
+// /users/{id}/{mode} call per player — the bulk rankings endpoint never
+// returns country_rank (see _rankings-crawl-core.js's toRecord()), so this
+// fills it in for the daily rank-history snapshot. Similar per-request
+// cost to the peer crawler above.
+const COUNTRY_RANK_CRAWL_PER_RUN_CRON = 200;
+const COUNTRY_RANK_CRAWL_PER_RUN_MANUAL = 20;
+
 const VALID_GRADES = new Set(['XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D', 'F']);
 
 module.exports = {
     MODE, MODE_NUM, MAP_STATUSES, FEED_CAP, LAST_SEEN_CAP,
     SCORE_POLL_PER_RUN_CRON, SCORE_POLL_PER_RUN_MANUAL,
     PEER_CRAWL_PER_RUN_CRON, PEER_CRAWL_PER_RUN_MANUAL,
+    COUNTRY_RANK_CRAWL_PER_RUN_CRON, COUNTRY_RANK_CRAWL_PER_RUN_MANUAL,
     VALID_GRADES,
 };
