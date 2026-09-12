@@ -667,6 +667,61 @@ td.wrap, th.wrap { white-space: normal; }
 }
 .filters input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
 
+/* Country filter — a custom combobox instead of a plain <select> so the
+   flag icon (an <img>, see flagUrl() in common.js) can actually render;
+   native <option> elements only support text. */
+.flag-select { position: relative; }
+.flag-select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    min-height: 40px;
+    cursor: pointer;
+    transition: border-color 150ms ease;
+}
+.flag-select-btn:hover { border-color: var(--border-strong); }
+.flag-select-flag { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex: none; }
+.flag-select-caret { width: 14px; height: 14px; margin-left: 2px; color: var(--text-dim); flex: none; }
+.flag-select-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 240px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+    z-index: 20;
+}
+.flag-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 150ms ease;
+}
+.flag-select-option:hover, .flag-select-option.active { background: var(--bg-card-hover); }
+.flag-select-option img { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+.flag-select-count { margin-left: auto; color: var(--text-dim); font-weight: 600; font-size: 0.78rem; }
+
 /* ---------- star difficulty range picker ---------- */
 /* A from-scratch redesign of the rainbow-gradient-capsule star picker
    referenced in conversation, restyled to this site's own minimal-tech /
@@ -1337,97 +1392,6 @@ footer.site-footer {
     color: var(--text-faint);
     font-size: 0.78rem;
     padding: 30px 20px 40px;
-}
-
-/* ---------- BBCode editor ---------- */
-
-.bbcode-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-.bbcode-toolbar button {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    color: var(--text);
-    min-width: 36px;
-    height: 36px;
-    padding: 0 8px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 0.85rem;
-    transition: border-color 150ms ease, background-color 150ms ease;
-}
-.bbcode-toolbar button:hover { border-color: var(--primary); background: var(--primary-soft); }
-
-.bbcode-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-.bbcode-pane { padding: 14px; }
-.bbcode-pane-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--text-dim);
-}
-.bbcode-textarea {
-    width: 100%;
-    height: 480px;
-    resize: vertical;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    padding: 12px;
-}
-.bbcode-textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
-.bbcode-preview {
-    min-height: 480px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 14px;
-    color: var(--text);
-    font-size: 0.92rem;
-    line-height: 1.6;
-    overflow-wrap: break-word;
-}
-.bbcode-preview img { max-width: 100%; border-radius: 6px; }
-.bbcode-preview a { color: var(--accent); }
-.bbcode-preview blockquote {
-    margin: 8px 0;
-    padding: 8px 12px;
-    border-left: 3px solid var(--primary);
-    background: var(--bg-card);
-    color: var(--text-dim);
-    border-radius: 0 6px 6px 0;
-}
-.bbcode-preview blockquote .quote-author { font-weight: 700; color: var(--text); display: block; margin-bottom: 4px; }
-.bbcode-preview pre {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px;
-    overflow-x: auto;
-    font-family: 'Courier New', monospace;
-    font-size: 0.82rem;
-    white-space: pre-wrap;
-}
-.bbcode-preview .bbcode-notice {
-    background: var(--accent-soft);
-    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin: 8px 0;
-}
-.bbcode-preview .bbcode-heading { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; margin: 6px 0; }
-.bbcode-preview .bbcode-spoiler { background: var(--text); color: var(--text); border-radius: 3px; cursor: pointer; transition: color 120ms ease; }
-.bbcode-preview .bbcode-spoiler:hover { color: inherit; background: transparent; }
-.bbcode-preview ul, .bbcode-preview ol { margin: 6px 0; padding-left: 24px; }
-
-@media (max-width: 900px) {
-    .bbcode-editor { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {

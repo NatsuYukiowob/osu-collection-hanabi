@@ -1,15 +1,69 @@
 let _page = 0;
 let _country = '';
 let _countriesPopulated = false;
+let _countries = [];
+
+function renderCountryOptions() {
+    const panel = document.getElementById('filter-country-panel');
+    panel.innerHTML = `
+        <button type="button" class="flag-select-option${_country === '' ? ' active' : ''}" data-code="" role="option">
+            <span>${escapeHtml(t('filter_all_countries'))}</span>
+        </button>` +
+        _countries.map(c => `
+            <button type="button" class="flag-select-option${_country === c.code ? ' active' : ''}" data-code="${escapeHtml(c.code)}" role="option">
+                <img src="${flagUrl(c.code)}" alt="" onerror="this.remove();">
+                <span>${escapeHtml(c.code)}</span>
+                <span class="flag-select-count">${c.count}</span>
+            </button>`).join('');
+}
+
+function updateCountryButton() {
+    const flagImg = document.getElementById('filter-country-flag');
+    const label = document.getElementById('filter-country-label');
+    if (_country) {
+        flagImg.src = flagUrl(_country);
+        flagImg.hidden = false;
+        label.textContent = _country;
+    } else {
+        flagImg.hidden = true;
+        label.textContent = t('filter_all_countries');
+    }
+}
 
 function populateCountryFilter(countries) {
     if (_countriesPopulated || !countries || !countries.length) return;
-    const select = document.getElementById('filter-country');
-    if (!select) return;
-    select.innerHTML = `<option value="">${escapeHtml(t('filter_all_countries'))}</option>` +
-        countries.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} (${c.count})</option>`).join('');
+    _countries = countries;
+    renderCountryOptions();
     _countriesPopulated = true;
 }
+
+function setCountryFilter(code) {
+    _country = code;
+    _page = 0;
+    updateCountryButton();
+    renderCountryOptions();
+    closeCountryPanel();
+    loadRankings();
+}
+
+function closeCountryPanel() {
+    document.getElementById('filter-country-panel').hidden = true;
+    document.getElementById('filter-country-btn').setAttribute('aria-expanded', 'false');
+}
+
+document.getElementById('filter-country-btn').addEventListener('click', () => {
+    const panel = document.getElementById('filter-country-panel');
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    document.getElementById('filter-country-btn').setAttribute('aria-expanded', String(willOpen));
+});
+document.getElementById('filter-country-panel').addEventListener('click', (e) => {
+    const btn = e.target.closest('.flag-select-option');
+    if (btn) setCountryFilter(btn.getAttribute('data-code'));
+});
+document.addEventListener('click', (e) => {
+    if (!document.getElementById('filter-country-combo').contains(e.target)) closeCountryPanel();
+});
 
 async function loadHighlights() {
     const strip = document.getElementById('highlight-strip');
@@ -55,11 +109,6 @@ async function loadRankings() {
 
 document.getElementById('prev-page').addEventListener('click', () => { if (_page > 0) { _page--; loadRankings(); } });
 document.getElementById('next-page').addEventListener('click', () => { _page++; loadRankings(); });
-document.getElementById('filter-country').addEventListener('change', (e) => {
-    _country = e.target.value;
-    _page = 0;
-    loadRankings();
-});
 
 loadRankings();
 loadHighlights();

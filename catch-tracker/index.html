@@ -17,7 +17,6 @@
         <a href="feed.html" data-i18n="nav_feed">Live Feed</a>
         <a href="maps.html" data-i18n="nav_maps">Maps</a>
         <a href="skins.html" data-i18n="nav_skins">Skins</a>
-        <a href="bbcode.html" data-i18n="nav_bbcode">BBCode</a>
         <a href="farm-helper.html" data-i18n="nav_farm_helper">Farm Helper</a>
     </nav>
     <button class="lang-toggle" id="lang-toggle" type="button">EN</button>
@@ -33,7 +32,14 @@
     <h1><span data-i18n="h1_rankings">osu!catch Rankings</span></h1>
     <p class="coverage-note" id="coverage-note" data-i18n="loading">Loading…</p>
     <div class="filters">
-        <select id="filter-country"><option value="" data-i18n="filter_all_countries">All countries</option></select>
+        <div class="flag-select" id="filter-country-combo">
+            <button type="button" class="flag-select-btn" id="filter-country-btn" aria-haspopup="listbox" aria-expanded="false">
+                <img class="flag-select-flag" id="filter-country-flag" alt="" hidden>
+                <span id="filter-country-label" data-i18n="filter_all_countries">All countries</span>
+                <svg class="flag-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="flag-select-panel" id="filter-country-panel" role="listbox" hidden></div>
+        </div>
     </div>
 
     <h2 data-i18n="highlight_best_plays">Recent Best Plays</h2>

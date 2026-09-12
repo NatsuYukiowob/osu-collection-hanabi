@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process';
 
 const RELEVANT = [
     'catch-tracker/index.html', 'catch-tracker/feed.html', 'catch-tracker/player.html', 'catch-tracker/map.html',
-    'catch-tracker/maps.html', 'catch-tracker/skins.html', 'catch-tracker/bbcode.html', 'catch-tracker/farm-helper.html',
+    'catch-tracker/maps.html', 'catch-tracker/skins.html', 'catch-tracker/farm-helper.html',
     'catch-tracker/css', 'catch-tracker/js', 'catch-tracker/assets',
     'catch-tracker/netlify', 'catch-tracker/netlify.toml',
     'catch-tracker/package.json', 'catch-tracker/package-lock.json',

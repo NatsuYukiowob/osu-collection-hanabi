@@ -161,16 +161,6 @@ const LANG_STRINGS = {
         skins_download_btn: '下載',
         empty_skins: '目前還沒有任何皮膚，當第一個上傳的人吧！',
         failed_skins: '皮膚列表載入失敗。',
-
-        nav_bbcode: 'BBCode',
-        h1_bbcode: 'BBCode 編輯器',
-        bbcode_note: '完全在你的瀏覽器裡運作，不會傳送到任何地方。把結果複製貼到你的 osu! 個人頁或論壇貼文編輯器裡。',
-        bbcode_source: 'BBCode',
-        bbcode_preview: '預覽',
-        bbcode_copy: '複製 BBCode',
-        bbcode_clear: '清空',
-        bbcode_placeholder: '在這裡輸入你的 BBCode…',
-
     },
     en: {
         nav_rankings: 'Rankings', nav_feed: 'Live Feed',
@@ -317,16 +307,6 @@ const LANG_STRINGS = {
         skins_download_btn: 'Download',
         empty_skins: 'No skins uploaded yet — be the first!',
         failed_skins: 'Failed to load skins.',
-
-        nav_bbcode: 'BBCode',
-        h1_bbcode: 'BBCode Editor',
-        bbcode_note: 'Runs entirely in your browser — nothing is sent anywhere. Copy the result into your osu! profile/forum post editor.',
-        bbcode_source: 'BBCode',
-        bbcode_preview: 'Preview',
-        bbcode_copy: 'Copy BBCode',
-        bbcode_clear: 'Clear',
-        bbcode_placeholder: 'Write your BBCode here…',
-
     },
 };
 
