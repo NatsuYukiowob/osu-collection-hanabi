@@ -2,21 +2,92 @@ let _page = 0;
 let _grade = '';
 let _country = '';
 let _countriesPopulated = false;
+let _countries = [];
 
 const GRADE_FILTER_OPTIONS = ['', 'XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D', 'F'];
 
 // Populated once from the first response's `countries` list (every country
 // currently present in the feed, with counts) rather than rebuilt on every
-// poll — rebuilding a <select> out from under an open dropdown/mid-choice
+// poll — rebuilding the panel out from under an open dropdown/mid-choice
 // would be a bad experience for no benefit (the list barely changes tick to
 // tick).
+function renderCountryOptions() {
+    const panel = document.getElementById('filter-country-panel');
+    panel.innerHTML = `
+        <button type="button" class="flag-select-option${_country === '' ? ' active' : ''}" data-code="" role="option">
+            <span>${escapeHtml(t('filter_all_countries'))}</span>
+        </button>` +
+        _countries.map(c => `
+            <button type="button" class="flag-select-option${_country === c.code ? ' active' : ''}" data-code="${escapeHtml(c.code)}" role="option">
+                <img src="${flagUrl(c.code)}" alt="" onerror="this.remove();">
+                <span>${escapeHtml(c.code)}</span>
+                <span class="flag-select-count">${c.count}</span>
+            </button>`).join('');
+}
+
+function updateCountryButton() {
+    const flagImg = document.getElementById('filter-country-flag');
+    const label = document.getElementById('filter-country-label');
+    if (_country) {
+        flagImg.src = flagUrl(_country);
+        flagImg.hidden = false;
+        label.textContent = _country;
+    } else {
+        flagImg.hidden = true;
+        label.textContent = t('filter_all_countries');
+    }
+}
+
 function populateCountryFilter(countries) {
     if (_countriesPopulated || !countries || !countries.length) return;
-    const select = document.getElementById('filter-country');
-    if (!select) return;
-    select.innerHTML = `<option value="">${escapeHtml(t('filter_all_countries'))}</option>` +
-        countries.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} (${c.count})</option>`).join('');
+    _countries = countries;
+    renderCountryOptions();
     _countriesPopulated = true;
+}
+
+function setCountryFilter(code) {
+    _country = code;
+    _page = 0;
+    updateCountryButton();
+    renderCountryOptions();
+    closeCountryPanel();
+    loadFeed();
+}
+
+function closeCountryPanel() {
+    document.getElementById('filter-country-panel').hidden = true;
+    document.getElementById('filter-country-btn').setAttribute('aria-expanded', 'false');
+}
+
+document.getElementById('filter-country-btn').addEventListener('click', () => {
+    const panel = document.getElementById('filter-country-panel');
+    const willOpen = panel.hidden;
+    panel.hidden = !willOpen;
+    document.getElementById('filter-country-btn').setAttribute('aria-expanded', String(willOpen));
+});
+document.getElementById('filter-country-panel').addEventListener('click', (e) => {
+    const btn = e.target.closest('.flag-select-option');
+    if (btn) setCountryFilter(btn.getAttribute('data-code'));
+});
+document.addEventListener('click', (e) => {
+    if (!document.getElementById('filter-country-combo').contains(e.target)) closeCountryPanel();
+});
+
+let _activePlayersRendered = false;
+
+// Rendered once from the first response, same reasoning as the country
+// filter above — this list barely changes tick to tick and re-rendering it
+// out from under a viewer's mouse would be a bad hover experience.
+function renderActivePlayers(players) {
+    if (_activePlayersRendered || !players || !players.length) return;
+    const row = document.getElementById('feed-active-row');
+    const wrap = document.getElementById('feed-active-avatars');
+    wrap.innerHTML = players.map(p => `
+        <a class="feed-active-avatar" href="player.html?id=${encodeURIComponent(p.user_id)}" title="${escapeHtml(p.username || '')}">
+            ${avatarWithFlagHtml(p.avatar_url, p.country_code)}
+        </a>`).join('');
+    row.hidden = false;
+    _activePlayersRendered = true;
 }
 
 function buildGradeFilter() {
@@ -69,6 +140,7 @@ async function loadFeed() {
             : `<tr><td colspan="7" class="empty-state">${t('empty_feed')}</td></tr>`;
 
         populateCountryFilter(data.countries);
+        renderActivePlayers(data.activePlayers);
 
         const c = data.coverage || {};
         note.textContent = c.lastOkAt
@@ -92,12 +164,6 @@ document.getElementById('next-page').addEventListener('click', () => { _page++; 
         loadFeed();
     });
 });
-document.getElementById('filter-country').addEventListener('change', (e) => {
-    _country = e.target.value;
-    _page = 0;
-    loadFeed();
-});
-
 buildGradeFilter();
 loadFeed();
 setInterval(loadFeed, 45000);

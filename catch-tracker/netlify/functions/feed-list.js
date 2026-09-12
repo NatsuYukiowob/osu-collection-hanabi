@@ -59,6 +59,29 @@ exports.handler = async (event) => {
             .map(([code, count]) => ({ code, count }))
             .sort((a, b) => b.count - a.count);
 
+        // Approximate "currently playing" — real presence would need a
+        // websocket/spectator feed we don't have, so this just surfaces
+        // whoever the score-poller most recently caught a new score from.
+        // Skewed toward whoever the round-robin cursor has passed lately
+        // rather than true concurrency, but still reads as "live" — see
+        // ACTIVE_WINDOW_MS below.
+        const ACTIVE_WINDOW_MS = 15 * 60 * 1000;
+        const now = Date.now();
+        const activeMap = new Map();
+        for (const r of feed) {
+            const seenAtMs = r.seenAt ? new Date(r.seenAt).getTime() : NaN;
+            if (!Number.isFinite(seenAtMs) || now - seenAtMs > ACTIVE_WINDOW_MS) continue;
+            if (!activeMap.has(r.user_id)) {
+                activeMap.set(r.user_id, {
+                    user_id: r.user_id, username: r.username,
+                    avatar_url: r.avatar_url, country_code: r.country_code, seenAt: r.seenAt,
+                });
+            }
+        }
+        const activePlayers = [...activeMap.values()]
+            .sort((a, b) => new Date(b.seenAt) - new Date(a.seenAt))
+            .slice(0, 16);
+
         let items = feed;
         if (grade) items = items.filter(r => r.rank === grade);
         if (mods) items = items.filter(r => (r.mods || []).join('') === mods);
@@ -89,7 +112,7 @@ exports.handler = async (event) => {
         return {
             statusCode: 200,
             headers: { ...headers, 'Cache-Control': 'public, max-age=20' },
-            body: JSON.stringify({ items: pageItems, total, page, pageSize, coverage, countries }),
+            body: JSON.stringify({ items: pageItems, total, page, pageSize, coverage, countries, activePlayers }),
         };
     } catch (err) {
         return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };

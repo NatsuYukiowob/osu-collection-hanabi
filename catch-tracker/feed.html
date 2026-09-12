@@ -31,11 +31,22 @@
 <main>
     <h1 data-i18n="h1_feed">Live Score Feed</h1>
     <p class="coverage-note" id="coverage-note" data-i18n="loading">Loading…</p>
+    <div class="feed-active-row" id="feed-active-row" hidden>
+        <span class="feed-active-label" data-i18n="currently_active">Currently playing</span>
+        <div class="feed-active-avatars" id="feed-active-avatars"></div>
+    </div>
     <div class="filters">
         <div class="pill-group" id="filter-grade-group"></div>
         <button type="button" class="pill toggle" id="filter-fc" data-i18n="filter_fc_only">FC only</button>
         <button type="button" class="pill toggle" id="filter-choke" data-i18n="filter_choke_only">Choke/fail only</button>
-        <select id="filter-country"><option value="" data-i18n="filter_all_countries">All countries</option></select>
+        <div class="flag-select" id="filter-country-combo">
+            <button type="button" class="flag-select-btn" id="filter-country-btn" aria-haspopup="listbox" aria-expanded="false">
+                <img class="flag-select-flag" id="filter-country-flag" alt="" hidden>
+                <span id="filter-country-label" data-i18n="filter_all_countries">All countries</span>
+                <svg class="flag-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="flag-select-panel" id="filter-country-panel" role="listbox" hidden></div>
+        </div>
     </div>
     <div class="table-wrap">
     <table>
@@ -51,7 +62,13 @@
         <button id="next-page" data-i18n="next">Next →</button>
     </div>
 </main>
-<footer class="site-footer" data-i18n="footer_feed">Auto-refreshes every 45s. Catch Tracker — a companion site for osu-collection-hanabi.</footer>
+<footer class="site-footer">
+    <span data-i18n="footer_feed">Auto-refreshes every 45s. Catch Tracker — a companion site for osu-collection-hanabi.</span>
+    <span class="footer-links">
+        <a href="https://github.com/hanabirn/osu-collection-hanabi/commits/main/catch-tracker" target="_blank" rel="noopener noreferrer" data-i18n="footer_changelog">Changelog</a>
+        <a href="https://github.com/hanabirn/osu-collection-hanabi/issues/new" target="_blank" rel="noopener noreferrer" data-i18n="footer_feedback">Feedback</a>
+    </span>
+</footer>
 <script src="js/common.js"></script>
 <script src="js/api.js"></script>
 <script src="js/render-feed.js"></script>

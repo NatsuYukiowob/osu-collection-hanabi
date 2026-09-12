@@ -50,7 +50,7 @@ async function loadMap() {
                 </div>
                 <div class="card" style="flex:1;min-width:220px">
                     <h2 style="margin-top:0">${t('mod_usage')}</h2>
-                    ${statBars(modEntries, mod => `<span class="mods-tag">${escapeHtml(mod)}</span>`)}
+                    ${statBars(modEntries, mod => modHexHtml(mod))}
                 </div>
             </div>
             <h2>${t('tracked_scores')}</h2>

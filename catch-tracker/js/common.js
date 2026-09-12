@@ -40,6 +40,7 @@ const LANG_STRINGS = {
         coverage_feed: '追蹤 {n} 位玩家 — 上次輪詢 {time}（本輪 {done}/{total}）',
         coverage_feed_pending: '追蹤 {n} 位玩家 — 尚未輪詢',
         empty_feed: '目前還沒有任何成績 — 每 5 分鐘會自動輪詢一次。',
+        currently_active: '正在遊玩',
         failed_feed: '動態載入失敗。',
         footer_feed: '每 45 秒自動更新一次。Catch Tracker — osu-collection-hanabi 的姊妹站。',
 
@@ -63,6 +64,7 @@ const LANG_STRINGS = {
         no_scores_short: '無成績資料',
 
         footer_main: 'Catch Tracker — osu-collection-hanabi 的姊妹站。資料來自官方 osu! API。',
+        footer_changelog: '更新日誌', footer_feedback: '意見回饋',
 
         nav_farm_helper: '刷圖助手',
         farm_helper_view: '查看刷圖建議',
@@ -124,6 +126,16 @@ const LANG_STRINGS = {
         newest_best: '最新的最佳成績',
         oldest_best: '最舊的最佳成績',
         view_all: '查看全部 →',
+        tab_about: '關于', tab_activity: '活躍度',
+        rank_global: '全球排名', rank_country: '國家/地區排名', total_pp: '總表現分',
+        stat_sr_distribution: '星數分布', stat_bpm_median: 'BPM 中位數', stat_pp_range: 'PP 區間',
+        osu_profile_link: 'osu! 主頁', last_seen_online: '線上中', last_seen_offline: '最後上線 {when}',
+        about_empty: '這位玩家還沒有寫個人簡介。',
+        activity_empty: '沒有可顯示的活動資料。',
+        activity_hint: '依 osu! 官方每月遊玩次數紀錄繪製；本站自己觀測到的每日紀錄從 2026 年 9 月才開始累積，之後會愈來愈準。',
+        activity_month_count: '{month}：{n} 次遊玩',
+        no_best_plays_filtered: '沒有符合篩選條件的成績。',
+        filter_any_mod: '任何 Mod', sort_pp: '依 PP', sort_time: '依時間',
 
         nav_maps: '圖譜庫',
         h1_maps: 'osu!catch 圖譜庫',
@@ -156,6 +168,7 @@ const LANG_STRINGS = {
         skins_file_too_large: '檔案超過 {mb}MB 上限',
         skins_search_placeholder: '搜尋皮膚或上傳者…',
         sort_downloads: '下載次數',
+        sort_size: '檔案大小', skins_filter_mine: '我的上傳',
         skins_by: '由 {name} 上傳',
         skins_downloads_count: '{n} 次下載',
         skins_download_btn: '下載',
@@ -186,6 +199,7 @@ const LANG_STRINGS = {
         coverage_feed: 'Tracking {n} players — last poll {time} ({done}/{total} this sweep)',
         coverage_feed_pending: 'Tracking {n} players — not yet polled',
         empty_feed: 'No scores in the feed yet — the score-poll cron runs every 5 minutes.',
+        currently_active: 'Currently playing',
         failed_feed: 'Failed to load feed.',
         footer_feed: 'Auto-refreshes every 45s. Catch Tracker — a companion site for osu-collection-hanabi.',
 
@@ -209,6 +223,7 @@ const LANG_STRINGS = {
         no_scores_short: 'No scores',
 
         footer_main: 'Catch Tracker — a companion site for osu-collection-hanabi. Data via the official osu! API.',
+        footer_changelog: 'Changelog', footer_feedback: 'Feedback',
 
         nav_farm_helper: 'Farm Helper',
         farm_helper_view: 'View farm recommendations',
@@ -270,6 +285,16 @@ const LANG_STRINGS = {
         newest_best: 'Newest Best Play',
         oldest_best: 'Oldest Best Play',
         view_all: 'View all →',
+        tab_about: 'About', tab_activity: 'Activity',
+        rank_global: 'Global Rank', rank_country: 'Country Rank', total_pp: 'Total PP',
+        stat_sr_distribution: 'SR Distribution', stat_bpm_median: 'BPM Median', stat_pp_range: 'PP Range',
+        osu_profile_link: 'osu! profile', last_seen_online: 'Online now', last_seen_offline: 'Last seen {when}',
+        about_empty: "This player hasn't written a bio yet.",
+        activity_empty: 'No activity data to show.',
+        activity_hint: "Drawn from osu!'s own official monthly playcount history; our own day-level tracking only started September 2026, so it'll get more precise over time.",
+        activity_month_count: '{month}: {n} plays',
+        no_best_plays_filtered: 'No best plays match this filter.',
+        filter_any_mod: 'Any mod', sort_pp: 'By PP', sort_time: 'By time',
 
         nav_maps: 'Maps',
         h1_maps: 'osu!catch Map Catalog',
@@ -302,6 +327,7 @@ const LANG_STRINGS = {
         skins_file_too_large: 'File exceeds the {mb}MB limit',
         skins_search_placeholder: 'Search skins or uploaders…',
         sort_downloads: 'Most downloaded',
+        sort_size: 'Largest file', skins_filter_mine: 'My uploads',
         skins_by: 'by {name}',
         skins_downloads_count: '{n} downloads',
         skins_download_btn: 'Download',
@@ -470,8 +496,37 @@ function formatMods(mods) {
     return mods.join(',');
 }
 
+// Real osu! mod-select hexagon artwork — self-hosted from ppy's own
+// osu-wiki repo (wiki/Skinning/Interface/img/selection-mod-*.png, the
+// asset set the game's official skinning wiki page itself uses to
+// illustrate these exact icons), not hotlinked, same reasoning as
+// gradeBadge()'s self-hosted SVGs above. No selection-mod-nomod.png
+// exists in-game either — NM (and anything not in this set) falls back
+// to a flat text chip instead of a missing image.
+const MOD_ICON_FILES = new Set([
+    'EZ', 'NF', 'HT', 'DC', 'HR', 'SD', 'PF', 'HD', 'FL', 'DT', 'NC',
+    'RX', 'AP', 'AT', 'CN', 'SO', 'MR', 'RD', 'SV2', 'TP',
+]);
+
+function modHexHtml(acronym) {
+    if (MOD_ICON_FILES.has(acronym)) {
+        return `<img class="mod-icon" src="assets/mods/${acronym}.png" alt="${escapeHtml(acronym)}" title="${escapeHtml(acronym)}" loading="lazy">`;
+    }
+    return `<span class="mod-hex" title="${escapeHtml(acronym)}">${escapeHtml(acronym)}</span>`;
+}
+
 function modsTag(mods) {
-    return `<span class="mods-tag">${escapeHtml(formatMods(mods))}</span>`;
+    const list = mods && mods.length ? mods : ['NM'];
+    return `<span class="mods-tag-group">${list.map(modHexHtml).join('')}</span>`;
+}
+
+// mostUsedMod.mod (see player-get.js) is a run-together combo like "DTHD"
+// (mods.sort().join('') with no separator) — split back into 2-char
+// acronyms so each still gets its own hex chip.
+function modComboHexHtml(combo) {
+    if (!combo) return modHexHtml('NM');
+    const parts = combo.match(/.{1,2}/g) || [combo];
+    return `<span class="mods-tag-group">${parts.map(modHexHtml).join('')}</span>`;
 }
 
 function relTime(iso) {

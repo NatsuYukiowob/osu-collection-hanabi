@@ -123,6 +123,14 @@ exports.handler = async (event) => {
             profile.join_date = liveUser.join_date || null;
             profile.play_time_seconds = stats.play_time ?? null;
             profile.grade_counts = stats.grade_counts || null;
+            // Player's own osu! bio, already BBCode from the API — no crawl
+            // needed, just pass it through for the 關于 tab to render.
+            profile.page_raw = (liveUser.page && liveUser.page.raw) || null;
+            // Official per-month play history straight from the API — used
+            // for the 活躍度 tab instead of a day-level heatmap, since we
+            // only started polling scores ourselves on 2026-09-11 and have
+            // no historical per-day data of our own to show.
+            profile.monthly_playcounts = Array.isArray(liveUser.monthly_playcounts) ? liveUser.monthly_playcounts : null;
             // Username/avatar can drift (name changes, new avatar) between
             // our last rankings sweep and now — the live call is fresher.
             profile.username = liveUser.username || profile.username;

@@ -54,9 +54,11 @@
 
     <div class="filters">
         <input type="text" id="skins-search" class="search-input" style="width:220px" data-i18n-placeholder="skins_search_placeholder" placeholder="Search skins or uploaders…">
+        <button type="button" class="pill toggle" id="filter-mine" data-i18n="skins_filter_mine" hidden>My uploads</button>
         <select id="skins-sort">
             <option value="newest" data-i18n="sort_newest">Newest</option>
             <option value="downloads" data-i18n="sort_downloads">Most downloaded</option>
+            <option value="size" data-i18n="sort_size">Largest file</option>
         </select>
     </div>
     <div class="map-grid" id="skins-grid"></div>
@@ -66,7 +68,13 @@
         <button id="next-page" data-i18n="next">Next →</button>
     </div>
 </main>
-<footer class="site-footer" data-i18n="footer_main">Catch Tracker — a companion site for osu-collection-hanabi. Data via the official osu! API.</footer>
+<footer class="site-footer">
+    <span data-i18n="footer_main">Catch Tracker — a companion site for osu-collection-hanabi. Data via the official osu! API.</span>
+    <span class="footer-links">
+        <a href="https://github.com/hanabirn/osu-collection-hanabi/commits/main/catch-tracker" target="_blank" rel="noopener noreferrer" data-i18n="footer_changelog">Changelog</a>
+        <a href="https://github.com/hanabirn/osu-collection-hanabi/issues/new" target="_blank" rel="noopener noreferrer" data-i18n="footer_feedback">Feedback</a>
+    </span>
+</footer>
 <script src="js/common.js"></script>
 <script src="js/api.js"></script>
 <script src="js/render-skins.js"></script>

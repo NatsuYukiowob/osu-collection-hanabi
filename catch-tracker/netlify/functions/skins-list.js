@@ -8,6 +8,7 @@ const PAGE_SIZE = 20;
 const SORTERS = {
     newest: (a, b) => b.uploadedAt.localeCompare(a.uploadedAt),
     downloads: (a, b) => (b.downloadCount || 0) - (a.downloadCount || 0),
+    size: (a, b) => (b.fileSize || 0) - (a.fileSize || 0),
 };
 
 exports.handler = async (event) => {
@@ -22,6 +23,7 @@ exports.handler = async (event) => {
 
     const qs = event.queryStringParameters || {};
     const q = (qs.q || '').trim().toLowerCase().slice(0, 100);
+    const uploader = (qs.uploader || '').trim().toLowerCase().slice(0, 100);
     const page = Math.max(0, parseInt(qs.page, 10) || 0);
     const pageSize = Math.max(1, Math.min(60, parseInt(qs.limit, 10) || PAGE_SIZE));
     const sortKey = SORTERS[qs.sort] ? qs.sort : 'newest';
@@ -36,6 +38,9 @@ exports.handler = async (event) => {
                 (r.name || '').toLowerCase().includes(q) ||
                 (r.uploaderName || '').toLowerCase().includes(q)
             );
+        }
+        if (uploader) {
+            items = items.filter(r => (r.uploaderName || '').toLowerCase() === uploader);
         }
         items = [...items].sort(SORTERS[sortKey]);
 

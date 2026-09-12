@@ -1,5 +1,6 @@
 let _page = 0;
 let _q = '';
+let _mineOnly = false;
 let _searchDebounce = null;
 
 const MAX_OSK_BYTES = 3 * 1024 * 1024;
@@ -30,9 +31,11 @@ async function loadSkins() {
     const grid = document.getElementById('skins-grid');
     const note = document.getElementById('coverage-note');
     try {
+        const loggedInUser = typeof getCtLoggedInUser === 'function' ? getCtLoggedInUser() : null;
         const data = await apiGet('skins-list', {
             page: _page, limit: 16,
             q: _q || undefined,
+            uploader: (_mineOnly && loggedInUser) ? loggedInUser.username : undefined,
             sort: document.getElementById('skins-sort').value,
         });
 
@@ -56,6 +59,23 @@ document.getElementById('skins-sort').addEventListener('change', () => { _page =
 document.getElementById('skins-search').addEventListener('input', (e) => {
     clearTimeout(_searchDebounce);
     _searchDebounce = setTimeout(() => { _q = e.target.value.trim(); _page = 0; loadSkins(); }, 300);
+});
+
+// "我的上傳" only makes sense once logged in — uploaderName is a free-text
+// field (no account-tied ownership), so this filters on an exact match
+// against your osu! username rather than anything stronger.
+const mineBtn = document.getElementById('filter-mine');
+const loggedInUser = typeof getCtLoggedInUser === 'function' ? getCtLoggedInUser() : null;
+if (loggedInUser) {
+    mineBtn.hidden = false;
+    const uploaderInput = document.getElementById('skin-uploader');
+    if (uploaderInput && !uploaderInput.value) uploaderInput.value = loggedInUser.username || '';
+}
+mineBtn.addEventListener('click', () => {
+    _mineOnly = !_mineOnly;
+    mineBtn.classList.toggle('active', _mineOnly);
+    _page = 0;
+    loadSkins();
 });
 
 /* ---------- upload form ---------- */
