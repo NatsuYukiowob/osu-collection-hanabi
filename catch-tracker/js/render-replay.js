@@ -356,17 +356,29 @@ function clockRateForMods(mods) {
     return 1;
 }
 
-// osu!lazer's ModHardRock.ApplyToDifficulty (osu.Game/Rulesets/Mods/
-// ModHardRock.cs) rescales CS/AR/OD by a fixed ratio BEFORE any of catch's
+// Both difficulty-changing mods rescale CS/AR/OD/HP BEFORE any of catch's
 // own gameplay math runs — the ruleset library used here has no mod
 // system at all (CatchHardRock is an empty stub, confirmed live), so
 // without this our catcher width and fall-preempt were silently computed
-// from the UN-modded difficulty for every HR score, not just the position
-// offsets from computePositionOffsets(). CS uses catch's own 1.3 ratio
-// (not the shared 1.4 ADJUST_RATIO used for AR/OD/HP) per
-// CatchModHardRock.cs.
-function hardRockAdjustedCS(cs) { return Math.min(cs * 1.3, 10); }
-function hardRockAdjustedAR(ar) { return Math.min(ar * 1.4, 10); }
+// from the UN-modded difficulty for every HR/EZ score, not just the
+// position offsets from computePositionOffsets().
+//   HR (osu.Game.Rulesets.Catch/Mods/CatchModHardRock.cs): CS*1.3 (catch's
+//   own ratio, not the shared 1.4 used for AR/OD/HP), AR*1.4, both capped
+//   at 10.
+//   EZ (osu.Game/Rulesets/Mods/ModEasy.cs): CS*0.5, AR*0.5 — no cap needed,
+//   halving can't leave [0,10]. HR/EZ are mutually incompatible in the
+//   real game (ModHardRock/ModEasy both list each other in
+//   IncompatibleMods), so this never has to combine them.
+function modAdjustedCS(cs, mods) {
+    if (mods.includes('HR')) return Math.min(cs * 1.3, 10);
+    if (mods.includes('EZ')) return cs * 0.5;
+    return cs;
+}
+function modAdjustedAR(ar, mods) {
+    if (mods.includes('HR')) return Math.min(ar * 1.4, 10);
+    if (mods.includes('EZ')) return ar * 0.5;
+    return ar;
+}
 
 // osu.Game/Beatmaps/IBeatmapDifficultyInfo.cs's DifficultyRange(value, min,
 // mid, max) two-piece linear map, and CatchHitObject's own PREEMPT_RANGE =
@@ -1161,8 +1173,8 @@ async function run() {
             ?? (parsedBeatmap.difficulty && parsedBeatmap.difficulty.circleSize) ?? 5;
         const baseAR = (catchBeatmap.difficulty && catchBeatmap.difficulty.approachRate)
             ?? (parsedBeatmap.difficulty && parsedBeatmap.difficulty.approachRate) ?? 5;
-        const cs = hrActive ? hardRockAdjustedCS(baseCS) : baseCS;
-        const preempt = timePreemptForAR(hrActive ? hardRockAdjustedAR(baseAR) : baseAR);
+        const cs = modAdjustedCS(baseCS, mods);
+        const preempt = timePreemptForAR(modAdjustedAR(baseAR, mods));
 
         const positionOffsets = computePositionOffsets(catchBeatmap.hitObjects, objectClasses, hrActive);
         const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets, preempt);
