@@ -995,19 +995,24 @@ async function loadSkinSprites(file) {
 // of this site's owner to bundle as built-in options — credited here so
 // that's visible wherever this list is read from, not just in a commit
 // message.
+// 'squares' is a real bundled skin too (the user's own square-fruit
+// skin, previously referred to throughout this project as "方塊" while
+// debugging its rendering) — NOT the bare no-skin procedural fallback.
+// Confusing those two was a real live bug: the dropdown's "squares"
+// option briefly cleared sprites entirely (player.setSprites({})),
+// which actually renders as plain CIRCLES (see the procedural fallback
+// in draw()), not the square fruit shapes this option is named for and
+// that a viewer picking it expects to see.
 const DEFAULT_SKINS = [
     { id: 'bubble', nameKey: 'replay_skin_default_bubble', credit: 'BubbleSkin — skins.osuck.net' },
     { id: 'panko', nameKey: 'replay_skin_default_panko', credit: 'wide_panko (plox base) — prank855, Myuka, icetea, Reapix, Scylla67, ALX13 · skins.osuck.net' },
-    { id: 'squares', nameKey: 'replay_skin_default_squares' }, // no assets — the plain procedural fallback shapes
+    { id: 'squares', nameKey: 'replay_skin_default_squares' },
 ];
 // A visitor who's never picked anything (no saved preference, no custom
-// upload) gets this rather than the bare procedural shapes — 'squares'
-// stays a real, explicit, rememberable choice for anyone who prefers it,
-// just no longer the initial one.
+// upload) gets this rather than the bare procedural shapes.
 const INITIAL_DEFAULT_SKIN = 'bubble';
 
 async function loadBundledSkinSprites(id) {
-    if (id === 'squares') return {};
     const entriesByKey = {};
     await Promise.all(Object.entries(SKIN_FILES).map(async ([key, base]) => {
         try {
@@ -1647,6 +1652,7 @@ function theaterHtml(meta, settings) {
                     <span class="replay-time" id="replay-time">0:00 / 0:00</span>
                     <div class="replay-bottom-spacer"></div>
                     <select id="replay-default-skin" class="replay-skin-select" title="${escapeHtml(t('replay_default_skin'))}">
+                        <option value="" hidden>${escapeHtml(t('replay_skin_custom_option'))}</option>
                         ${DEFAULT_SKINS.map(s => `<option value="${s.id}">${escapeHtml(t(s.nameKey))}</option>`).join('')}
                     </select>
                     <label class="replay-icon-btn" for="replay-skin-input">${escapeHtml(t('replay_use_skin'))}</label>
@@ -1930,9 +1936,11 @@ async function run() {
                 skinStatus.textContent = t('replay_skin_loaded', { n: Object.keys(sprites).length });
                 skinClearBtn.hidden = false;
                 // A custom upload wins over any built-in default pick —
-                // reset the dropdown so it doesn't keep showing a skin
-                // that's no longer actually applied.
-                document.getElementById('replay-default-skin').value = 'squares';
+                // reset the dropdown to its hidden "custom" placeholder so
+                // it doesn't keep showing a bundled skin that's no longer
+                // actually applied ('squares' is itself a real bundled
+                // skin now, not a stand-in for "nothing selected").
+                document.getElementById('replay-default-skin').value = '';
             } catch (skinErr) {
                 console.warn('[replay] skin load failed:', skinErr);
                 skinStatus.textContent = t('replay_skin_invalid');
@@ -1945,7 +1953,7 @@ async function run() {
             skinCredit.textContent = '';
             skinClearBtn.hidden = true;
             clearSkinDB();
-            document.getElementById('replay-default-skin').value = 'squares';
+            document.getElementById('replay-default-skin').value = '';
         });
 
         // Built-in default skins (see DEFAULT_SKINS) — a viewer with no
