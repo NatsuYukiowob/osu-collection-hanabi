@@ -697,6 +697,34 @@ function logicalSpriteSize(sprite) {
     return spriteSize(sprite);
 }
 
+// Quintic ease-out, clamped to [0,1] — matches replayviewer.com's own
+// outQuint(), used for every hyperdash-related fade/scale below so the
+// timing FEEL matches theirs, not just the colours.
+function outQuint(p) {
+    const x = p < 0 ? 0 : p > 1 ? 1 : p;
+    const u = 1 - x;
+    return 1 - u * u * u * u * u;
+}
+
+// How "hyper" the catcher should look at time t: 0 outside any hyperdash
+// window, ramping to 1 over HYPER_TRANSITION_MS at the start of a window
+// and back down over the same span after it ends — ported from
+// replayviewer.com's hyperFactorAt(). Previously this renderer only had a
+// binary isHyperDashingAt() (instant on/off glow), missing both the smooth
+// crossfade AND the actual full-red catcher tint + afterimage burst real
+// catch has — see the catcher-drawing block in draw() for what this feeds.
+const HYPER_TRANSITION_MS = 180;
+function hyperFactorAt(windows, t) {
+    let f = 0;
+    for (const win of windows) {
+        if (win.start > t + HYPER_TRANSITION_MS) continue;
+        if (win.end + HYPER_TRANSITION_MS < t) continue;
+        if (t <= win.end) f = Math.max(f, outQuint((t - win.start) / HYPER_TRANSITION_MS));
+        else f = Math.max(f, 1 - outQuint((t - win.end) / HYPER_TRANSITION_MS));
+    }
+    return f;
+}
+
 // Deterministic per-object "random" in [0,1) — ported from replayviewer.
 // com's own bundled randomSingle() (an integer hash, not a stream RNG), so
 // object rotation is stable across re-renders/scrubbing without needing to
@@ -844,16 +872,29 @@ async function loadSkinSprites(file) {
     const { unzipSync } = await import(FFLATE_URL);
     const buf = new Uint8Array(await file.arrayBuffer());
 
+    // Root-level files ONLY — real osu! never recurses into subfolders for
+    // skin elements, it only ever reads the flat root of the .osk/skin
+    // folder. A live user-reported .osk proved this matters: it was a
+    // multi-skin PACK (several complete alternate skins bundled in named
+    // subfolders alongside the real root skin, a common author convention
+    // for "pick one and copy its files to root yourself") — matching by
+    // basename anywhere in the archive let an unrelated subfolder's own
+    // fruit-catcher-idle@2x.png win over the real root fruit-catcher-idle.
+    // png purely for being "@2x", silently swapping in a completely
+    // different sub-skin's catcher art. Requiring no "/" in the stored
+    // path keeps every lookup confined to the one skin osu! itself would
+    // actually load.
     const wanted = new Set(Object.values(SKIN_FILES));
     const matchesWanted = name => {
-        const base = name.split('/').pop().replace(/@2x/i, '').replace(/\.png$/i, '');
+        if (name.includes('/')) return false;
+        const base = name.replace(/@2x/i, '').replace(/\.png$/i, '');
         return wanted.has(base.toLowerCase());
     };
     const unzipped = unzipSync(buf, { filter: f => !f.dir && matchesWanted(f.name) });
 
     const byBase = {};
     for (const [name, bytes] of Object.entries(unzipped)) {
-        const base = name.split('/').pop().replace(/@2x/i, '').replace(/\.png$/i, '').toLowerCase();
+        const base = name.replace(/@2x/i, '').replace(/\.png$/i, '').toLowerCase();
         const isHiRes = /@2x/i.test(name);
         if (!byBase[base] || (isHiRes && !byBase[base].isHiRes)) byBase[base] = { bytes, isHiRes };
     }
@@ -942,12 +983,9 @@ class ReplayPlayer {
     catcherXAt(t) { return catcherXAt(this.frames, t); }
     currentStats() { return computeStats(this.items, this.mapTime); }
 
-    // Both lists are small/sparse (hyperdash moments and kiai sections are
-    // occasional, not per-frame), so a linear scan per draw() call is fine
-    // — no need for the binary-search treatment catcherXAt() needs.
-    isHyperDashingAt(t) {
-        return this.hyperdashWindows.some(w => t >= w.start && t <= w.end);
-    }
+    // Small/sparse (kiai sections are occasional, not per-frame), so a
+    // linear scan per draw() call is fine — no need for the binary-search
+    // treatment catcherXAt() needs.
     isKiaiAt(t) {
         return this.kiaiRanges.some(r => t >= r.start && t < r.end);
     }
@@ -1094,6 +1132,28 @@ class ReplayPlayer {
                 ctx.save();
                 ctx.translate(px, y);
                 ctx.rotate(rotation);
+                // Real catch draws a second, additive-blended copy of the
+                // BASE sprite tinted pure red at 1.2x scale behind the
+                // normal draw for the object that forces a hyperdash —
+                // confirmed against replayviewer.com's own blitPiece()
+                // (globalCompositeOperation "lighter" + a fixed red tint +
+                // 1.2x size, drawn before the real tinted sprite). Previously
+                // approximated with a thin orange ring instead, which looked
+                // nothing like the real glow.
+                if (it.isHyperDashTrigger) {
+                    const hyperKey = spriteKey + '|hyper';
+                    let hyperSprite = this.tintCache.get(hyperKey);
+                    if (!hyperSprite) {
+                        hyperSprite = tintSprite(sprite, '#ff0000');
+                        this.tintCache.set(hyperKey, hyperSprite);
+                    }
+                    const prevOp = ctx.globalCompositeOperation, prevAlpha = ctx.globalAlpha;
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.globalAlpha = 0.7 * prevAlpha;
+                    ctx.drawImage(hyperSprite, -dw * 0.6, -dh * 0.6, dw * 1.2, dh * 1.2);
+                    ctx.globalCompositeOperation = prevOp;
+                    ctx.globalAlpha = prevAlpha;
+                }
                 ctx.drawImage(sprite, -dw / 2, -dh / 2, dw, dh);
                 // The "-overlay" sprite draws UNTINTED on top of the tinted
                 // base, at its OWN logical size (real skins can ship an
@@ -1108,76 +1168,162 @@ class ReplayPlayer {
                 }
                 ctx.restore();
             } else {
+                // No base sprite for this element — a skin can ship only
+                // the "-overlay" without a base (a real user-reported .osk
+                // does exactly this for bananas: fruit-bananas-overlay.png
+                // at root with no fruit-bananas.png). Real osu! falls back
+                // to the DEFAULT skin's own base there, which this renderer
+                // has no bundled copy of — drawing the overlay ALONE as a
+                // first attempt at this looked worse in practice (a real
+                // overlay is often just a faint highlight/ring meant to sit
+                // ON a coloured base, so alone it rendered as a barely-
+                // visible pale ring instead of a recognisable banana). Keep
+                // the coloured procedural shape as the base plane instead,
+                // and layer the overlay on top of THAT for whatever extra
+                // fidelity it adds — never worse than before, sometimes better.
                 ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
                 ctx.beginPath();
                 ctx.arc(px, y, size, 0, Math.PI * 2);
                 ctx.fill();
-            }
-            // Real catch tints the object that forces a hyperdash — this
-            // draws a small orange ring around it regardless of whether a
-            // skin sprite or the procedural fallback is in use, matching
-            // the real "warning" cue without needing a skin's own colour.
-            if (it.isHyperDashTrigger) {
-                ctx.strokeStyle = '#fb923c';
-                ctx.lineWidth = Math.max(1.5, size * 0.15);
-                ctx.beginPath();
-                ctx.arc(px, y, size * 1.3, 0, Math.PI * 2);
-                ctx.stroke();
+                if (overlaySprite) {
+                    const oLogical = logicalSpriteSize(overlaySprite);
+                    const scale = this.objectScale * osuPxToScreenPx * kindScale(it.kind);
+                    const ow = oLogical.w * scale;
+                    const oh = oLogical.h * scale;
+                    ctx.save();
+                    ctx.translate(px, y);
+                    ctx.rotate(rotation);
+                    ctx.drawImage(overlaySprite, -ow / 2, -oh / 2, ow, oh);
+                    ctx.restore();
+                }
+                // No base sprite to glow here — keep the ring as a
+                // reasonable substitute "warning" cue for the procedural
+                // fallback shape only.
+                if (it.isHyperDashTrigger) {
+                    ctx.strokeStyle = '#fb923c';
+                    ctx.lineWidth = Math.max(1.5, size * 0.15);
+                    ctx.beginPath();
+                    ctx.arc(px, y, size * 1.3, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
             }
         }
         ctx.globalAlpha = 1;
 
-        const catcherX = toPx(this.catcherXAt(this.mapTime));
         const cw = (this.catcherWidth / PLAYFIELD_X) * playfieldW;
         const ch = h * 0.045;
         const catcherSprite = this.catcherSpriteFor(this.mapTime);
-        const hyperDashing = this.isHyperDashingAt(this.mapTime);
-        if (hyperDashing) {
-            // Real catch tints the catcher and its dash trail red/orange
-            // during a hyperdash window (CatchBeatmapProcessor-triggered) —
-            // approximate with a glow behind the sprite rather than
-            // recolouring the sprite itself (which would fight a skin's
-            // own art).
+        const idleSprite = this.sprites.catcher;
+        const hyperFactor = hyperFactorAt(this.hyperdashWindows, this.mapTime);
+
+        // Real osu! catcher rendering during a hyperdash (confirmed against
+        // replayviewer.com's drawCatcherAndFeedback/blitCatcher/
+        // drawHyperAfterimages): the catcher itself smoothly crossfades to a
+        // fully red-tinted copy of its own sprite (not a generic glow), AND
+        // an expanding, fading, fully-red "afterimage" copy bursts outward
+        // from the exact spot the hyperdash started, additively blended.
+        // Previously this renderer only drew a flat orange drop-shadow
+        // behind the sprite — nothing close to either real effect, which is
+        // what "分身的感覺" (the clone/afterimage feeling) was pointing at.
+        const drawCatcherSprite = (sprite, catcherOsuX, { alpha = 1, scale = 1, yOffset = 0, additive = false, redAmount = 0, redCacheKey } = {}) => {
+            const cx = toPx(catcherOsuX);
             ctx.save();
-            ctx.shadowColor = '#fb923c';
-            ctx.shadowBlur = playfieldW * 0.02;
+            ctx.globalAlpha = alpha;
+            if (additive) ctx.globalCompositeOperation = 'lighter';
+            if (sprite) {
+                // Real catcher skin art is often a tall full-character sprite
+                // (much taller than the actual catch hitbox) — scaling that to
+                // the catch-hitbox WIDTH and preserving aspect blows the height
+                // up hugely (found live with a real default skin: the catcher
+                // covered a third of the screen). Fit within a bounded box
+                // instead of deriving height purely from width x aspect.
+                //
+                // Anchor: measured a real default-skin fruit-catcher-idle.png's
+                // alpha-channel width profile top-to-bottom — the WIDEST point
+                // (the plate the character holds up, i.e. where fruits actually
+                // land) is right near the top (~5% down), not the bottom/feet.
+                // Anchoring near the bottom (as a first pass did) put the catch
+                // line at the character's legs, with fruit falling through the
+                // whole body before "landing" — anchoring near the top instead
+                // so the plate sits at the catch line, with the rest of the
+                // character extending down (and naturally clipping off the
+                // bottom of the theater, same as real gameplay framing).
+                const boxW = cw * 1.15 * scale;
+                const boxH = h * 0.16 * scale;
+                const catcherWH = spriteSize(sprite);
+                const aspect = catcherWH.w / catcherWH.h;
+                let spriteW = boxW, spriteH = boxW / aspect;
+                if (spriteH > boxH) { spriteH = boxH; spriteW = boxH * aspect; }
+                const topY = catchLineY - spriteH * 0.06 + yOffset;
+                ctx.drawImage(sprite, cx - spriteW / 2, topY, spriteW, spriteH);
+                if (redAmount > 0.02 && redCacheKey) {
+                    let redSprite = this.tintCache.get(redCacheKey);
+                    if (!redSprite) {
+                        redSprite = tintSprite(sprite, '#ff0000');
+                        this.tintCache.set(redCacheKey, redSprite);
+                    }
+                    ctx.globalAlpha = alpha * redAmount;
+                    ctx.drawImage(redSprite, cx - spriteW / 2, topY, spriteW, spriteH);
+                }
+            } else {
+                const boxCw = cw * scale, boxCh = ch * scale;
+                // No skin loaded — lerp the flat fallback shape's own fill
+                // colour toward red instead, so there's still SOME visible
+                // hyperdash feedback without a sprite to tint.
+                ctx.fillStyle = redAmount > 0.02
+                    ? `color-mix(in srgb, #e2e2f0, #ff0000 ${Math.round(redAmount * 100)}%)`
+                    : '#e2e2f0';
+                const topY = catchLineY + yOffset;
+                ctx.beginPath();
+                ctx.moveTo(cx - boxCw / 2, topY + boxCh / 2);
+                ctx.lineTo(cx - boxCw / 3, topY - boxCh / 2);
+                ctx.lineTo(cx + boxCw / 3, topY - boxCh / 2);
+                ctx.lineTo(cx + boxCw / 2, topY + boxCh / 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+        };
+
+        // Hyper dash trail: ghost copies of the catcher along its recent
+        // path, fully red-tinted, fading out — ported from replayviewer.
+        // com's drawDashTrail(), restricted to its `hyper` branch only
+        // (the other branch trails during ANY fast dash, which needs the
+        // replay's own dash-key state that isn't parsed here — hyperdash
+        // windows alone are enough to reproduce the trail during a boost).
+        const TRAIL_STEP_MS = 16, TRAIL_FADE_MS = 800;
+        const newestStep = Math.floor(this.mapTime / TRAIL_STEP_MS) * TRAIL_STEP_MS;
+        for (let gt = newestStep; gt > this.mapTime - TRAIL_FADE_MS; gt -= TRAIL_STEP_MS) {
+            if (hyperFactorAt(this.hyperdashWindows, gt) <= 0.5) continue;
+            const age = this.mapTime - gt;
+            const alpha = 0.4 * (1 - outQuint(age / TRAIL_FADE_MS));
+            if (alpha <= 0.01) continue;
+            drawCatcherSprite(idleSprite, this.catcherXAt(gt), { alpha, additive: true, redAmount: 1, redCacheKey: 'catcher_idle|red' });
         }
-        if (catcherSprite) {
-            // Real catcher skin art is often a tall full-character sprite
-            // (much taller than the actual catch hitbox) — scaling that to
-            // the catch-hitbox WIDTH and preserving aspect blows the height
-            // up hugely (found live with a real default skin: the catcher
-            // covered a third of the screen). Fit within a bounded box
-            // instead of deriving height purely from width x aspect.
-            //
-            // Anchor: measured a real default-skin fruit-catcher-idle.png's
-            // alpha-channel width profile top-to-bottom — the WIDEST point
-            // (the plate the character holds up, i.e. where fruits actually
-            // land) is right near the top (~5% down), not the bottom/feet.
-            // Anchoring near the bottom (as a first pass did) put the catch
-            // line at the character's legs, with fruit falling through the
-            // whole body before "landing" — anchoring near the top instead
-            // so the plate sits at the catch line, with the rest of the
-            // character extending down (and naturally clipping off the
-            // bottom of the theater, same as real gameplay framing).
-            const boxW = cw * 1.15;
-            const boxH = h * 0.16;
-            const catcherWH = spriteSize(catcherSprite);
-            const aspect = catcherWH.w / catcherWH.h;
-            let spriteW = boxW, spriteH = boxW / aspect;
-            if (spriteH > boxH) { spriteH = boxH; spriteW = boxH * aspect; }
-            ctx.drawImage(catcherSprite, catcherX - spriteW / 2, catchLineY - spriteH * 0.06, spriteW, spriteH);
-        } else {
-            ctx.fillStyle = '#e2e2f0';
-            ctx.beginPath();
-            ctx.moveTo(catcherX - cw / 2, catchLineY + ch / 2);
-            ctx.lineTo(catcherX - cw / 3, catchLineY - ch / 2);
-            ctx.lineTo(catcherX + cw / 3, catchLineY - ch / 2);
-            ctx.lineTo(catcherX + cw / 2, catchLineY + ch / 2);
-            ctx.closePath();
-            ctx.fill();
+
+        // Hyper afterimage burst: one expanding/fading copy anchored to
+        // where each hyperdash actually started (not following the
+        // catcher's current position) — ported from replayviewer.com's
+        // drawHyperAfterimages().
+        const AFTERIMAGE_MS = 1200;
+        for (const win of this.hyperdashWindows) {
+            if (win.start > this.mapTime) continue;
+            const p = (this.mapTime - win.start) / AFTERIMAGE_MS;
+            if (p < 0 || p > 1) continue;
+            const e = outQuint(p);
+            const scale = 0.95 + (1.2 - 0.95) * e;
+            const yOffset = -h * 0.012 * e;
+            drawCatcherSprite(idleSprite, this.catcherXAt(win.start), {
+                alpha: 1 - p, scale, yOffset, additive: true, redAmount: 1, redCacheKey: 'catcher_idle|red',
+            });
         }
-        if (hyperDashing) ctx.restore();
+
+        // The live catcher itself, crossfaded toward fully red as
+        // hyperFactor rises (smooth, not the old instant on/off glow).
+        let redCacheKey = 'catcher_idle|red';
+        if (catcherSprite === this.sprites.catcher_fail) redCacheKey = 'catcher_fail|red';
+        else if (catcherSprite === this.sprites.catcher_kiai) redCacheKey = 'catcher_kiai|red';
+        drawCatcherSprite(catcherSprite, this.catcherXAt(this.mapTime), { redAmount: hyperFactor, redCacheKey });
 
         if (this.showPopups) {
             const fontSize = Math.max(12, playfieldW * 0.014);
