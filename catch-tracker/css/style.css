@@ -1624,21 +1624,29 @@ footer.site-footer {
 
 .replay-theater {
     position: relative;
-    /* osu!'s real playfield is 512x384 (4:3). flex-grow + independent
-       max-width/max-height on this item let the browser resolve BOTH
-       dimensions as "definite" from the box model directly, which
-       means aspect-ratio has nothing left to compute and gets silently
-       ignored the moment width and height caps don't already share its
-       ratio (confirmed live: max-width:1600/max-height:900 rendered as
-       an exact 1600x900 16:9 box, not a 4:3 one within those bounds).
-       Sizing only ONE dimension explicitly and deriving the other from
-       aspect-ratio avoids that entirely: width is the smallest of "the
-       available column width", "an absolute cap", or "the available
-       viewport height converted to a width via the ratio" — so it's
-       never wider than the row nor taller than the screen, and
-       aspect-ratio has just one clean value left to derive height from. */
-    width: min(100%, 1700px, calc((100vh - 140px) * 512 / 384));
-    aspect-ratio: 512 / 384;
+    /* 16:9, not osu!'s native 4:3 — live-measured replayviewer.com's own
+       theater at exactly 16:9 (1610.66x905.99). A 4:3 box crops a typical
+       widescreen beatmap cover far more aggressively under
+       background-size:cover than a 16:9 one does (this was the actual
+       user complaint — the earlier 4:3 lock existed to keep FRUIT MOTION
+       proportionally correct, not because the box itself had to be 4:3).
+       That correctness now lives in js/render-replay.js's draw() instead:
+       it maps the playfield into a centered 512:384-proportioned
+       sub-rect of whatever width/height this box ends up with (the same
+       "widescreen support" technique the real game uses — playfield
+       stays fixed-proportion, extra width just shows more background),
+       so this box is free to be whatever shape shows the cover best.
+       flex-grow + independent max-width/max-height on this item let the
+       browser resolve BOTH dimensions as "definite" from the box model
+       directly, which means aspect-ratio has nothing left to compute and
+       gets silently ignored the moment width/height caps don't already
+       share its ratio (confirmed live earlier) — sizing only ONE
+       dimension explicitly and deriving the other from aspect-ratio
+       avoids that: width is the smallest of "the available column
+       width", "an absolute cap", or "the available viewport height
+       converted to a width via the ratio". */
+    width: min(100%, 1700px, calc((100vh - 140px) * 16 / 9));
+    aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #05050c center / cover no-repeat;
     isolation: isolate;

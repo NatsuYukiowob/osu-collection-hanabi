@@ -796,13 +796,28 @@ class ReplayPlayer {
         const w = canvas.width, h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
+        // The theater box is 16:9 (see the CSS comment on .replay-theater
+        // for why — full cover art visibility, matching replayviewer.com's
+        // own measured 16:9 canvas), but osu!'s real playfield is 512x384
+        // (4:3). Mapping fruit X across the FULL 16:9 width would stretch
+        // horizontal motion relative to the vertical fall — the exact
+        // "proportions look wrong" bug from earlier in this pass. Real
+        // osu!'s own "widescreen support" solves this by keeping the
+        // playfield a fixed proportion and centering it, with extra
+        // width on a wider window just showing more background/
+        // storyboard — same technique here: a centered playfieldW-wide
+        // sub-rect of this canvas carries all the gameplay math, sized
+        // and positioned independently of the canvas's own (background-
+        // driven) shape.
+        const playfieldW = Math.min(w, h * (PLAYFIELD_X / 384));
+        const playfieldOffsetX = (w - playfieldW) / 2;
         const catchLineY = h * 0.86;
-        const toPx = x => (x / PLAYFIELD_X) * w;
-        const fruitSize = w * 0.016;
-        const sizeFor = kind => kind === 'tiny' ? w * 0.006 : kind === 'droplet' ? w * 0.011 : kind === 'banana' ? w * 0.014 : fruitSize;
+        const toPx = x => playfieldOffsetX + (x / PLAYFIELD_X) * playfieldW;
+        const fruitSize = playfieldW * 0.016;
+        const sizeFor = kind => kind === 'tiny' ? playfieldW * 0.006 : kind === 'droplet' ? playfieldW * 0.011 : kind === 'banana' ? playfieldW * 0.014 : fruitSize;
 
         ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-        ctx.beginPath(); ctx.moveTo(0, catchLineY); ctx.lineTo(w, catchLineY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(playfieldOffsetX, catchLineY); ctx.lineTo(playfieldOffsetX + playfieldW, catchLineY); ctx.stroke();
 
         for (const it of this.items) {
             if (this.mapTime < it.spawnTime - 50 || this.mapTime > it.time + 150) continue;
@@ -859,7 +874,7 @@ class ReplayPlayer {
         ctx.globalAlpha = 1;
 
         const catcherX = toPx(this.catcherXAt(this.mapTime));
-        const cw = (this.catcherWidth / PLAYFIELD_X) * w;
+        const cw = (this.catcherWidth / PLAYFIELD_X) * playfieldW;
         const ch = h * 0.045;
         const catcherSprite = this.catcherSpriteFor(this.mapTime);
         const hyperDashing = this.isHyperDashingAt(this.mapTime);
@@ -871,7 +886,7 @@ class ReplayPlayer {
             // own art).
             ctx.save();
             ctx.shadowColor = '#fb923c';
-            ctx.shadowBlur = w * 0.02;
+            ctx.shadowBlur = playfieldW * 0.02;
         }
         if (catcherSprite) {
             // Real catcher skin art is often a tall full-character sprite
@@ -911,7 +926,7 @@ class ReplayPlayer {
         if (hyperDashing) ctx.restore();
 
         if (this.showPopups) {
-            const fontSize = Math.max(12, w * 0.014);
+            const fontSize = Math.max(12, playfieldW * 0.014);
             for (const p of this.popups) {
                 const age = this.mapTime - p.time;
                 if (age < 0 || age > POPUP_DURATION_MS) continue;
