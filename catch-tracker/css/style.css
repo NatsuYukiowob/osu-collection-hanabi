@@ -1775,11 +1775,10 @@ footer.site-footer {
     transition: width 120ms linear;
 }
 
-/* Hidden by default, fades in on real mouse movement over the theater and
-   auto-hides again after a few seconds idle — matches mania-tracker.com's
-   own replay viewer (live-verified: its playback/visual-settings bar is
-   not permanently on screen either). See the ResizeObserver comment in
-   js/render-replay.js for where .controls-visible gets toggled. */
+/* Permanently visible (not hover-hidden) — matches replayviewer.com's own
+   replay viewer, live-verified against the same fixture score there.
+   An earlier pass matched mania-tracker.com's hover-to-reveal behavior
+   instead; superseded per later direction to match replayviewer.com. */
 .replay-bottom-bar {
     position: absolute;
     z-index: 3;
@@ -1788,16 +1787,76 @@ footer.site-footer {
     bottom: 0;
     padding: 14px 24px 16px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
-    opacity: 0;
-    transform: translateY(6px);
-    pointer-events: none;
-    transition: opacity 220ms ease, transform 220ms ease;
 }
-.replay-theater.controls-visible .replay-bottom-bar {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+.replay-time {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
+.replay-bottom-spacer { flex: 1 1 auto; }
+
+/* Top settings strip — always visible, mirrors replayviewer.com's own
+   layout: inline volume/rate/background-dim sliders, mod badges pinned
+   right. Separate from the bottom bar's dark-gradient scrim (this one
+   fades from the top edge instead) so both read clearly over any cover
+   art. */
+.replay-top-bar {
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    right: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding: 10px 20px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+}
+.replay-top-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.replay-top-label {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+}
+.replay-top-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+}
+.replay-top-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+.replay-top-slider::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+.replay-top-value {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.85);
+    font-variant-numeric: tabular-nums;
+    min-width: 3.2em;
+}
+.replay-top-spacer { flex: 1 1 auto; }
+.replay-top-mods { display: flex; gap: 6px; align-items: center; }
 .replay-scrub-full {
     -webkit-appearance: none;
     appearance: none;
@@ -1844,17 +1903,6 @@ footer.site-footer {
     align-items: center;
     justify-content: center;
 }
-.replay-speed-pills { display: flex; gap: 4px; }
-.replay-speed-pills button {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.75rem;
-    padding: 5px 10px;
-    border-radius: 999px;
-    cursor: pointer;
-}
-.replay-speed-pills button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .replay-icon-btn {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.12);

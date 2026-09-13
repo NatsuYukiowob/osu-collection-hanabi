@@ -983,6 +983,13 @@ function fmtScore(n) {
     return Math.round(n || 0).toLocaleString();
 }
 
+function fmtClockTime(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function leaderboardRowHtml(row, isCurrent) {
     return `
         <div class="replay-lb-row${isCurrent ? ' replay-lb-current' : ''}" data-user-id="${row.user_id ?? ''}">
@@ -994,14 +1001,46 @@ function leaderboardRowHtml(row, isCurrent) {
     `;
 }
 
-function theaterHtml(meta) {
+// Layout matches replayviewer.com's replay viewer (live-verified against
+// the same fixture score there): a persistent (not hover-hidden — see the
+// CSS comment on .replay-top-bar/.replay-bottom-bar for why this reverses
+// an earlier mania-tracker-style pass) top settings strip with inline
+// volume/rate/background-dim sliders and mod badges, HUD score/accuracy
+// top-right, a bottom scrub bar with a time readout. Less-common settings
+// (blur, judgement popups, banana rain, skin upload) stay in the
+// click-to-open drawer rather than cluttering the always-visible strip.
+function theaterHtml(meta, settings) {
     const bgUrl = meta.beatmapsetId ? coverArtUrl(meta.beatmapsetId) : '';
     const title = [meta.artist, meta.title].filter(Boolean).join(' - ');
+    const dim = 100 - settings.brightness;
     return `
         <div class="replay-theater" id="replay-theater"${bgUrl ? ` style="background-image:url('${bgUrl.replace(/'/g, '%27')}')"` : ''}>
             <div class="replay-theater-scrim"></div>
             <canvas id="replay-canvas" class="replay-canvas-full"></canvas>
             <audio id="replay-audio" preload="auto"></audio>
+
+            <div class="replay-top-bar">
+                <div class="replay-top-group">
+                    <span class="replay-top-label">${escapeHtml(t('replay_settings_volume'))}</span>
+                    <input type="range" id="replay-set-volume" class="replay-top-slider" min="0" max="100" step="5" value="${settings.volume}">
+                    <span class="replay-top-value" id="replay-volume-value">${settings.volume}%</span>
+                </div>
+                <div class="replay-top-group">
+                    <span class="replay-top-label">${escapeHtml(t('replay_settings_rate'))}</span>
+                    <input type="range" id="replay-set-rate" class="replay-top-slider" min="0.25" max="2" step="0.05" value="1">
+                    <span class="replay-top-value" id="replay-rate-value">1.00x</span>
+                </div>
+                <div class="replay-top-group">
+                    <span class="replay-top-label">${escapeHtml(t('replay_settings_dim'))}</span>
+                    <input type="range" id="replay-set-dim" class="replay-top-slider" min="0" max="90" step="5" value="${dim}">
+                    <span class="replay-top-value" id="replay-dim-value">${dim}%</span>
+                </div>
+                <div class="replay-top-spacer"></div>
+                <div class="replay-top-mods">
+                    ${meta.rank ? gradeBadge(meta.rank) : ''}
+                    ${meta.mods.length ? modsTag(meta.mods) : ''}
+                </div>
+            </div>
 
             <div class="replay-hud-acc" id="replay-hud-acc">100.00%</div>
             <div class="replay-hud-combo" id="replay-hud-combo">0</div>
@@ -1012,10 +1051,6 @@ function theaterHtml(meta) {
                 <div class="replay-hud-sub">
                     ${meta.version ? `[${escapeHtml(meta.version)}]` : ''}
                     ${meta.username ? escapeHtml(t('replay_info_by', { name: meta.username })) : ''}
-                </div>
-                <div class="replay-hud-tags">
-                    ${meta.rank ? gradeBadge(meta.rank) : ''}
-                    ${meta.mods.length ? modsTag(meta.mods) : ''}
                 </div>
             </div>
 
@@ -1034,11 +1069,8 @@ function theaterHtml(meta) {
                 <input type="range" id="replay-scrub" class="replay-scrub-full" min="0" max="1000" value="0">
                 <div class="replay-bottom-controls">
                     <button type="button" id="replay-playpause" class="replay-play-btn">▶</button>
-                    <div class="replay-speed-pills" id="replay-speed-pills">
-                        <button type="button" data-speed="0.5">0.5x</button>
-                        <button type="button" data-speed="1" class="active">1x</button>
-                        <button type="button" data-speed="2">2x</button>
-                    </div>
+                    <span class="replay-time" id="replay-time">0:00 / 0:00</span>
+                    <div class="replay-bottom-spacer"></div>
                     <label class="replay-icon-btn" for="replay-skin-input">${escapeHtml(t('replay_use_skin'))}</label>
                     <input type="file" id="replay-skin-input" accept=".osk" hidden>
                     <button type="button" id="replay-skin-clear" class="replay-icon-btn" hidden>${escapeHtml(t('replay_clear_skin'))}</button>
@@ -1055,14 +1087,8 @@ function theaterHtml(meta) {
 
 function settingsDrawerHtml(s) {
     return `
-        <label>${escapeHtml(t('replay_settings_volume'))}
-            <input type="range" id="replay-set-volume" min="0" max="100" step="5" value="${s.volume}">
-        </label>
         <label>${escapeHtml(t('replay_settings_blur'))}
             <input type="range" id="replay-set-blur" min="0" max="50" step="2" value="${s.blur}">
-        </label>
-        <label>${escapeHtml(t('replay_settings_brightness'))}
-            <input type="range" id="replay-set-brightness" min="10" max="100" step="5" value="${s.brightness}">
         </label>
         <label><input type="checkbox" id="replay-set-popups" ${s.popups ? 'checked' : ''}> ${escapeHtml(t('replay_settings_judgements'))}</label>
         <label><input type="checkbox" id="replay-set-banana" ${s.bananaRain ? 'checked' : ''}> ${escapeHtml(t('replay_settings_banana_rain'))}</label>
@@ -1172,13 +1198,13 @@ async function run() {
         const coverageIncomplete = lastItemTime - frameCoverageEnd > 2000;
 
         const settings = loadSettings();
-        setStatus(theaterHtml(meta));
+        setStatus(theaterHtml(meta, settings));
         const theater = document.getElementById('replay-theater');
         const canvas = document.getElementById('replay-canvas');
         const audioEl = document.getElementById('replay-audio');
         const playBtn = document.getElementById('replay-playpause');
         const scrub = document.getElementById('replay-scrub');
-        const speedPills = document.getElementById('replay-speed-pills');
+        const timeDisplay = document.getElementById('replay-time');
         const skinInput = document.getElementById('replay-skin-input');
         const skinClearBtn = document.getElementById('replay-skin-clear');
         const skinStatus = document.getElementById('replay-skin-status');
@@ -1213,6 +1239,7 @@ async function run() {
                 const pct = maxTime > minTime ? ((mapTime - minTime) / (maxTime - minTime)) * 1000 : 0;
                 scrub.value = String(pct);
                 playBtn.textContent = playing ? '⏸' : '▶';
+                timeDisplay.textContent = `${fmtClockTime(mapTime - minTime)} / ${fmtClockTime(maxTime - minTime)}`;
                 hpFill.style.width = `${stats.hp}%`;
                 statCombo.textContent = stats.combo;
                 statMaxCombo.textContent = stats.maxCombo;
@@ -1248,27 +1275,10 @@ async function run() {
         window.addEventListener('resize', () => resizeCanvasToDisplaySize(player, canvas));
         document.addEventListener('fullscreenchange', () => resizeCanvasToDisplaySize(player, canvas));
 
-        // Hover-to-reveal controls, matching mania-tracker.com's own replay
-        // viewer (live-verified this session: its bottom control/settings
-        // panel is hidden by default and only fades in on real mouse
-        // movement over the player, auto-hiding again after a few seconds
-        // idle — not a permanently-visible bar like a first pass of this
-        // rebuild had). `mousemove` bubbles from every descendant (the
-        // scrub bar, speed pills, settings drawer), so interacting with any
-        // control also keeps this alive without a separate listener per
-        // element; touchstart covers devices with no hover concept.
-        let hideControlsTimer = null;
-        function showControls() {
-            theater.classList.add('controls-visible');
-            if (hideControlsTimer) clearTimeout(hideControlsTimer);
-            hideControlsTimer = setTimeout(() => {
-                if (!settingsDrawer.hidden) return; // keep controls up while the settings drawer itself is open
-                theater.classList.remove('controls-visible');
-            }, 3000);
-        }
-        theater.addEventListener('mousemove', showControls);
-        theater.addEventListener('touchstart', showControls, { passive: true });
-        showControls(); // brief reveal on load so the play button is discoverable
+        // Controls are permanently visible — matches replayviewer.com
+        // (live-verified this session: its top settings strip and bottom
+        // bar are never hover-hidden), superseding an earlier
+        // mania-tracker-style hover-to-reveal pass per later direction.
 
         fullscreenToggle.addEventListener('click', () => {
             if (document.fullscreenElement) {
@@ -1286,11 +1296,12 @@ async function run() {
             const frac = Number(scrub.value) / 1000;
             player.seek(player.minTime + frac * (player.maxTime - player.minTime));
         });
-        speedPills.addEventListener('click', e => {
-            const btn = e.target.closest('button[data-speed]');
-            if (!btn) return;
-            speedPills.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
-            player.setSpeed(Number(btn.dataset.speed));
+        const rateInput = document.getElementById('replay-set-rate');
+        const rateValue = document.getElementById('replay-rate-value');
+        rateInput.addEventListener('input', () => {
+            const rate = Number(rateInput.value);
+            player.setSpeed(rate);
+            rateValue.textContent = `${rate.toFixed(2)}x`;
         });
 
         skinInput.addEventListener('change', async () => {
@@ -1333,26 +1344,45 @@ async function run() {
         settingsDrawer.innerHTML = settingsDrawerHtml(settings);
         settingsToggle.addEventListener('click', () => {
             settingsDrawer.hidden = !settingsDrawer.hidden;
-            showControls();
         });
+
+        // Top-bar sliders (always visible — see the comment above
+        // theaterHtml()): volume and background dim live here, matching
+        // replayviewer.com's layout. "Dim" is presented inverted from our
+        // underlying brightness setting (dim% = 100 - brightness%) purely
+        // for label clarity — 0% dim reads as "not dimmed" either way.
         const volumeInput = document.getElementById('replay-set-volume');
+        const volumeValue = document.getElementById('replay-volume-value');
+        const dimInput = document.getElementById('replay-set-dim');
+        const dimValue = document.getElementById('replay-dim-value');
+        volumeInput.addEventListener('input', () => {
+            settings.volume = Number(volumeInput.value);
+            audioEl.volume = settings.volume / 100;
+            volumeValue.textContent = `${settings.volume}%`;
+            saveSettings(settings);
+        });
+        dimInput.addEventListener('input', () => {
+            const dim = Number(dimInput.value);
+            settings.brightness = 100 - dim;
+            dimValue.textContent = `${dim}%`;
+            applyBackgroundSettings(scrim, settings);
+            saveSettings(settings);
+        });
+
+        // Less-common settings stay in the click-to-open drawer.
         const blurInput = document.getElementById('replay-set-blur');
-        const brightnessInput = document.getElementById('replay-set-brightness');
         const popupsInput = document.getElementById('replay-set-popups');
         const bananaInput = document.getElementById('replay-set-banana');
         const onSettingsChange = () => {
-            settings.volume = Number(volumeInput.value);
             settings.blur = Number(blurInput.value);
-            settings.brightness = Number(brightnessInput.value);
             settings.popups = popupsInput.checked;
             settings.bananaRain = bananaInput.checked;
-            audioEl.volume = settings.volume / 100;
             player.setVisualSettings(settings);
             document.body.classList.toggle('show-banana-rain', settings.bananaRain);
             applyBackgroundSettings(scrim, settings);
             saveSettings(settings);
         };
-        [volumeInput, blurInput, brightnessInput, popupsInput, bananaInput].forEach(el => {
+        [blurInput, popupsInput, bananaInput].forEach(el => {
             el.addEventListener('input', onSettingsChange);
         });
 
