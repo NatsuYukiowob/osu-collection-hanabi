@@ -643,6 +643,16 @@ function spriteSize(sprite) {
     return { w: sprite.naturalWidth || sprite.width || 1, h: sprite.naturalHeight || sprite.height || 1 };
 }
 
+// The size draw() actually multiplies by CS-scale to place a sprite on
+// screen — its LOGICAL size (raw pixels halved for an @2x asset, see
+// loadOneSprite()), not its raw/possibly-downscaled pixel dimensions.
+// Falls back to spriteSize() (1x-assumed) for anything without the
+// __logicalW/__logicalH stamp, e.g. a sprite loaded by older cached code.
+function logicalSpriteSize(sprite) {
+    if (typeof sprite.__logicalW === 'number') return { w: sprite.__logicalW, h: sprite.__logicalH };
+    return spriteSize(sprite);
+}
+
 function downscaleToCanvas(img, maxSize) {
     const scale = Math.min(1, maxSize / Math.max(img.naturalWidth, img.naturalHeight));
     const canvas = document.createElement('canvas');
@@ -670,6 +680,11 @@ function tintSprite(sprite, colorRgb) {
     cctx.fillRect(0, 0, w, h);
     cctx.globalCompositeOperation = 'destination-in';
     cctx.drawImage(sprite, 0, 0, w, h);
+    // Carry the source's logical (post-@2x-halving) size over — see
+    // logicalSpriteSize() — since the tinted canvas is what draw() actually
+    // measures for on-screen sizing after tintCache substitutes it in.
+    c.__logicalW = sprite.__logicalW;
+    c.__logicalH = sprite.__logicalH;
     return c;
 }
 
@@ -678,7 +693,15 @@ function tintSprite(sprite, colorRgb) {
 // tab is backgrounded, silently stalling the whole skin forever with no
 // error surfaced. The classic load/error events fire reliably regardless
 // of tab visibility, so the 5s timeout here is just a safety net.
-function loadOneSprite(bytes) {
+// isHiRes (an "@2x" filename) means the PNG's raw pixel dimensions are
+// double its real/"logical" size — real osu! skinning draws a sprite at
+// its logical size × the object's CS-derived scale, not its raw pixel
+// size (confirmed against replayviewer.com's own bundled source:
+// `skinSprite()` halves an @2x asset's width/height before anything else
+// uses it). __logicalW/__logicalH are stashed on the decoded element so
+// draw()'s sizing math (logicalSpriteSize()) can read them regardless of
+// whether MAX_SPRITE_TEXTURE downscaling below also shrunk the drawable.
+function loadOneSprite(bytes, isHiRes) {
     return new Promise((resolve, reject) => {
         const blob = new Blob([bytes], { type: 'image/png' });
         const img = new Image();
@@ -686,18 +709,24 @@ function loadOneSprite(bytes) {
         const timer = setTimeout(() => reject(new Error('sprite load timed out')), 5000);
         img.onload = () => {
             clearTimeout(timer);
+            const logicalScale = isHiRes ? 0.5 : 1;
+            const logicalW = img.naturalWidth * logicalScale;
+            const logicalH = img.naturalHeight * logicalScale;
             const oversized = img.naturalWidth > MAX_SPRITE_TEXTURE || img.naturalHeight > MAX_SPRITE_TEXTURE;
-            resolve(oversized ? downscaleToCanvas(img, MAX_SPRITE_TEXTURE) : img);
+            const drawable = oversized ? downscaleToCanvas(img, MAX_SPRITE_TEXTURE) : img;
+            drawable.__logicalW = logicalW;
+            drawable.__logicalH = logicalH;
+            resolve(drawable);
         };
         img.onerror = () => { clearTimeout(timer); reject(new Error('sprite failed to decode')); };
         img.src = URL.createObjectURL(blob);
     });
 }
 
-async function decodeSpritesFromBytes(rawBytesByKey) {
+async function decodeSpritesFromBytes(entriesByKey) {
     const sprites = {};
-    await Promise.all(Object.entries(rawBytesByKey).map(async ([key, bytes]) => {
-        try { sprites[key] = await loadOneSprite(bytes); } catch { /* keep procedural fallback for this one */ }
+    await Promise.all(Object.entries(entriesByKey).map(async ([key, entry]) => {
+        try { sprites[key] = await loadOneSprite(entry.bytes, entry.isHiRes); } catch { /* keep procedural fallback for this one */ }
     }));
     return sprites;
 }
@@ -770,14 +799,14 @@ async function loadSkinSprites(file) {
         if (!byBase[base] || (isHiRes && !byBase[base].isHiRes)) byBase[base] = { bytes, isHiRes };
     }
 
-    const rawBytesByKey = {};
+    const entriesByKey = {};
     for (const [key, base] of Object.entries(SKIN_FILES)) {
         const entry = byBase[base];
-        if (entry) rawBytesByKey[key] = entry.bytes;
+        if (entry) entriesByKey[key] = entry; // already { bytes, isHiRes }
     }
 
-    const sprites = await decodeSpritesFromBytes(rawBytesByKey);
-    saveSkinToDB(rawBytesByKey); // best-effort, not awaited — never blocks showing the skin
+    const sprites = await decodeSpritesFromBytes(entriesByKey);
+    saveSkinToDB(entriesByKey); // best-effort, not awaited — never blocks showing the skin
     return sprites;
 }
 
@@ -792,6 +821,7 @@ class ReplayPlayer {
         this.clockRate = opts.clockRate;
         this.catcherWidth = opts.catcherWidth;
         this.fruitRadiusOsuPx = opts.fruitRadiusOsuPx || 32;
+        this.objectScale = opts.objectScale || 0.5;
         this.hiddenMod = !!opts.hiddenMod;
         this.hyperdashWindows = opts.hyperdashWindows || [];
         this.kiaiRanges = opts.kiaiRanges || [];
@@ -902,17 +932,32 @@ class ReplayPlayer {
         // sub-rect of this canvas carries all the gameplay math, sized
         // and positioned independently of the canvas's own (background-
         // driven) shape.
-        const playfieldW = Math.min(w, h * (PLAYFIELD_X / 384));
+        //
+        // The exact fractions below (not "fill all available height", which
+        // this used to do) are read directly out of replayviewer.com's own
+        // bundled source: its internal canvas is a fixed 1280x720, playfield
+        // width = 512 osu!px * their S3(1.4) scale = 716.8px (56% of 1280),
+        // catch line at 628/720 (87.2%) down. Filling all available height
+        // instead made our playfield — and everything sized relative to it,
+        // i.e. every fruit/catcher/droplet — visibly ~34% larger than
+        // theirs at the same window size, which is what "fruit size doesn't
+        // match replayviewer.com" actually was.
+        const playfieldW = w * (512 * 1.4 / 1280);
         const playfieldOffsetX = (w - playfieldW) / 2;
-        const catchLineY = h * 0.86;
+        const catchLineY = h * (628 / 720);
         const toPx = x => playfieldOffsetX + (x / PLAYFIELD_X) * playfieldW;
-        // Real proportions (see the comment on fruitRadius()): Fruit/
-        // Droplet/Banana share the same CS-derived radius; TinyDroplet is
-        // exactly half. Was a flat made-up percentage of the canvas before
-        // (never tied to CS at all) — confirmed live as visibly too small
-        // next to every real skin.
+        const osuPxToScreenPx = playfieldW / PLAYFIELD_X;
+        // Real proportions (see the comment on fruitRadius()): a Fruit's
+        // radius is OBJECT_RADIUS(64) * CalculateScaleFromCircleSize(cs).
+        // Droplet and TinyDroplet are NOT the same size as Fruit though —
+        // also verified against replayviewer.com's source (drawLegacyDroplet):
+        // Droplet is drawn at 0.8x a Fruit's scale, TinyDroplet at a further
+        // 0.5x on top of that (0.4x total) — this file previously used the
+        // same size for Fruit and Droplet and a flat 0.5x for TinyDroplet,
+        // which was never checked against a real source.
         const fruitPx = (this.fruitRadiusOsuPx / PLAYFIELD_X) * playfieldW;
-        const sizeFor = kind => kind === 'tiny' ? fruitPx / 2 : fruitPx;
+        const kindScale = kind => kind === 'droplet' ? 0.8 : kind === 'tiny' ? 0.4 : 1;
+        const sizeFor = kind => fruitPx * kindScale(kind);
 
         ctx.strokeStyle = 'rgba(255,255,255,0.12)';
         ctx.beginPath(); ctx.moveTo(playfieldOffsetX, catchLineY); ctx.lineTo(playfieldOffsetX + playfieldW, catchLineY); ctx.stroke();
@@ -956,15 +1001,20 @@ class ReplayPlayer {
                 sprite = tinted;
             }
             if (sprite) {
-                // Fit within a (size*2.4)-square box rather than stretching
-                // to it — real skin fruit art is documented square, but
-                // this stays correct for a skin whose art isn't (e.g. a
-                // taller banana), instead of distorting it.
-                const box = size * 2.4;
-                const spriteWH = spriteSize(sprite);
-                const aspect = spriteWH.w / spriteWH.h;
-                let dw = box, dh = box / aspect;
-                if (dh > box) { dh = box; dw = box * aspect; }
+                // Real osu! skin sizing (osu.Game.Rulesets.Catch/Skinning/
+                // Legacy — confirmed against replayviewer.com's own bundled
+                // source, blitPiece()): a sprite is drawn at its own LOGICAL
+                // pixel size (raw pixels halved for an @2x asset) times
+                // CalculateScaleFromCircleSize(cs), times the same per-kind
+                // multiplier as the procedural fallback above — NOT fit into
+                // a made-up box independent of the sprite's own dimensions
+                // (the previous size*2.4 heuristic), which over- or under-
+                // sized any skin whose sprite pixel dimensions didn't happen
+                // to match what that heuristic assumed.
+                const logical = logicalSpriteSize(sprite);
+                const scale = this.objectScale * osuPxToScreenPx * kindScale(it.kind);
+                const dw = logical.w * scale;
+                const dh = logical.h * scale;
                 ctx.drawImage(sprite, px - dw / 2, y - dh / 2, dw, dh);
             } else {
                 ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
@@ -1346,6 +1396,18 @@ async function run() {
         const settings = loadSettings();
         setStatus(theaterHtml(meta, settings));
         const theater = document.getElementById('replay-theater');
+        // Upgrade from cover.jpg (osu!'s own pre-cropped ~3.6:1 promo
+        // banner, shown immediately above via theaterHtml's bgUrl) to the
+        // REAL in-game background once beatmap-bg.js has it ready
+        // (downloads+unzips the mapset server-side, so this can take a
+        // couple seconds on a cold cache) — never blocks the theater on it,
+        // and silently keeps cover.jpg if the mirror/extraction fails.
+        if (meta.beatmapsetId) {
+            const realBgUrl = `${API_BASE}/beatmap-bg?beatmapset_id=${encodeURIComponent(meta.beatmapsetId)}`;
+            const realBg = new Image();
+            realBg.onload = () => { theater.style.backgroundImage = `url('${realBgUrl.replace(/'/g, '%27')}')`; };
+            realBg.src = realBgUrl;
+        }
         const canvas = document.getElementById('replay-canvas');
         const audioEl = document.getElementById('replay-audio');
         const playBtn = document.getElementById('replay-playpause');
@@ -1378,6 +1440,7 @@ async function run() {
             clockRate: clockRateForMods(mods),
             catcherWidth,
             fruitRadiusOsuPx: fruitRadius(cs),
+            objectScale: objectScaleFromCS(cs),
             hiddenMod: mods.includes('HD'),
             hyperdashWindows,
             kiaiRanges,

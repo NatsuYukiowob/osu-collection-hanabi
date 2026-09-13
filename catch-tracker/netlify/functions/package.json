@@ -2,6 +2,7 @@
   "name": "catch-tracker-functions",
   "private": true,
   "dependencies": {
-    "@netlify/blobs": "^10.0.0"
+    "@netlify/blobs": "^10.0.0",
+    "fflate": "^0.8.2"
   }
 }

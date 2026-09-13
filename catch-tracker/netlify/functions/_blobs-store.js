@@ -84,4 +84,15 @@ function getReplayCacheStore() {
     return store('catch-tracker-replay-cache');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore };
+// Watch Replay's theater background (beatmap-bg.js) — `bg:
+// {beatmapset_id}` -> { bytes: base64, contentType }. osu!'s CDN cover.jpg
+// is a pre-cropped ~3.6:1 promo banner, not the actual in-game background;
+// this caches the REAL background image extracted once from the mapset's
+// .osz (downloaded from a mirror, unzipped, matched against the first
+// difficulty's .osu [Events] Background line) so every later view of the
+// same mapset is a cache hit, not a repeat .osz download + unzip.
+function getBeatmapBackgroundStore() {
+    return store('catch-tracker-beatmap-bg');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore };
