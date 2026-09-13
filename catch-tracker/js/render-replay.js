@@ -197,6 +197,47 @@ function hrApplyOffset(position, amount) {
     return (position + amount > 0) ? position + amount : position;
 }
 
+// osu-wiki/Skinning/osu!catch: fruit-apple/orange/pear/grapes.png and
+// fruit-drop.png are all "tinted depend[ing] on the fruit's combo colour"
+// (a grayscale template recoloured at runtime, same mechanism as standard
+// mode's hit circles) — confirmed live by loading replayviewer.com's own
+// "Default" skin PNGs into this renderer: their fruit-pear.png etc. sample
+// as near-white (rgb 253,253,253), not actually coloured, and fruit-
+// bananas.png samples as dark gray, matching the wiki's separate "Tinted
+// yellow" + "Multiplicative blend mode" note for bananas. Previously this
+// renderer used one flat colour per KIND (COLORS.fruit/droplet/tiny) —
+// visibly wrong (and part of why a real Default-skin comparison looked
+// "off"): real fruit/droplet colour cycles through the beatmap's own
+// [Colours] combo palette exactly like standard-mode combo colours, not a
+// fixed hue per object kind.
+function resolveComboColour(comboColours, index) {
+    if (!comboColours || !comboColours.length) return null;
+    const c = comboColours[((index % comboColours.length) + comboColours.length) % comboColours.length];
+    return `rgb(${c.red},${c.green},${c.blue})`;
+}
+
+// Walks top-level hit objects in beatmap order (bananas/spinners included,
+// so they still consume a combo-index slot even though bananas render with
+// a fixed colour, not this one) and assigns each one — and by extension
+// every nested droplet/fruit inside it — the active combo colour. Mirrors
+// the real rule: the first object always starts a new combo (index 0 +
+// its own comboOffset); afterwards the index advances by 1 + comboOffset
+// each time isNewCombo is set, otherwise nested/non-new-combo objects
+// share the previous object's colour.
+function computeComboColourMap(hitObjects, comboColours) {
+    const map = new Map();
+    let comboIndex = -1;
+    let first = true;
+    for (const h of hitObjects) {
+        if (first || h.isNewCombo) {
+            comboIndex += 1 + (h.comboOffset || 0);
+            first = false;
+        }
+        map.set(h, resolveComboColour(comboColours, comboIndex));
+    }
+    return map;
+}
+
 // Returns a Map<hitObject, xOffset> covering every top-level object and
 // every nested object (juice stream droplets, banana-shower bananas).
 // Objects with no applicable offset are simply absent from the map — treat
@@ -311,7 +352,7 @@ function getFruitType(h, index) {
     return FRUIT_TYPE_CYCLE[index % FRUIT_TYPE_CYCLE.length];
 }
 
-function buildDropItem(h, classes, index, offsets, preemptOverride) {
+function buildDropItem(h, classes, index, offsets, preemptOverride, comboColour) {
     // CatchHitObject.EffectiveX in the real game is always clamped to
     // [0, WIDTH] — our offset port didn't clamp its output, so a jittered
     // position landing slightly past either edge would draw/judge there
@@ -323,18 +364,22 @@ function buildDropItem(h, classes, index, offsets, preemptOverride) {
     return {
         time: h.startTime, spawnTime: h.startTime - preempt, x, kind, preempt,
         fruitType: kind === 'fruit' ? getFruitType(h, index) : null,
+        // Bananas are always a fixed tint (see the wiki comment above
+        // computeComboColourMap), never the beatmap's combo palette.
+        color: kind === 'banana' ? null : comboColour,
         caught: false,
     };
 }
 
-function flattenHitObjects(hitObjects, classes, offsets, preemptOverride) {
+function flattenHitObjects(hitObjects, classes, offsets, preemptOverride, colourMap) {
     const out = [];
     let i = 0;
     for (const h of hitObjects) {
+        const comboColour = colourMap ? colourMap.get(h) : null;
         if (Array.isArray(h.nestedHitObjects) && h.nestedHitObjects.length) {
-            for (const n of h.nestedHitObjects) out.push(buildDropItem(n, classes, i++, offsets, preemptOverride));
+            for (const n of h.nestedHitObjects) out.push(buildDropItem(n, classes, i++, offsets, preemptOverride, comboColour));
         } else {
-            out.push(buildDropItem(h, classes, i++, offsets, preemptOverride));
+            out.push(buildDropItem(h, classes, i++, offsets, preemptOverride, comboColour));
         }
     }
     out.sort((a, b) => a.time - b.time);
@@ -607,6 +652,27 @@ function downscaleToCanvas(img, maxSize) {
     return canvas;
 }
 
+// Real fruit/droplet/banana skin sprites are grayscale templates recoloured
+// at runtime (see the comment above computeComboColourMap) — 'multiply' the
+// target colour over the sprite (approximates the real shader: a near-white
+// pixel * colour ≈ colour, a darker shaded/outline pixel * colour stays
+// darker, so shading is preserved), then punch the original alpha back in
+// with 'destination-in' so transparency outside the fruit's silhouette
+// survives the multiply pass untouched.
+function tintSprite(sprite, colorRgb) {
+    const { w, h } = spriteSize(sprite);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cctx = c.getContext('2d');
+    cctx.drawImage(sprite, 0, 0, w, h);
+    cctx.globalCompositeOperation = 'multiply';
+    cctx.fillStyle = colorRgb;
+    cctx.fillRect(0, 0, w, h);
+    cctx.globalCompositeOperation = 'destination-in';
+    cctx.drawImage(sprite, 0, 0, w, h);
+    return c;
+}
+
 // The load event (not img.decode()) — found live that decode() can hang
 // indefinitely (never resolves OR rejects) on a real skin sprite while the
 // tab is backgrounded, silently stalling the whole skin forever with no
@@ -730,6 +796,7 @@ class ReplayPlayer {
         this.hyperdashWindows = opts.hyperdashWindows || [];
         this.kiaiRanges = opts.kiaiRanges || [];
         this.sprites = {};
+        this.tintCache = new Map();
         this.showPopups = true;
         this.popups = [];
         this.lastPoppedTime = null;
@@ -872,7 +939,22 @@ class ReplayPlayer {
             ctx.globalAlpha = alpha;
 
             const spriteKey = it.kind === 'fruit' ? `fruit_${it.fruitType}` : it.kind === 'tiny' ? 'droplet' : it.kind;
-            const sprite = this.sprites[spriteKey];
+            let sprite = this.sprites[spriteKey];
+            // Bananas are always tinted a fixed yellow; fruit/droplet/tiny
+            // are tinted by the beatmap's own combo colour (it.color, from
+            // computeComboColourMap) — see the wiki-sourced comment above
+            // tintSprite(). Cached per sprite+colour so a fresh tinted
+            // canvas isn't redrawn every animation frame.
+            const tintColor = it.kind === 'banana' ? COLORS.banana : it.color;
+            if (sprite && tintColor) {
+                const cacheKey = spriteKey + '|' + tintColor;
+                let tinted = this.tintCache.get(cacheKey);
+                if (!tinted) {
+                    tinted = tintSprite(sprite, tintColor);
+                    this.tintCache.set(cacheKey, tinted);
+                }
+                sprite = tinted;
+            }
             if (sprite) {
                 // Fit within a (size*2.4)-square box rather than stretching
                 // to it — real skin fruit art is documented square, but
@@ -885,7 +967,7 @@ class ReplayPlayer {
                 if (dh > box) { dh = box; dw = box * aspect; }
                 ctx.drawImage(sprite, px - dw / 2, y - dh / 2, dw, dh);
             } else {
-                ctx.fillStyle = COLORS[it.kind] || COLORS.fruit;
+                ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
                 ctx.beginPath();
                 ctx.arc(px, y, size, 0, Math.PI * 2);
                 ctx.fill();
@@ -1223,7 +1305,9 @@ async function run() {
         const preempt = timePreemptForAR(modAdjustedAR(baseAR, mods));
 
         const positionOffsets = computePositionOffsets(catchBeatmap.hitObjects, objectClasses, hrActive);
-        const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets, preempt);
+        const comboColours = (catchBeatmap.colors && catchBeatmap.colors.comboColors) || [];
+        const comboColourMap = computeComboColourMap(catchBeatmap.hitObjects, comboColours);
+        const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets, preempt, comboColourMap);
 
         const parsedScore = await new ScoreDecoder().decodeFromBuffer(new Uint8Array(replayBuffer));
         console.log('[replay] parsed score:', parsedScore);
