@@ -1081,7 +1081,15 @@ class ReplayPlayer {
         }
     }
 
-    setSprites(sprites) { this.sprites = sprites || {}; }
+    // The tint cache is keyed by spriteKey+colour (e.g. "fruit_apple|rgb(...)"),
+    // not by which skin is active — switching skins without clearing it left
+    // stale tinted canvases from the PREVIOUS skin's bitmaps sitting under
+    // the same keys, so a viewer switching skins saw a confusing mix of old
+    // and new artwork (whichever combo-colour/kind combinations happened to
+    // already be cached kept showing the old skin; only genuinely new ones
+    // re-tinted from the new bitmaps). Real bug, live-reported this session
+    // after adding the skin-switcher: "why did the other two skins change".
+    setSprites(sprites) { this.sprites = sprites || {}; this.tintCache.clear(); }
     // Blur/brightness intentionally do NOT touch the canvas — those settings
     // are about the ambient background banner, not the gameplay itself
     // (blurring fruit/catcher would hurt playback legibility). See run()'s
@@ -1925,13 +1933,21 @@ async function run() {
         document.getElementById('replay-offset-reset').addEventListener('click', () => applyOffset(0));
 
         const skinCredit = document.getElementById('replay-skin-credit');
+        // Shared across every skin-changing action (custom upload, clear,
+        // built-in default pick) — each bumps this before its own async
+        // work and checks it's still current before applying the result,
+        // so switching again mid-fetch can't have a stale, slower request
+        // land on top of whatever was picked more recently.
+        let skinRequestGen = 0;
         skinInput.addEventListener('change', async () => {
             const file = skinInput.files && skinInput.files[0];
             if (!file) return;
+            const myGen = ++skinRequestGen;
             skinStatus.textContent = t('replay_skin_loading');
             skinCredit.textContent = '';
             try {
                 const sprites = await loadSkinSprites(file);
+                if (myGen !== skinRequestGen) return;
                 player.setSprites(sprites);
                 skinStatus.textContent = t('replay_skin_loaded', { n: Object.keys(sprites).length });
                 skinClearBtn.hidden = false;
@@ -1942,11 +1958,13 @@ async function run() {
                 // skin now, not a stand-in for "nothing selected").
                 document.getElementById('replay-default-skin').value = '';
             } catch (skinErr) {
+                if (myGen !== skinRequestGen) return;
                 console.warn('[replay] skin load failed:', skinErr);
                 skinStatus.textContent = t('replay_skin_invalid');
             }
         });
         skinClearBtn.addEventListener('click', () => {
+            skinRequestGen++; // invalidate any in-flight upload/default-skin fetch
             player.setSprites({});
             skinInput.value = '';
             skinStatus.textContent = '';
@@ -1966,7 +1984,14 @@ async function run() {
         const CT_DEFAULT_SKIN_KEY = 'ct_default_skin';
         const defaultSkinSelect = document.getElementById('replay-default-skin');
         const applyDefaultSkin = async (id, persist) => {
+            const myGen = ++skinRequestGen;
             const sprites = await loadBundledSkinSprites(id);
+            // A viewer who switches skins again before this fetch finishes
+            // (e.g. quickly clicking through several options) shouldn't
+            // have this now-stale result land on top of whatever they
+            // picked more recently — only the most recent request may
+            // still apply its own result.
+            if (myGen !== skinRequestGen) return;
             player.setSprites(sprites);
             skinInput.value = '';
             skinClearBtn.hidden = true;
