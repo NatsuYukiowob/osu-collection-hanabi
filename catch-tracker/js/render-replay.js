@@ -692,11 +692,20 @@ class ReplayPlayer {
     tick(wallNow) {
         const prevTime = this.mapTime;
         if (this.playing) {
+            const dt = wallNow - this.lastWall;
+            this.mapTime += dt * this.speed * this.clockRate;
             if (this.audioReady) {
-                this.mapTime = this.audio.currentTime * 1000;
-            } else {
-                const dt = wallNow - this.lastWall;
-                this.mapTime += dt * this.speed * this.clockRate;
+                // Advance from the rAF wall clock every frame (smooth,
+                // ~60fps) rather than overwriting mapTime with
+                // audio.currentTime directly each tick — the audio
+                // element's own clock doesn't update every single rAF
+                // frame on every browser/backend, so doing that produced
+                // a visible staircase-step fall motion instead of smooth
+                // interpolation. Only snap to the audio clock when it's
+                // drifted noticeably, so playback still stays locked to
+                // the real audio over time without the per-frame jitter.
+                const audioMs = this.audio.currentTime * 1000;
+                if (Math.abs(this.mapTime - audioMs) > 80) this.mapTime = audioMs;
             }
             if (this.mapTime >= this.maxTime) {
                 this.mapTime = this.maxTime;

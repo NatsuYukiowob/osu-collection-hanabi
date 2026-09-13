@@ -1627,7 +1627,13 @@ footer.site-footer {
     flex: 1 1 auto;
     width: 100%;
     max-width: 1400px;
-    min-height: 480px;
+    /* osu!'s real playfield is 512x384 (4:3) — locking the theater's own
+       box to that ratio (rather than letting flex hand it an arbitrary
+       width/height combination) keeps the fruit-fall geometry visually
+       correct instead of stretching/squashing depending on viewport
+       shape. Width/height caps above and below now just bound how big
+       or small that fixed-ratio box gets, they don't set it directly. */
+    aspect-ratio: 512 / 384;
     max-height: 720px;
     overflow: hidden;
     background: #05050c center / cover no-repeat;
@@ -1867,7 +1873,10 @@ footer.site-footer {
 .page-replay.show-banana-rain .banana-rain { display: block; }
 
 @media (max-width: 640px) {
-    .replay-theater { min-height: 360px; }
+    /* No min-height override here anymore — forcing one would fight the
+       4:3 aspect-ratio box above and stretch it again on narrow screens,
+       the exact thing that was just fixed. Letterboxing shorter on a
+       narrow phone is correct/expected (same as any 4:3 video embed). */
     .replay-hud-leaderboard, .replay-hud-stats, .replay-hud-info { display: none; }
     .replay-hud-combo { font-size: 1.6rem; }
     .replay-bottom-controls { gap: 6px; }
