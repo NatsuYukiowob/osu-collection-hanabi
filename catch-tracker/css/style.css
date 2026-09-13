@@ -1619,13 +1619,14 @@ footer.site-footer {
    in when a browser settles a fullscreen transition can't leave the
    canvas measuring a stale rect. */
 .page-replay { display: flex; flex-direction: column; min-height: 100vh; }
-.page-replay main { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; padding: 0; max-width: none; width: 100%; margin: 0; min-height: 0; }
+.page-replay main { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0; max-width: none; width: 100%; margin: 0; min-height: 0; }
 .page-replay .site-footer { display: none; }
 
 .replay-theater {
     position: relative;
     flex: 1 1 auto;
     width: 100%;
+    max-width: 1400px;
     min-height: 480px;
     max-height: 720px;
     overflow: hidden;
