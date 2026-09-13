@@ -136,8 +136,9 @@ async function loadFeed() {
                     <td>${fmtAccuracy(s.accuracy)}</td>
                     <td>${fmtPP(s.pp)}</td>
                     <td>${relTime(s.created_at)}</td>
+                    <td>${replayLink(s)}</td>
                 </tr>`).join('')
-            : `<tr><td colspan="7" class="empty-state">${t('empty_feed')}</td></tr>`;
+            : `<tr><td colspan="8" class="empty-state">${t('empty_feed')}</td></tr>`;
 
         populateCountryFilter(data.countries);
         renderActivePlayers(data.activePlayers);

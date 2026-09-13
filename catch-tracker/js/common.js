@@ -33,6 +33,32 @@ const LANG_STRINGS = {
         logout: '登出',
         login_failed: '登入失敗，請再試一次',
 
+        watch_replay: '看回放',
+        replay_login_prompt: '使用 osu! 帳號登入以觀看回放',
+        replay_loading: '回放載入中…',
+        replay_not_found: '找不到這筆成績的回放',
+        replay_owner_only: '這個回放可能只有本人才能觀看',
+        replay_fetch_failed: '回放下載失敗：{msg}',
+        replay_use_skin: '使用你的 osu! 皮膚',
+        replay_clear_skin: '清除皮膚',
+        replay_skin_loading: '皮膚載入中…',
+        replay_skin_loaded: '已套用皮膚（{n} 個圖案）',
+        replay_skin_invalid: '無法讀取這個 .osk 檔案',
+        replay_stat_combo: '連擊',
+        replay_stat_maxcombo: '最大連擊',
+        replay_stat_accuracy: '模擬準度',
+        replay_stat_caught: '接到',
+        replay_stat_miss: '漏接',
+        replay_stat_hp: 'HP',
+        replay_settings: '視覺設定',
+        replay_settings_volume: '音量',
+        replay_settings_blur: '背景模糊',
+        replay_settings_brightness: '亮度',
+        replay_settings_judgements: '顯示接到/漏空提示',
+        replay_settings_banana_rain: '顯示香蕉背景動畫',
+        replay_info_by: '由 {name} 遊玩',
+        replay_disclaimer: '這是依據回放資料與圖譜物件重建的簡化動畫，非官方畫面；接到/漏接與統計數據皆為視覺估算，非官方判定。',
+
         h1_feed: '即時分數動態',
         filter_any_grade: '任何評級', filter_fc_only: '僅 FC', filter_choke_only: '僅撞/失敗',
         grade_f_fail: 'F（失敗）',
@@ -192,6 +218,32 @@ const LANG_STRINGS = {
         login_with_osu: 'Login with osu!',
         logout: 'Logout',
         login_failed: 'Login failed, please try again',
+
+        watch_replay: 'Watch Replay',
+        replay_login_prompt: 'Login with your osu! account to watch replays',
+        replay_loading: 'Loading replay…',
+        replay_not_found: 'No replay available for this score',
+        replay_owner_only: 'This replay may only be viewable by its owner',
+        replay_fetch_failed: 'Failed to download replay: {msg}',
+        replay_use_skin: 'Use your osu! skin',
+        replay_clear_skin: 'Clear skin',
+        replay_skin_loading: 'Loading skin…',
+        replay_skin_loaded: 'Skin applied ({n} sprites)',
+        replay_skin_invalid: 'Could not read this .osk file',
+        replay_stat_combo: 'Combo',
+        replay_stat_maxcombo: 'Max Combo',
+        replay_stat_accuracy: 'Sim. Accuracy',
+        replay_stat_caught: 'Caught',
+        replay_stat_miss: 'Miss',
+        replay_stat_hp: 'HP',
+        replay_settings: 'Visual settings',
+        replay_settings_volume: 'Volume',
+        replay_settings_blur: 'Background blur',
+        replay_settings_brightness: 'Brightness',
+        replay_settings_judgements: 'Show catch/miss popups',
+        replay_settings_banana_rain: 'Show banana background',
+        replay_info_by: 'Played by {name}',
+        replay_disclaimer: 'This is a simplified reconstruction from replay + beatmap data, not an official view; catch/miss results and stats are visual estimates, not official judgements.',
 
         h1_feed: 'Live Score Feed',
         filter_any_grade: 'Any grade', filter_fc_only: 'FC only', filter_choke_only: 'Choke/fail only',
@@ -566,6 +618,30 @@ function playerLink(userId, username) {
 
 function mapLink(beatmapId, label) {
     return `<a class="map-link" href="map.html?id=${encodeURIComponent(beatmapId)}">${escapeHtml(label)}</a>`;
+}
+
+// Shared "看回放" entry point for any score row (player best/recent plays,
+// map score lists, live feed) — only renders when has_replay is true (see
+// js/render-replay.js's own header comment: osu! only retains a
+// downloadable replay when the score is notable enough on its beatmap, so
+// this is false for most ordinary scores, not a bug). username/userId
+// override params let a caller that already knows them (e.g. the player
+// page, which has both from its own URL/profile data) avoid relying on
+// the score record carrying them itself.
+function replayLink(s, username, userId) {
+    if (!s.has_replay || !s.score_id) return '';
+    const params = new URLSearchParams({ score_id: s.score_id, beatmap_id: s.beatmap_id });
+    if (s.beatmapset_id) params.set('beatmapset_id', s.beatmapset_id);
+    if (s.mods && s.mods.length) params.set('mods', s.mods.join(','));
+    if (s.title) params.set('title', s.title);
+    if (s.artist) params.set('artist', s.artist);
+    if (s.version) params.set('version', s.version);
+    if (s.rank) params.set('rank', s.rank);
+    const uname = username || s.username;
+    if (uname) params.set('username', uname);
+    const uid = userId || s.user_id;
+    if (uid) params.set('user_id', uid);
+    return `<a class="pill" href="replay.html?${params.toString()}">${escapeHtml(t('watch_replay'))}</a>`;
 }
 
 // osu!'s stable beatmapset-cover CDN pattern — no extra API call needed,

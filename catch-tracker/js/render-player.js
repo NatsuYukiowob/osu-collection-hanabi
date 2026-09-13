@@ -13,6 +13,11 @@ function fmtNum(n) {
     return n != null ? n.toLocaleString() : '—';
 }
 
+// Set once per loadPlayer() call — scoreRow() needs the profile's own
+// username/id for replayLink() (score records don't carry either, since
+// they're always this same player's own scores).
+let _currentPlayer = { id: null, username: '' };
+
 function scoreRow(s) {
     return `<tr>
         <td>${mapLink(s.beatmap_id, `${s.artist || ''} - ${s.title || ''} [${s.version || ''}]`)}</td>
@@ -21,13 +26,14 @@ function scoreRow(s) {
         <td>${fmtAccuracy(s.accuracy)}</td>
         <td>${fmtPP(s.pp)}</td>
         <td>${relTime(s.created_at)}</td>
+        <td>${replayLink(s, _currentPlayer.username, _currentPlayer.id)}</td>
     </tr>`;
 }
 
 function scoreTable(scores, emptyMsg) {
     if (!scores.length) return `<p class="empty-state">${emptyMsg}</p>`;
     return `<div class="table-wrap"><table>
-        <thead><tr><th>${t('th_map')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th></tr></thead>
+        <thead><tr><th>${t('th_map')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th><th></th></tr></thead>
         <tbody>${scores.map(s => scoreRow(s)).join('')}</tbody>
     </table></div>`;
 }
@@ -240,6 +246,7 @@ async function loadPlayer() {
         const data = await apiGet('player-get', { user_id: userId });
         const p = data.profile;
         document.title = `Catch Tracker — ${p.username || userId}`;
+        _currentPlayer = { id: userId, username: p.username || '' };
 
         const extraStats = [];
         const joinDate = fmtJoinDate(p.join_date);

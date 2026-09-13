@@ -1584,3 +1584,276 @@ footer.site-footer {
     .search-input { width: 100%; }
     .search-input:focus { width: 100%; }
 }
+
+/* ---------- Watch Replay (theater layout) ----------
+   Deliberately breaks from the rest of the site's card/pill language —
+   this page is meant to feel like a dedicated viewer "mode", matching
+   mania-tracker.com's replay viewer: full-bleed dark theater over a
+   blurred beatmap cover, borderless floating HUD text (legibility comes
+   from text-shadow against the dimmed backdrop, not card backgrounds).
+
+   REBUILT 2026-09-12 after the original theater was removed for a bug
+   where true native fullscreen let fruits render outside the playfield
+   bounds. Root cause: the old layout used `width:100vw` + a negative
+   `margin-left: calc(50% - 50vw)` "breakout" to escape `main`'s max-width
+   while staying in normal flow — `100vw` includes the scrollbar's own
+   width in most browsers, so on any page with a vertical scrollbar that
+   breakout was actually wider than the visible viewport, and a hardcoded
+   `calc(100vh - 64px)` height baked in the header's height as a magic
+   number (already known-wrong on narrow screens, which needed their own
+   separate override below). Native Fullscreen API promotes the element
+   into a top-layer context sized via the UA stylesheet, and those
+   viewport-unit/margin/height rules kept fighting it.
+
+   This time: no viewport units, no negative margins, no magic-number
+   heights. `.page-replay` is a column flexbox from `<body>` down; `main`
+   and `.replay-theater` just flex to fill whatever space is actually
+   left below the (normal-flow, sticky) header, using ordinary `100%`/
+   `flex: 1 1 auto` sizing. Nothing here needs a `:fullscreen` override:
+   there's no authored width/height/position left that could conflict
+   with the UA's own fullscreen sizing, so requesting fullscreen on
+   `.replay-theater` just grows the same flex-filled box to the real
+   screen with no separate code path. js/render-replay.js additionally
+   uses a ResizeObserver (not just `resize`/`fullscreenchange` listeners)
+   to re-measure the canvas on ANY box-size change, so timing differences
+   in when a browser settles a fullscreen transition can't leave the
+   canvas measuring a stale rect. */
+.page-replay { display: flex; flex-direction: column; min-height: 100vh; }
+.page-replay main { flex: 1 1 auto; display: flex; padding: 0; max-width: none; width: 100%; margin: 0; min-height: 0; }
+.page-replay .site-footer { display: none; }
+
+.replay-theater {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 480px;
+    overflow: hidden;
+    background: #05050c center / cover no-repeat;
+    isolation: isolate;
+}
+.replay-theater-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: rgba(6, 6, 16, 0.4);
+    backdrop-filter: blur(26px) brightness(0.5) saturate(1.15);
+    -webkit-backdrop-filter: blur(26px) brightness(0.5) saturate(1.15);
+}
+.replay-canvas-full {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.replay-hud-acc, .replay-hud-combo {
+    position: absolute;
+    z-index: 2;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 0 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+.replay-hud-acc { top: 20px; left: 24px; font-size: clamp(1.1rem, 2vw, 1.5rem); }
+.replay-hud-combo {
+    top: 16px;
+    right: 24px;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+}
+
+.replay-hud-info {
+    position: absolute;
+    z-index: 2;
+    left: 24px;
+    bottom: 96px;
+    max-width: 60%;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+}
+.replay-hud-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
+.replay-hud-sub { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+.replay-hud-tags { display: flex; gap: 6px; margin-top: 6px; pointer-events: auto; }
+
+.replay-hud-leaderboard {
+    position: absolute;
+    z-index: 2;
+    left: 24px;
+    top: 64px;
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.replay-lb-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.75);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.replay-lb-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex: none; }
+.replay-lb-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.replay-lb-score { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.replay-lb-combo { font-variant-numeric: tabular-nums; width: 3.2em; text-align: right; }
+.replay-lb-current { color: #fff; font-weight: 700; }
+.replay-lb-current .replay-lb-name { color: var(--accent); }
+
+.replay-hud-stats {
+    position: absolute;
+    z-index: 2;
+    right: 24px;
+    top: 70px;
+    width: 170px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.replay-hud-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.65);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.replay-hud-stat strong {
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+}
+.replay-hp-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+    margin-top: 4px;
+}
+.replay-hp-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--primary));
+    transition: width 120ms linear;
+}
+
+.replay-bottom-bar {
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 14px 24px 16px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+}
+.replay-scrub-full {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--primary), rgba(255, 255, 255, 0.2));
+    margin-bottom: 12px;
+    cursor: pointer;
+}
+.replay-scrub-full::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+}
+.replay-scrub-full::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+}
+.replay-bottom-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.replay-play-btn {
+    min-width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.replay-speed-pills { display: flex; gap: 4px; }
+.replay-speed-pills button {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.replay-speed-pills button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.replay-icon-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.76rem;
+    padding: 7px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.replay-skin-status { font-size: 0.76rem; color: rgba(255, 255, 255, 0.6); }
+
+.replay-settings-drawer {
+    position: absolute;
+    z-index: 4;
+    right: 24px;
+    bottom: 78px;
+    width: 220px;
+    background: rgba(10, 10, 22, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+.replay-settings-drawer label { display: flex; align-items: center; gap: 8px; }
+.replay-settings-drawer input[type="range"] { flex: 1 1 auto; }
+.replay-settings-drawer[hidden] { display: none; }
+
+.replay-disclaimer-note { max-width: 1200px; margin: 14px auto 0; }
+
+/* Replay's own banana-rain default: off (the page is already visually
+   busy) unless explicitly re-enabled via the visual-settings panel. */
+.page-replay .banana-rain { display: none; }
+.page-replay.show-banana-rain .banana-rain { display: block; }
+
+@media (max-width: 640px) {
+    .replay-theater { min-height: 360px; }
+    .replay-hud-leaderboard, .replay-hud-stats, .replay-hud-info { display: none; }
+    .replay-hud-combo { font-size: 1.6rem; }
+    .replay-bottom-controls { gap: 6px; }
+    .replay-settings-drawer { left: 12px; right: 12px; width: auto; }
+}

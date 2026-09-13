@@ -56,7 +56,7 @@ async function loadMap() {
             <h2>${t('tracked_scores')}</h2>
             <div class="table-wrap">
             <table>
-                <thead><tr><th>${t('th_player')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th></tr></thead>
+                <thead><tr><th>${t('th_player')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th><th></th></tr></thead>
                 <tbody>${data.scores.map(s => `
                     <tr>
                         <td>${playerLink(s.user_id, s.username)}</td>
@@ -65,7 +65,8 @@ async function loadMap() {
                         <td>${fmtAccuracy(s.accuracy)}</td>
                         <td>${fmtPP(s.pp)}</td>
                         <td>${relTime(s.created_at)}</td>
-                    </tr>`).join('') || `<tr><td colspan="6" class="empty-state">${t('no_scores_short')}</td></tr>`}</tbody>
+                        <td>${replayLink(s)}</td>
+                    </tr>`).join('') || `<tr><td colspan="7" class="empty-state">${t('no_scores_short')}</td></tr>`}</tbody>
             </table>
             </div>
         `;
