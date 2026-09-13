@@ -1624,17 +1624,21 @@ footer.site-footer {
 
 .replay-theater {
     position: relative;
-    flex: 1 1 auto;
-    width: 100%;
-    max-width: 1600px;
-    /* osu!'s real playfield is 512x384 (4:3) — locking the theater's own
-       box to that ratio (rather than letting flex hand it an arbitrary
-       width/height combination) keeps the fruit-fall geometry visually
-       correct instead of stretching/squashing depending on viewport
-       shape. Width/height caps above and below now just bound how big
-       or small that fixed-ratio box gets, they don't set it directly. */
+    /* osu!'s real playfield is 512x384 (4:3). flex-grow + independent
+       max-width/max-height on this item let the browser resolve BOTH
+       dimensions as "definite" from the box model directly, which
+       means aspect-ratio has nothing left to compute and gets silently
+       ignored the moment width and height caps don't already share its
+       ratio (confirmed live: max-width:1600/max-height:900 rendered as
+       an exact 1600x900 16:9 box, not a 4:3 one within those bounds).
+       Sizing only ONE dimension explicitly and deriving the other from
+       aspect-ratio avoids that entirely: width is the smallest of "the
+       available column width", "an absolute cap", or "the available
+       viewport height converted to a width via the ratio" — so it's
+       never wider than the row nor taller than the screen, and
+       aspect-ratio has just one clean value left to derive height from. */
+    width: min(100%, 1700px, calc((100vh - 140px) * 512 / 384));
     aspect-ratio: 512 / 384;
-    max-height: 900px;
     overflow: hidden;
     background: #05050c center / cover no-repeat;
     isolation: isolate;
