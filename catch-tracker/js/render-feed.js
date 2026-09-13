@@ -126,8 +126,12 @@ async function loadFeed() {
         const params = Object.fromEntries(Object.entries(currentFilters()).filter(([, v]) => v !== undefined));
         const data = await apiGet('feed-list', params);
 
-        body.innerHTML = data.items.length
-            ? data.items.map(s => `
+        // Per-browser hide-list (settings-panel.js) — see render-rankings.js
+        // for why this is filtered client-side rather than server-side.
+        const items = data.items.filter(s => !window.isPlayerHidden || !window.isPlayerHidden(s.username));
+
+        body.innerHTML = items.length
+            ? items.map(s => `
                 <tr>
                     <td>${avatarWithFlagHtml(s.avatar_url, s.country_code)} ${playerLink(s.user_id, s.username)}</td>
                     <td>${mapLink(s.beatmap_id, `${s.artist || ''} - ${s.title || ''} [${s.version || ''}]`)}</td>

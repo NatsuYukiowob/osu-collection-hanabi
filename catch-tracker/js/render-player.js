@@ -19,7 +19,12 @@ function fmtNum(n) {
 let _currentPlayer = { id: null, username: '' };
 
 function scoreRow(s) {
-    return `<tr>
+    // score-modal.js's delegated click listener opens the detail modal for
+    // any row with data-score-id — registered here so it has the full
+    // score object (map link/mods/grade cells keep their own <a> targets
+    // navigating normally; the listener skips real link clicks).
+    registerScoreForModal(s);
+    return `<tr${s.score_id ? ` data-score-id="${s.score_id}"` : ''}>
         <td>${mapLink(s.beatmap_id, `${s.artist || ''} - ${s.title || ''} [${s.version || ''}]`)}</td>
         <td>${modsTag(s.mods)}</td>
         <td>${gradeBadge(s.rank)}${fcTag(s.is_fc)}</td>

@@ -82,6 +82,17 @@ function toRecord(entry) {
         // (confirmed live: rendered as "9989.24%" before this fix).
         accuracy: typeof entry.hit_accuracy === 'number' ? entry.hit_accuracy / 100 : null,
         play_count: entry.play_count ?? null,
+        // SS/S/A grade tallies for the rankings-table columns (mania-tracker
+        // parity) — same payload the site already reads for pp/accuracy,
+        // just kept instead of discarded. osu! API v2 nests this per-mode
+        // per-rank; ssh/sh fold into the plain ss/s counts (Hidden-mod
+        // variants of the same grade), matching mania-tracker's own
+        // 3-column SS/S/A display rather than splitting out the H variants.
+        grade_counts: entry.grade_counts ? {
+            ss: (entry.grade_counts.ss || 0) + (entry.grade_counts.ssh || 0),
+            s: (entry.grade_counts.s || 0) + (entry.grade_counts.sh || 0),
+            a: entry.grade_counts.a || 0,
+        } : null,
         level: (entry.level && entry.level.current) ?? null,
         is_online: !!u.is_online,
         last_visit: u.last_visit || null,

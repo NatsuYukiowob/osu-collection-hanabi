@@ -23,6 +23,16 @@ const LANG_STRINGS = {
         title_feed: 'Catch Tracker — 即時動態',
         h1_rankings: 'osu!catch 排名',
         th_rank: '#', th_player: '玩家', th_pp: 'PP', th_accuracy: '準度', th_playcount: '遊玩次數',
+        th_delta_global: '全球Δ', th_delta_country: '國內Δ', th_ss: 'SS', th_s: 'S', th_a: 'A',
+        settings_title: '設定', theme_title: '主題色',
+        settings_hide_players: '隱藏玩家',
+        settings_hide_players_hint: '被隱藏的玩家會從全站的排行榜和動態消息中過濾掉，此列表只存在你目前的瀏覽器中。',
+        settings_hide_search_placeholder: '輸入玩家名稱後按 Enter',
+        settings_no_hidden: '沒有隱藏的玩家。',
+        settings_appearance: '外觀',
+        settings_custom_cursor: '自訂游標',
+        settings_custom_cursor_hint: '在全站將滑鼠游標換成 osu! 風格光標。',
+        theme_reset: '重設為預設色',
         coverage_rankings: '追蹤 {n} 位 catch 玩家 — 上次更新 {time}',
         coverage_rankings_pending: '追蹤 {n} 位 catch 玩家 — 尚未更新',
         empty_rankings: '目前還沒有已追蹤的 catch 玩家 — 可能第一次排名掃描尚未完成。',
@@ -35,6 +45,13 @@ const LANG_STRINGS = {
 
         watch_replay: '看回放',
         replay_login_prompt: '使用 osu! 帳號登入以觀看回放',
+
+        score_modal_combo: '最大連段',
+        score_modal_miss: '漏接',
+        score_modal_sr: '難度',
+        score_modal_view_osu: '在 osu! 上查看',
+        score_modal_view_map: '查看圖譜頁面',
+        score_modal_close: '關閉',
         replay_loading: '回放載入中…',
         replay_not_found: '找不到這筆成績的回放',
         replay_owner_only: '這個回放可能只有本人才能觀看',
@@ -212,6 +229,16 @@ const LANG_STRINGS = {
         title_feed: 'Catch Tracker — Live Feed',
         h1_rankings: 'osu!catch Rankings',
         th_rank: '#', th_player: 'Player', th_pp: 'pp', th_accuracy: 'Accuracy', th_playcount: 'Play Count',
+        th_delta_global: 'Global Δ', th_delta_country: 'Country Δ', th_ss: 'SS', th_s: 'S', th_a: 'A',
+        settings_title: 'Settings', theme_title: 'Theme colour',
+        settings_hide_players: 'Hidden players',
+        settings_hide_players_hint: 'Hidden players are filtered out of rankings and the live feed everywhere on the site. This list only lives in your own browser.',
+        settings_hide_search_placeholder: 'Type a username, press Enter',
+        settings_no_hidden: 'No hidden players.',
+        settings_appearance: 'Appearance',
+        settings_custom_cursor: 'Custom cursor',
+        settings_custom_cursor_hint: 'Swap the mouse cursor for an osu!-style ring, site-wide.',
+        theme_reset: 'Reset to default',
         coverage_rankings: 'Tracking {n} catch players — last refreshed {time}',
         coverage_rankings_pending: 'Tracking {n} catch players — not yet refreshed',
         empty_rankings: 'No ranked catch players tracked yet — the first rankings sweep may not have run.',
@@ -223,6 +250,13 @@ const LANG_STRINGS = {
         login_failed: 'Login failed, please try again',
 
         watch_replay: 'Watch Replay',
+
+        score_modal_combo: 'Max Combo',
+        score_modal_miss: 'Miss',
+        score_modal_sr: 'Star Rating',
+        score_modal_view_osu: 'View on osu!',
+        score_modal_view_map: 'View map page',
+        score_modal_close: 'Close',
         replay_login_prompt: 'Login with your osu! account to watch replays',
         replay_loading: 'Loading replay…',
         replay_not_found: 'No replay available for this score',
@@ -1060,15 +1094,19 @@ function initBananaRain() {
     const container = document.createElement('div');
     container.className = 'banana-rain';
     container.setAttribute('aria-hidden', 'true');
-    const COUNT = 7;
+    // A clear mix of big/small bananas (not just one narrow size band) —
+    // small ones drift lighter/faster, big ones sit heavier/slower, same
+    // spirit as real catch bananas varying in on-screen size by distance.
+    const COUNT = 16;
     for (let i = 0; i < COUNT; i++) {
         const span = document.createElement('span');
         span.textContent = '🍌';
+        const big = i % 2 === 0;
         span.style.left = `${(i / COUNT) * 100 + Math.random() * (100 / COUNT) * 0.6}%`;
-        span.style.fontSize = `${16 + Math.random() * 14}px`;
-        span.style.opacity = (0.14 + Math.random() * 0.18).toFixed(2);
-        span.style.animationDuration = `${16 + Math.random() * 12}s`;
-        span.style.animationDelay = `${-Math.random() * 25}s`;
+        span.style.fontSize = big ? `${30 + Math.random() * 16}px` : `${12 + Math.random() * 8}px`;
+        span.style.opacity = (big ? 0.10 + Math.random() * 0.12 : 0.16 + Math.random() * 0.18).toFixed(2);
+        span.style.animationDuration = big ? `${22 + Math.random() * 14}s` : `${13 + Math.random() * 10}s`;
+        span.style.animationDelay = `${-Math.random() * 30}s`;
         container.appendChild(span);
     }
     document.body.prepend(container);

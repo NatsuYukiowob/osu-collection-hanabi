@@ -46,6 +46,11 @@ function normalizeScore(score) {
         passed: score.passed !== false,
         has_replay: score.has_replay === true,
         created_at: score.created_at || null,
+        score_id: score.id ?? score.best_id ?? null,
+        // Same shape _scores-poll-core.js already stores on feed records —
+        // the score-detail modal (score-modal.js) reads count_300/100/50/
+        // miss out of this for the judgement breakdown.
+        statistics: score.statistics || {},
     };
 }
 

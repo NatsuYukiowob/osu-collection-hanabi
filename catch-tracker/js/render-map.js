@@ -57,8 +57,10 @@ async function loadMap() {
             <div class="table-wrap">
             <table>
                 <thead><tr><th>${t('th_player')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th><th></th></tr></thead>
-                <tbody>${data.scores.map(s => `
-                    <tr>
+                <tbody>${data.scores.map(s => {
+                    registerScoreForModal(s);
+                    return `
+                    <tr${s.score_id ? ` data-score-id="${s.score_id}"` : ''}>
                         <td>${playerLink(s.user_id, s.username)}</td>
                         <td>${modsTag(s.mods)}</td>
                         <td>${gradeBadge(s.rank)}${fcTag(s.is_fc)}</td>
@@ -66,7 +68,8 @@ async function loadMap() {
                         <td>${fmtPP(s.pp)}</td>
                         <td>${relTime(s.created_at)}</td>
                         <td>${replayLink(s)}</td>
-                    </tr>`).join('') || `<tr><td colspan="7" class="empty-state">${t('no_scores_short')}</td></tr>`}</tbody>
+                    </tr>`;
+                }).join('') || `<tr><td colspan="7" class="empty-state">${t('no_scores_short')}</td></tr>`}</tbody>
             </table>
             </div>
         `;
