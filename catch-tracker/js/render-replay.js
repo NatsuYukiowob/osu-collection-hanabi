@@ -91,7 +91,7 @@ const POPUP_DURATION_MS = 600;
 const SETTINGS_KEY = 'ct_replay_settings';
 // blur/brightness default to the same values the .replay-theater-scrim CSS
 // rule used before these became adjustable — see applyBackgroundSettings().
-const DEFAULT_SETTINGS = { blur: 26, brightness: 50, popups: true, bananaRain: false, volume: 70 };
+const DEFAULT_SETTINGS = { blur: 26, brightness: 50, popups: true, bananaRain: false, volume: 70, effectsVolume: 70 };
 
 const main = document.getElementById('replay-main');
 
@@ -667,6 +667,42 @@ function recordRecentlyViewedReplay({ scoreId, beatmapId, userId, title, artist,
 
 const COLORS = { fruit: '#fb5a8c', droplet: '#60a5fa', tiny: '#93c5fd', banana: '#facc15' };
 
+// A real banana silhouette (osu!'s DEFAULT skin's own fruit-bananas.png) is
+// a curved crescent, not a circle — but the default skin's actual art is
+// baked into the game client itself, never distributed inside a player's
+// .osk (confirmed live this session: a real user-reported skin pack —
+// checked all ~400 files across every bundled sub-skin folder, not just
+// its own root — had exactly one banana-related file in the whole thing,
+// its own fruit-bananas-OVERLAY.png, no base anywhere to fall back to).
+// So when a skin has no banana base of its own, there is no real image
+// this renderer could borrow — draw a procedural crescent instead of the
+// plain circle used for every other missing-sprite fallback, since a
+// circle reads as "wrong shape", not just "wrong texture".
+function drawBananaShape(ctx, cx, cy, r, fillColor) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.55);
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.95, r * 0.55);
+    ctx.quadraticCurveTo(-r * 0.55, -r * 1.05, r * 0.75, -r * 0.85);
+    ctx.quadraticCurveTo(r * 1.15, -r * 0.55, r * 0.95, -r * 0.15);
+    ctx.quadraticCurveTo(r * 0.15, -r * 0.55, -r * 0.55, r * 0.25);
+    ctx.quadraticCurveTo(-r * 0.85, r * 0.55, -r * 0.95, r * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = fillColor || COLORS.banana;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.12);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.stroke();
+    // Small dark tips at both ends, same as a real banana's stem/end caps —
+    // a cheap detail that reads as "banana" at a glance far more than the
+    // curve alone.
+    ctx.fillStyle = '#6b4a1f';
+    ctx.beginPath(); ctx.arc(r * 0.85, -r * 0.55, r * 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-r * 0.9, r * 0.5, r * 0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+}
+
 /* ---------- skin import (opt-in, client-side only) ----------
    Three techniques below were confirmed this session by downloading and
    reading mania-tracker.com's actual replay-skin-import bundle — their
@@ -738,6 +774,47 @@ function seededRandom01(seed, series) {
     h = Math.imul(h, 3266489917) >>> 0;
     h ^= h >>> 16;
     return (h >>> 0) / 4294967296;
+}
+
+// Catch/miss hit-sound effects — synthesized (a short sine blip through a
+// quick decay envelope), not sampled from a skin: this renderer never
+// parses a skin's own hitsound bank (normal-hitnormal.wav etc.), and
+// synthesizing avoids needing to add that whole loader just for this.
+// Lazily created since browsers refuse to start an AudioContext before a
+// user gesture — the first real playback (a genuine user click) creates it.
+let _sfxCtx = null;
+function getSfxContext() {
+    if (!_sfxCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) _sfxCtx = new Ctx();
+    }
+    return _sfxCtx;
+}
+function playHitSound(caught, volume01) {
+    if (volume01 <= 0) return;
+    const ctx = getSfxContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    // A caught object gets a short, bright, slightly-rising blip; a miss
+    // gets a lower, flat, slightly longer thud — enough to tell the two
+    // apart by ear without either being an actual game's hitsound.
+    const now = ctx.currentTime;
+    if (caught) {
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.05);
+        gain.gain.setValueAtTime(0.22 * volume01, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+    } else {
+        osc.frequency.setValueAtTime(180, now);
+        gain.gain.setValueAtTime(0.22 * volume01, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    }
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
 }
 
 function downscaleToCanvas(img, maxSize) {
@@ -919,6 +996,7 @@ class ReplayPlayer {
         this.items = items;
         this.frames = frames;
         this.clockRate = opts.clockRate;
+        this.offsetMs = 0;
         this.catcherWidth = opts.catcherWidth;
         this.fruitRadiusOsuPx = opts.fruitRadiusOsuPx || 32;
         this.objectScale = opts.objectScale || 0.5;
@@ -973,6 +1051,7 @@ class ReplayPlayer {
     // applyBackgroundSettings(), which targets the scrim instead.
     setVisualSettings(s) {
         this.showPopups = s.popups;
+        this.effectsVolume = (s.effectsVolume ?? 70) / 100;
     }
     resize(w, h) {
         this.canvas.width = Math.max(1, Math.round(w));
@@ -999,11 +1078,18 @@ class ReplayPlayer {
     updatePopups(prevTime) {
         if (this.lastPoppedTime === null) { this.lastPoppedTime = prevTime; }
         const jumped = Math.abs(prevTime - this.lastPoppedTime) > 50 || this.mapTime < this.lastPoppedTime;
-        if (this.showPopups && !jumped && this.mapTime > this.lastPoppedTime) {
+        // Hit-sound effects use the same "don't fire in a burst across a
+        // seek/scrub jump" guard as popups, but are otherwise independent
+        // of the popup-text visibility toggle (sound and on-screen text are
+        // separate settings) and only play during actual playback — a
+        // paused frame-by-frame scrub would otherwise replay every sound
+        // between the old and new position at once.
+        if (!jumped && this.playing && this.mapTime > this.lastPoppedTime) {
             for (const it of this.items) {
                 if (it.kind === 'tiny' || it.unknown) continue;
                 if (it.time > this.lastPoppedTime && it.time <= this.mapTime) {
-                    this.popups.push({ time: it.time, x: it.x, caught: it.caught });
+                    if (this.showPopups) this.popups.push({ time: it.time, x: it.x, caught: it.caught });
+                    if (this.effectsVolume > 0) playHitSound(it.caught, this.effectsVolume);
                 }
             }
         }
@@ -1181,10 +1267,14 @@ class ReplayPlayer {
                 // the coloured procedural shape as the base plane instead,
                 // and layer the overlay on top of THAT for whatever extra
                 // fidelity it adds — never worse than before, sometimes better.
-                ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
-                ctx.beginPath();
-                ctx.arc(px, y, size, 0, Math.PI * 2);
-                ctx.fill();
+                if (it.kind === 'banana') {
+                    drawBananaShape(ctx, px, y, size, it.color);
+                } else {
+                    ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
+                    ctx.beginPath();
+                    ctx.arc(px, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 if (overlaySprite) {
                     const oLogical = logicalSpriteSize(overlaySprite);
                     const scale = this.objectScale * osuPxToScreenPx * kindScale(it.kind);
@@ -1231,12 +1321,20 @@ class ReplayPlayer {
             ctx.globalAlpha = alpha;
             if (additive) ctx.globalCompositeOperation = 'lighter';
             if (sprite) {
-                // Real catcher skin art is often a tall full-character sprite
-                // (much taller than the actual catch hitbox) — scaling that to
-                // the catch-hitbox WIDTH and preserving aspect blows the height
-                // up hugely (found live with a real default skin: the catcher
-                // covered a third of the screen). Fit within a bounded box
-                // instead of deriving height purely from width x aspect.
+                // Size purely from the real catch-hitbox width, same as
+                // replayviewer.com's own blitCatcher (dw = widthScreen; dh =
+                // widthScreen * bitmap.height/bitmap.width — no separate
+                // height cap at all). An earlier version of this renderer
+                // added a bounding-box height cap here because an early,
+                // since-fixed version of the sizing math (before the
+                // playfieldW/S3 correction and the CS-derived catcherWidth
+                // formula both landed) made a real default-skin catcher
+                // blow up to a third of the screen — with those since
+                // corrected, the cap no longer protects against that and
+                // instead just makes ordinary (non-extreme-aspect) catcher
+                // art render noticeably smaller than the real proportion,
+                // which is what a user directly comparing against
+                // replayviewer.com's own sizing flagged live this session.
                 //
                 // Anchor: measured a real default-skin fruit-catcher-idle.png's
                 // alpha-channel width profile top-to-bottom — the WIDEST point
@@ -1248,12 +1346,9 @@ class ReplayPlayer {
                 // so the plate sits at the catch line, with the rest of the
                 // character extending down (and naturally clipping off the
                 // bottom of the theater, same as real gameplay framing).
-                const boxW = cw * 1.15 * scale;
-                const boxH = h * 0.16 * scale;
+                const spriteW = cw * scale;
                 const catcherWH = spriteSize(sprite);
-                const aspect = catcherWH.w / catcherWH.h;
-                let spriteW = boxW, spriteH = boxW / aspect;
-                if (spriteH > boxH) { spriteH = boxH; spriteW = boxH * aspect; }
+                const spriteH = spriteW * (catcherWH.h / catcherWH.w);
                 const topY = catchLineY - spriteH * 0.06 + yOffset;
                 ctx.drawImage(sprite, cx - spriteW / 2, topY, spriteW, spriteH);
                 if (redAmount > 0.02 && redCacheKey) {
@@ -1361,7 +1456,7 @@ class ReplayPlayer {
                 // hard snap once a threshold is crossed — a snap is
                 // itself a small visible jump; this converges just as
                 // fast but never produces one.
-                const audioMs = this.audio.currentTime * 1000;
+                const audioMs = this.audio.currentTime * 1000 - this.offsetMs;
                 const drift = audioMs - this.mapTime;
                 this.mapTime += drift * Math.min(1, dt / 200);
             }
@@ -1385,7 +1480,7 @@ class ReplayPlayer {
         if (this.mapTime >= this.maxTime) this.mapTime = this.minTime;
         this.playing = true;
         if (this.audioReady) {
-            this.audio.currentTime = Math.max(0, this.mapTime / 1000);
+            this.audio.currentTime = Math.max(0, (this.mapTime + this.offsetMs) / 1000);
             this.audio.playbackRate = this.speed * this.clockRate;
             this.audio.play().catch(() => { this.audioReady = false; });
         }
@@ -1396,11 +1491,15 @@ class ReplayPlayer {
     }
     seek(t) {
         this.mapTime = Math.min(this.maxTime, Math.max(this.minTime, t));
-        if (this.audioReady) this.audio.currentTime = Math.max(0, this.mapTime / 1000);
+        if (this.audioReady) this.audio.currentTime = Math.max(0, (this.mapTime + this.offsetMs) / 1000);
         this.lastPoppedTime = this.mapTime;
         this.popups = [];
         this.draw();
         this.onTick(this.mapTime, this.minTime, this.maxTime, this.playing, this.currentStats());
+    }
+    setOffset(ms) {
+        this.offsetMs = ms;
+        if (this.audioReady) this.audio.currentTime = Math.max(0, (this.mapTime + this.offsetMs) / 1000);
     }
     setSpeed(speed) {
         this.speed = speed;
@@ -1452,14 +1551,27 @@ function theaterHtml(meta, settings) {
 
             <div class="replay-top-bar">
                 <div class="replay-top-group">
-                    <span class="replay-top-label">${escapeHtml(t('replay_settings_volume'))}</span>
+                    <span class="replay-top-label">${escapeHtml(t('replay_settings_music'))}</span>
                     <input type="range" id="replay-set-volume" class="replay-top-slider" min="0" max="100" step="5" value="${settings.volume}">
                     <span class="replay-top-value" id="replay-volume-value">${settings.volume}%</span>
+                </div>
+                <div class="replay-top-group">
+                    <span class="replay-top-label">${escapeHtml(t('replay_settings_effects'))}</span>
+                    <input type="range" id="replay-set-effects-volume" class="replay-top-slider" min="0" max="100" step="5" value="${settings.effectsVolume}">
+                    <span class="replay-top-value" id="replay-effects-volume-value">${settings.effectsVolume}%</span>
                 </div>
                 <div class="replay-top-group">
                     <span class="replay-top-label">${escapeHtml(t('replay_settings_rate'))}</span>
                     <input type="range" id="replay-set-rate" class="replay-top-slider" min="0.25" max="2" step="0.05" value="1">
                     <span class="replay-top-value" id="replay-rate-value">1.00x</span>
+                    <button type="button" id="replay-reset-rate" class="replay-top-reset" title="${escapeHtml(t('replay_reset_rate'))}">↺</button>
+                </div>
+                <div class="replay-top-group">
+                    <span class="replay-top-label">${escapeHtml(t('replay_settings_offset'))}</span>
+                    <button type="button" id="replay-offset-minus" class="replay-top-step">−</button>
+                    <span class="replay-top-value" id="replay-offset-value">+0 ms</span>
+                    <button type="button" id="replay-offset-plus" class="replay-top-step">+</button>
+                    <button type="button" id="replay-offset-reset" class="replay-top-reset" title="${escapeHtml(t('replay_reset_offset'))}">↺</button>
                 </div>
                 <div class="replay-top-group">
                     <span class="replay-top-label">${escapeHtml(t('replay_settings_dim'))}</span>
@@ -1746,11 +1858,29 @@ async function run() {
         });
         const rateInput = document.getElementById('replay-set-rate');
         const rateValue = document.getElementById('replay-rate-value');
-        rateInput.addEventListener('input', () => {
-            const rate = Number(rateInput.value);
+        const applyRate = rate => {
+            rateInput.value = String(rate);
             player.setSpeed(rate);
             rateValue.textContent = `${rate.toFixed(2)}x`;
-        });
+        };
+        rateInput.addEventListener('input', () => applyRate(Number(rateInput.value)));
+        document.getElementById('replay-reset-rate').addEventListener('click', () => applyRate(1));
+
+        // Offset nudges audio playback a few ms relative to the visual
+        // gameplay clock — useful when a viewer's own audio/video pipeline
+        // has a bit of latency skew. Purely a local per-viewer convenience
+        // (not from the real replay/beatmap), so it isn't persisted.
+        const OFFSET_STEP_MS = 5;
+        let offsetMs = 0;
+        const offsetValue = document.getElementById('replay-offset-value');
+        const applyOffset = ms => {
+            offsetMs = ms;
+            player.setOffset(offsetMs);
+            offsetValue.textContent = `${offsetMs >= 0 ? '+' : ''}${offsetMs} ms`;
+        };
+        document.getElementById('replay-offset-minus').addEventListener('click', () => applyOffset(offsetMs - OFFSET_STEP_MS));
+        document.getElementById('replay-offset-plus').addEventListener('click', () => applyOffset(offsetMs + OFFSET_STEP_MS));
+        document.getElementById('replay-offset-reset').addEventListener('click', () => applyOffset(0));
 
         skinInput.addEventListener('change', async () => {
             const file = skinInput.files && skinInput.files[0];
@@ -1801,12 +1931,20 @@ async function run() {
         // for label clarity — 0% dim reads as "not dimmed" either way.
         const volumeInput = document.getElementById('replay-set-volume');
         const volumeValue = document.getElementById('replay-volume-value');
+        const effectsVolumeInput = document.getElementById('replay-set-effects-volume');
+        const effectsVolumeValue = document.getElementById('replay-effects-volume-value');
         const dimInput = document.getElementById('replay-set-dim');
         const dimValue = document.getElementById('replay-dim-value');
         volumeInput.addEventListener('input', () => {
             settings.volume = Number(volumeInput.value);
             audioEl.volume = settings.volume / 100;
             volumeValue.textContent = `${settings.volume}%`;
+            saveSettings(settings);
+        });
+        effectsVolumeInput.addEventListener('input', () => {
+            settings.effectsVolume = Number(effectsVolumeInput.value);
+            player.setVisualSettings(settings);
+            effectsVolumeValue.textContent = `${settings.effectsVolume}%`;
             saveSettings(settings);
         });
         dimInput.addEventListener('input', () => {
