@@ -1627,6 +1627,7 @@ footer.site-footer {
     flex: 1 1 auto;
     width: 100%;
     min-height: 480px;
+    max-height: 720px;
     overflow: hidden;
     background: #05050c center / cover no-repeat;
     isolation: isolate;
@@ -1744,6 +1745,11 @@ footer.site-footer {
     transition: width 120ms linear;
 }
 
+/* Hidden by default, fades in on real mouse movement over the theater and
+   auto-hides again after a few seconds idle — matches mania-tracker.com's
+   own replay viewer (live-verified: its playback/visual-settings bar is
+   not permanently on screen either). See the ResizeObserver comment in
+   js/render-replay.js for where .controls-visible gets toggled. */
 .replay-bottom-bar {
     position: absolute;
     z-index: 3;
@@ -1752,6 +1758,15 @@ footer.site-footer {
     bottom: 0;
     padding: 14px 24px 16px;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+.replay-theater.controls-visible .replay-bottom-bar {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 .replay-scrub-full {
     -webkit-appearance: none;

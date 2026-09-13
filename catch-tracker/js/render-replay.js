@@ -992,6 +992,28 @@ async function run() {
         window.addEventListener('resize', () => resizeCanvasToDisplaySize(player, canvas));
         document.addEventListener('fullscreenchange', () => resizeCanvasToDisplaySize(player, canvas));
 
+        // Hover-to-reveal controls, matching mania-tracker.com's own replay
+        // viewer (live-verified this session: its bottom control/settings
+        // panel is hidden by default and only fades in on real mouse
+        // movement over the player, auto-hiding again after a few seconds
+        // idle — not a permanently-visible bar like a first pass of this
+        // rebuild had). `mousemove` bubbles from every descendant (the
+        // scrub bar, speed pills, settings drawer), so interacting with any
+        // control also keeps this alive without a separate listener per
+        // element; touchstart covers devices with no hover concept.
+        let hideControlsTimer = null;
+        function showControls() {
+            theater.classList.add('controls-visible');
+            if (hideControlsTimer) clearTimeout(hideControlsTimer);
+            hideControlsTimer = setTimeout(() => {
+                if (!settingsDrawer.hidden) return; // keep controls up while the settings drawer itself is open
+                theater.classList.remove('controls-visible');
+            }, 3000);
+        }
+        theater.addEventListener('mousemove', showControls);
+        theater.addEventListener('touchstart', showControls, { passive: true });
+        showControls(); // brief reveal on load so the play button is discoverable
+
         fullscreenToggle.addEventListener('click', () => {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
@@ -1053,7 +1075,10 @@ async function run() {
         });
 
         settingsDrawer.innerHTML = settingsDrawerHtml(settings);
-        settingsToggle.addEventListener('click', () => { settingsDrawer.hidden = !settingsDrawer.hidden; });
+        settingsToggle.addEventListener('click', () => {
+            settingsDrawer.hidden = !settingsDrawer.hidden;
+            showControls();
+        });
         const volumeInput = document.getElementById('replay-set-volume');
         const blurInput = document.getElementById('replay-set-blur');
         const brightnessInput = document.getElementById('replay-set-brightness');
