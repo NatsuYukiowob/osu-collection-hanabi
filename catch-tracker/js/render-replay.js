@@ -307,25 +307,30 @@ function getFruitType(h, index) {
     return FRUIT_TYPE_CYCLE[index % FRUIT_TYPE_CYCLE.length];
 }
 
-function buildDropItem(h, classes, index, offsets) {
-    const x = getObjectX(h) + (offsets.get(h) || 0);
-    const preempt = (typeof h.timePreempt === 'number' && h.timePreempt > 0) ? h.timePreempt : 800;
+function buildDropItem(h, classes, index, offsets, preemptOverride) {
+    // CatchHitObject.EffectiveX in the real game is always clamped to
+    // [0, WIDTH] — our offset port didn't clamp its output, so a jittered
+    // position landing slightly past either edge would draw/judge there
+    // instead (live-verified: a fruit visibly pinned to the theater's
+    // edge). Clamp here, matching the real getter exactly.
+    const x = Math.max(0, Math.min(PLAYFIELD_X, getObjectX(h) + (offsets.get(h) || 0)));
+    const preempt = preemptOverride ?? ((typeof h.timePreempt === 'number' && h.timePreempt > 0) ? h.timePreempt : 800);
     const kind = classifyObject(h, classes);
     return {
-        time: h.startTime, spawnTime: h.startTime - preempt, x, kind,
+        time: h.startTime, spawnTime: h.startTime - preempt, x, kind, preempt,
         fruitType: kind === 'fruit' ? getFruitType(h, index) : null,
         caught: false,
     };
 }
 
-function flattenHitObjects(hitObjects, classes, offsets) {
+function flattenHitObjects(hitObjects, classes, offsets, preemptOverride) {
     const out = [];
     let i = 0;
     for (const h of hitObjects) {
         if (Array.isArray(h.nestedHitObjects) && h.nestedHitObjects.length) {
-            for (const n of h.nestedHitObjects) out.push(buildDropItem(n, classes, i++, offsets));
+            for (const n of h.nestedHitObjects) out.push(buildDropItem(n, classes, i++, offsets, preemptOverride));
         } else {
-            out.push(buildDropItem(h, classes, i++, offsets));
+            out.push(buildDropItem(h, classes, i++, offsets, preemptOverride));
         }
     }
     out.sort((a, b) => a.time - b.time);
@@ -345,6 +350,33 @@ function clockRateForMods(mods) {
     if (mods.includes('DT') || mods.includes('NC')) return 1.5;
     if (mods.includes('HT') || mods.includes('DC')) return 0.75;
     return 1;
+}
+
+// osu!lazer's ModHardRock.ApplyToDifficulty (osu.Game/Rulesets/Mods/
+// ModHardRock.cs) rescales CS/AR/OD by a fixed ratio BEFORE any of catch's
+// own gameplay math runs — the ruleset library used here has no mod
+// system at all (CatchHardRock is an empty stub, confirmed live), so
+// without this our catcher width and fall-preempt were silently computed
+// from the UN-modded difficulty for every HR score, not just the position
+// offsets from computePositionOffsets(). CS uses catch's own 1.3 ratio
+// (not the shared 1.4 ADJUST_RATIO used for AR/OD/HP) per
+// CatchModHardRock.cs.
+function hardRockAdjustedCS(cs) { return Math.min(cs * 1.3, 10); }
+function hardRockAdjustedAR(ar) { return Math.min(ar * 1.4, 10); }
+
+// osu.Game/Beatmaps/IBeatmapDifficultyInfo.cs's DifficultyRange(value, min,
+// mid, max) two-piece linear map, and CatchHitObject's own PREEMPT_RANGE =
+// new DifficultyRange(PREEMPT_MAX:1800, PREEMPT_MID:1200, PREEMPT_MIN:450)
+// — used to recompute fall-preempt from an HR-adjusted AR, since the
+// per-object h.timePreempt the decode library provides was computed from
+// the un-modded AR and can't be patched after the fact.
+function difficultyRange(difficulty, min, mid, max) {
+    if (difficulty > 5) return mid + (max - mid) * (difficulty - 5) / 5;
+    if (difficulty < 5) return mid + (mid - min) * (difficulty - 5) / 5;
+    return mid;
+}
+function timePreemptForAR(ar) {
+    return difficultyRange(ar, 1800, 1200, 450);
 }
 
 // Confirmed against osu!lazer's real source this session (Catcher.cs +
@@ -652,6 +684,7 @@ class ReplayPlayer {
         this.frames = frames;
         this.clockRate = opts.clockRate;
         this.catcherWidth = opts.catcherWidth;
+        this.hiddenMod = !!opts.hiddenMod;
         this.hyperdashWindows = opts.hyperdashWindows || [];
         this.kiaiRanges = opts.kiaiRanges || [];
         this.sprites = {};
@@ -762,7 +795,19 @@ class ReplayPlayer {
             const y = progress * catchLineY;
             const px = toPx(it.x);
             const size = sizeFor(it.kind);
-            ctx.globalAlpha = this.mapTime > it.time ? Math.max(0, 1 - (this.mapTime - it.time) / 150) : 1;
+            let alpha = this.mapTime > it.time ? Math.max(0, 1 - (this.mapTime - it.time) / 150) : 1;
+            // CatchModHidden.cs: fades each object out well before it reaches
+            // the catch line — starting at preempt*0.6 before its start time,
+            // over a duration of preempt*0.16 — rather than a uniform dim, so
+            // Hidden actually hides the object's final approach like the real
+            // mod, not just a flat opacity reduction.
+            if (this.hiddenMod && it.preempt) {
+                const fadeStart = it.time - it.preempt * 0.6;
+                if (this.mapTime >= fadeStart) {
+                    alpha = Math.min(alpha, Math.max(0, 1 - (this.mapTime - fadeStart) / (it.preempt * 0.16)));
+                }
+            }
+            ctx.globalAlpha = alpha;
 
             const spriteKey = it.kind === 'fruit' ? `fruit_${it.fruitType}` : it.kind === 'tiny' ? 'droplet' : it.kind;
             const sprite = this.sprites[spriteKey];
@@ -1081,11 +1126,16 @@ async function run() {
         const ruleset = new CatchRuleset();
         const parsedBeatmap = new BeatmapDecoder().decodeFromString(osuText);
         const catchBeatmap = ruleset.applyToBeatmap(parsedBeatmap);
-        const cs = (catchBeatmap.difficulty && catchBeatmap.difficulty.circleSize)
+        const hrActive = mods.includes('HR');
+        const baseCS = (catchBeatmap.difficulty && catchBeatmap.difficulty.circleSize)
             ?? (parsedBeatmap.difficulty && parsedBeatmap.difficulty.circleSize) ?? 5;
+        const baseAR = (catchBeatmap.difficulty && catchBeatmap.difficulty.approachRate)
+            ?? (parsedBeatmap.difficulty && parsedBeatmap.difficulty.approachRate) ?? 5;
+        const cs = hrActive ? hardRockAdjustedCS(baseCS) : baseCS;
+        const preempt = timePreemptForAR(hrActive ? hardRockAdjustedAR(baseAR) : baseAR);
 
-        const positionOffsets = computePositionOffsets(catchBeatmap.hitObjects, objectClasses, mods.includes('HR'));
-        const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets);
+        const positionOffsets = computePositionOffsets(catchBeatmap.hitObjects, objectClasses, hrActive);
+        const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets, preempt);
 
         const parsedScore = await new ScoreDecoder().decodeFromBuffer(new Uint8Array(replayBuffer));
         console.log('[replay] parsed score:', parsedScore);
@@ -1155,6 +1205,7 @@ async function run() {
         const player = new ReplayPlayer(canvas, items, frames, {
             clockRate: clockRateForMods(mods),
             catcherWidth,
+            hiddenMod: mods.includes('HD'),
             hyperdashWindows,
             kiaiRanges,
             audio: beatmapsetId ? audioEl : null,
