@@ -54,16 +54,34 @@ const PLAYFIELD_X = 512; // osu! catch coordinate space width, in osu!pixels
 
 const AUDIO_URL = beatmapsetId => `https://mirror.hinamizawa.ai/v3/osu/music/audio/${beatmapsetId}`;
 
+// A real skin's fruit/droplet/banana each draw as TWO layered sprites —
+// confirmed against replayviewer.com's own bundled source (blitPiece()):
+// the base gets the combo-colour multiply tint, then the "-overlay" sprite
+// draws on top completely UNTINTED. This renderer previously only ever
+// loaded the base, which happens to be invisible for most skins (a truly
+// grayscale base with a transparent overlay just adding a highlight/
+// outline) but breaks badly for a skin whose overlay is a full opaque
+// copy of the base (a real, live-tested example: a user-reported
+// "Motionctb (white)" skin ships fruit-apple-overlay.png BYTE-IDENTICAL to
+// fruit-apple.png) — the untinted overlay was designed to always paint
+// over the tint, and without drawing it at all we showed the raw
+// combo-tinted base instead, i.e. the wrong colour entirely.
 const SKIN_FILES = {
     catcher: 'fruit-catcher-idle',
     catcher_fail: 'fruit-catcher-fail',
     catcher_kiai: 'fruit-catcher-kiai',
     banana: 'fruit-bananas',
+    banana_overlay: 'fruit-bananas-overlay',
     droplet: 'fruit-drop',
+    droplet_overlay: 'fruit-drop-overlay',
     fruit_apple: 'fruit-apple',
+    fruit_apple_overlay: 'fruit-apple-overlay',
     fruit_grapes: 'fruit-grapes',
+    fruit_grapes_overlay: 'fruit-grapes-overlay',
     fruit_orange: 'fruit-orange',
+    fruit_orange_overlay: 'fruit-orange-overlay',
     fruit_pear: 'fruit-pear',
+    fruit_pear_overlay: 'fruit-pear-overlay',
 };
 const FRUIT_TYPE_CYCLE = ['apple', 'grapes', 'orange', 'pear'];
 
@@ -126,33 +144,43 @@ async function fetchLeaderboard(beatmapId) {
     }
 }
 
-/* ---------- faithful port of osu!lazer's CatchBeatmapProcessor.ApplyPositionOffsets ----------
-   osu-catch-stable (the decode library used here) does NOT apply this at
-   all — live-verified: effectiveX===originalX for every object it decodes
-   regardless of mods, and the library's own exported CatchBeatmapProcessor
-   (it has one!) had zero effect when invoked directly (postProcess() and
-   its private _applyXOffsets() both ran with no error but left every
-   object's position completely unchanged — tried both the ruleset-
-   converted beatmap and calling it before conversion; whatever internal
-   state it expects isn't what either produces). Rather than keep guessing
-   at an undocumented minified library, this is a direct port of the real
-   game's algorithm from osu.Game.Rulesets.Catch/Beatmaps/
-   CatchBeatmapProcessor.cs (ppy/osu, MIT licensed), including its own
-   documented stable-compatibility quirks — those are deliberate bugs in
-   the real game being preserved for parity, not mistakes introduced here.
-   This was a real, verified source of judgement error (a wrong-score-ID
-   test aside, even a CORRECTLY fetched HR replay showed catcher-to-object
-   distances the un-offset positions couldn't explain), not cosmetic:
-   - Regular Fruit objects get NO offset unless Hard Rock is active, in
-     which case consecutive fruits close in time get "trilled" apart.
-   - JuiceStream-nested TinyDroplets ALWAYS get a small random jitter
-     (±20px), regardless of mods.
-   - BananaShower's Bananas ALWAYS get scattered across the full playfield
-     width, regardless of mods.
-   All three draw from ONE shared, seeded RNG stream advanced in beatmap
-   order — the exact call sequence (including calls whose results are
-   discarded, e.g. droplet rotation) has to match or every offset after
-   the first divergence would desync from the real game's. */
+/* ---------- partial port of osu!lazer's CatchBeatmapProcessor.ApplyPositionOffsets ----------
+   CORRECTION (2026-09-13, from a real user-reported wrong accuracy/miss
+   count): the original note here claimed osu-catch-stable never applies
+   ANY of this and that effectiveX===originalX unconditionally — that was
+   only ever checked against Fruit objects (true for Fruit when HR is
+   off, since Fruit trilling IS HR-gated). Direct inspection this session
+   (dumping a real decoded JuiceTinyDroplet's own fields) found the
+   library DOES already bake a real ±20px-range jitter into every
+   TinyDroplet's own .effectiveX (a real, non-zero `.offsetX` field is
+   set on it — confirmed a plain Droplet in the same stream has no such
+   field, and a Fruit's is exactly 0 with no HR active). getObjectX()
+   reads .effectiveX first, so this function was ADDING A SECOND,
+   independently-seeded ±20px jitter on top of the library's already-
+   correct one for every TinyDroplet — the actual cause of the reported
+   bug (real score: 189/196 tiny droplets caught; this bug's double-
+   jitter simulated only 172/196). Fixed by no longer re-deriving
+   TinyDroplet (or BananaShower) offsets here at all — trust the
+   library's own .effectiveX for those, since they're unconditional
+   (mod-independent) per the real game's own algorithm anyway, so there
+   was never a reason to reimplement them. Verified live against a real
+   fresh non-HR score (6631538453): tiny-droplet catch count went from
+   172/196 (sim) to 190/196, essentially matching the real 189/196 (the
+   remaining 1-object gap is ordinary frame-interpolation slop, not this
+   bug).
+   What's left here is now ONLY the Fruit hard-rock "trilling" offset
+   (consecutive fruits close in time get pushed apart under HR) — this
+   library's CatchModHardRock is a stub that never fires it, so that
+   piece is still a manual port of osu.Game.Rulesets.Catch/Beatmaps/
+   CatchBeatmapProcessor.cs (ppy/osu, MIT licensed). Caveat carried over
+   from before: the real algorithm draws Fruit-trilling and TinyDroplet-
+   jitter from ONE shared RNG stream in beatmap order, so on an HR score
+   this function's own RNG stream (which no longer advances for
+   TinyDroplets, since those aren't computed here anymore) is not
+   guaranteed to stay in lockstep with the real client's trilling values
+   — HR fruit positions were already flagged as not fully verified before
+   this fix and still aren't; this fix only addresses the confirmed
+   non-HR TinyDroplet bug. */
 const HR_OFFSET_RNG_SEED = 1337;
 
 class LegacyRandom {
@@ -243,7 +271,7 @@ function computeComboColourMap(hitObjects, comboColours) {
 // Objects with no applicable offset are simply absent from the map — treat
 // a missing entry as 0.
 function computePositionOffsets(hitObjects, classes, hardRockOffsets) {
-    const { Fruit, Banana, JuiceStream, JuiceDroplet, JuiceTinyDroplet } = classes;
+    const { Fruit, JuiceStream } = classes;
     const rng = new LegacyRandom(HR_OFFSET_RNG_SEED);
     const offsets = new Map();
     let lastPosition = null;
@@ -295,25 +323,12 @@ function computePositionOffsets(hitObjects, classes, hardRockOffsets) {
             const lastCpX = lastCp && (lastCp.position ? lastCp.position.x : lastCp.x);
             lastPosition = originalX + (typeof lastCpX === 'number' ? lastCpX : 0);
             lastStartTime = obj.startTime;
-
-            for (const n of (obj.nestedHitObjects || [])) {
-                if (JuiceTinyDroplet && n instanceof JuiceTinyDroplet) {
-                    const nx = getObjectX(n);
-                    const off = rng.nextRange(-20, 20);
-                    offsets.set(n, Math.max(-nx, Math.min(PLAYFIELD_X - nx, off)));
-                } else if (JuiceDroplet && n instanceof JuiceDroplet) {
-                    rng.next(); // discarded — matches stable's "random droplet rotation" draw, keeps the RNG stream aligned
-                }
-            }
-        } else if (Banana && obj.nestedHitObjects && obj.nestedHitObjects.length && obj.nestedHitObjects[0] instanceof Banana) {
-            // BananaShower — matched by its nested objects (osu-catch-stable
-            // doesn't export a BananaShower class distinguishable the same
-            // way Fruit/JuiceStream are here).
-            for (const n of obj.nestedHitObjects) {
-                const nx = getObjectX(n);
-                offsets.set(n, rng.nextDouble() * PLAYFIELD_X - nx);
-                rng.next(); rng.next(); rng.next(); // discarded — type/rotation/colour draws in stable
-            }
+            // TinyDroplet jitter is NOT re-derived here — see the note below
+            // this function: osu-catch-stable already bakes it into each
+            // nested object's own .effectiveX (getObjectX() reads that
+            // first), so re-rolling it here was double-applying a second,
+            // independently-seeded ±20px jitter on top of the library's
+            // already-correct one.
         }
     }
 
@@ -590,8 +605,15 @@ function extractKiaiRanges(beatmap) {
 // Combo, separately, only breaks on Fruit/Droplet (HitResult.AffectsCombo
 // lists Great/LargeTickHit but not SmallTickHit) — a missed tiny droplet
 // or banana never resets it.
+// The displayed "Miss" count follows the same split, confirmed against a
+// real score this session (osu.ppy.sh's own score page: 7 missed tiny
+// droplets, shown only via the "SMALL DROPLET 189/196" fraction — its
+// "MISS" stat itself read 0). A missed TinyDroplet is HitResult.SmallTickMiss,
+// not HitResult.Miss, so it was never meant to be lumped into this counter —
+// doing so is what made "miss數是錯的" true even after the position-jitter
+// fix above got the underlying catch/miss calls themselves right.
 function computeStats(items, mapTime) {
-    let combo = 0, maxCombo = 0, caught = 0, miss = 0, hp = 100;
+    let combo = 0, maxCombo = 0, caught = 0, miss = 0, notCaught = 0, hp = 100;
     for (const it of items) {
         if (it.time > mapTime) break;
         if (it.kind === 'banana' || it.unknown) continue;
@@ -601,13 +623,13 @@ function computeStats(items, mapTime) {
             caught++;
             hp = Math.min(100, hp + HP_GAIN);
         } else {
-            if (affectsCombo) combo = 0;
-            miss++;
+            if (affectsCombo) { combo = 0; miss++; }
+            notCaught++;
             hp = Math.max(0, hp - HP_LOSS);
         }
         if (combo > maxCombo) maxCombo = combo;
     }
-    const total = caught + miss;
+    const total = caught + notCaught;
     return { combo, maxCombo, caught, miss, accuracy: total > 0 ? caught / total : 1, hp };
 }
 
@@ -673,6 +695,21 @@ function spriteSize(sprite) {
 function logicalSpriteSize(sprite) {
     if (typeof sprite.__logicalW === 'number') return { w: sprite.__logicalW, h: sprite.__logicalH };
     return spriteSize(sprite);
+}
+
+// Deterministic per-object "random" in [0,1) — ported from replayviewer.
+// com's own bundled randomSingle() (an integer hash, not a stream RNG), so
+// object rotation is stable across re-renders/scrubbing without needing to
+// track any RNG state. `series` lets the same seed produce independent
+// values for different uses (only one use here, series=1, matching theirs).
+function seededRandom01(seed, series) {
+    let h = (Math.imul(Math.trunc(seed) | 0, 2654435761) + Math.imul(series | 0, 40503)) >>> 0;
+    h ^= h >>> 15;
+    h = Math.imul(h, 2246822519) >>> 0;
+    h ^= h >>> 13;
+    h = Math.imul(h, 3266489917) >>> 0;
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
 }
 
 function downscaleToCanvas(img, maxSize) {
@@ -1007,6 +1044,7 @@ class ReplayPlayer {
 
             const spriteKey = it.kind === 'fruit' ? `fruit_${it.fruitType}` : it.kind === 'tiny' ? 'droplet' : it.kind;
             let sprite = this.sprites[spriteKey];
+            const overlaySprite = this.sprites[spriteKey + '_overlay'];
             // Bananas are always tinted a fixed yellow; fruit/droplet/tiny
             // are tinted by the beatmap's own combo colour (it.color, from
             // computeComboColourMap) — see the wiki-sourced comment above
@@ -1021,6 +1059,22 @@ class ReplayPlayer {
                     this.tintCache.set(cacheKey, tinted);
                 }
                 sprite = tinted;
+            }
+            // Falling fruit/droplet/tiny rotate — confirmed against
+            // replayviewer.com's own source (drawLegacyFruit/
+            // drawLegacyDroplet): a Fruit gets one fixed random tilt for its
+            // whole fall (±20°, seeded by its own startTime so it's stable
+            // across re-renders/scrubbing); a Droplet/TinyDroplet instead
+            // spins continuously as it falls (~2 full turns over the fall,
+            // from a small random starting angle). Not load-bearing for
+            // judgement (computeJudgements never looks at rotation), purely
+            // a visual-parity detail that was previously just always 0.
+            let rotation = 0;
+            if (it.kind === 'fruit') {
+                rotation = (seededRandom01(it.time, 1) - 0.5) * 40 * Math.PI / 180;
+            } else if (it.kind === 'droplet' || it.kind === 'tiny') {
+                const startRotDeg = seededRandom01(it.time, 1) * 20;
+                rotation = (startRotDeg + 720 * progress) * Math.PI / 180;
             }
             if (sprite) {
                 // Real osu! skin sizing (osu.Game.Rulesets.Catch/Skinning/
@@ -1037,7 +1091,22 @@ class ReplayPlayer {
                 const scale = this.objectScale * osuPxToScreenPx * kindScale(it.kind);
                 const dw = logical.w * scale;
                 const dh = logical.h * scale;
-                ctx.drawImage(sprite, px - dw / 2, y - dh / 2, dw, dh);
+                ctx.save();
+                ctx.translate(px, y);
+                ctx.rotate(rotation);
+                ctx.drawImage(sprite, -dw / 2, -dh / 2, dw, dh);
+                // The "-overlay" sprite draws UNTINTED on top of the tinted
+                // base, at its OWN logical size (real skins can ship an
+                // overlay whose pixel dimensions differ from the base's) —
+                // see the SKIN_FILES comment above for why skipping this
+                // isn't just a missing highlight for some skins.
+                if (overlaySprite) {
+                    const oLogical = logicalSpriteSize(overlaySprite);
+                    const ow = oLogical.w * scale;
+                    const oh = oLogical.h * scale;
+                    ctx.drawImage(overlaySprite, -ow / 2, -oh / 2, ow, oh);
+                }
+                ctx.restore();
             } else {
                 ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
                 ctx.beginPath();
