@@ -1802,6 +1802,8 @@ footer.site-footer {
     overflow: hidden;
     background: #05050c center / cover no-repeat;
     isolation: isolate;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 }
 .replay-theater-scrim {
     position: absolute;
@@ -2085,6 +2087,17 @@ footer.site-footer {
     white-space: nowrap;
 }
 .replay-skin-status { font-size: 0.76rem; color: rgba(255, 255, 255, 0.6); }
+.replay-skin-credit { font-size: 0.7rem; color: rgba(255, 255, 255, 0.45); font-style: italic; }
+.replay-skin-select {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.76rem;
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.replay-skin-select option { background: #1a1a24; color: #fff; }
 
 .replay-settings-drawer {
     position: absolute;

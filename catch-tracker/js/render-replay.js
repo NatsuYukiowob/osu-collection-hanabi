@@ -987,6 +987,33 @@ async function loadSkinSprites(file) {
     return sprites;
 }
 
+// Built-in default skins — a viewer with no .osk of their own can still
+// pick something other than the plain procedural shapes. Bundled as
+// individual PNGs (not a re-hosted .osk) under assets/default-skins/<id>/,
+// extracted from each skin's real root files (see SKIN_FILES for the
+// exact filenames expected). Real community skins, used with permission
+// of this site's owner to bundle as built-in options — credited here so
+// that's visible wherever this list is read from, not just in a commit
+// message.
+const DEFAULT_SKINS = [
+    { id: 'squares', nameKey: 'replay_skin_default_squares' }, // no assets — the existing procedural fallback shapes
+    { id: 'bubble', nameKey: 'replay_skin_default_bubble', credit: 'BubbleSkin — skins.osuck.net' },
+    { id: 'panko', nameKey: 'replay_skin_default_panko', credit: 'wide_panko (plox base) — prank855, Myuka, icetea, Reapix, Scylla67, ALX13 · skins.osuck.net' },
+];
+
+async function loadBundledSkinSprites(id) {
+    if (id === 'squares') return {};
+    const entriesByKey = {};
+    await Promise.all(Object.entries(SKIN_FILES).map(async ([key, base]) => {
+        try {
+            const res = await fetch(`/assets/default-skins/${id}/${base}.png`);
+            if (!res.ok) return;
+            entriesByKey[key] = { bytes: new Uint8Array(await res.arrayBuffer()), isHiRes: false };
+        } catch { /* this element just isn't in this bundled skin */ }
+    }));
+    return decodeSpritesFromBytes(entriesByKey);
+}
+
 /* ---------- canvas player ---------- */
 
 class ReplayPlayer {
@@ -1551,30 +1578,30 @@ function theaterHtml(meta, settings) {
 
             <div class="replay-top-bar">
                 <div class="replay-top-group">
-                    <span class="replay-top-label">${escapeHtml(t('replay_settings_music'))}</span>
+                    <span class="replay-top-label">🍎 ${escapeHtml(t('replay_settings_music'))}</span>
                     <input type="range" id="replay-set-volume" class="replay-top-slider" min="0" max="100" step="5" value="${settings.volume}">
                     <span class="replay-top-value" id="replay-volume-value">${settings.volume}%</span>
                 </div>
                 <div class="replay-top-group">
-                    <span class="replay-top-label">${escapeHtml(t('replay_settings_effects'))}</span>
+                    <span class="replay-top-label">🍊 ${escapeHtml(t('replay_settings_effects'))}</span>
                     <input type="range" id="replay-set-effects-volume" class="replay-top-slider" min="0" max="100" step="5" value="${settings.effectsVolume}">
                     <span class="replay-top-value" id="replay-effects-volume-value">${settings.effectsVolume}%</span>
                 </div>
                 <div class="replay-top-group">
-                    <span class="replay-top-label">${escapeHtml(t('replay_settings_rate'))}</span>
+                    <span class="replay-top-label">🍇 ${escapeHtml(t('replay_settings_rate'))}</span>
                     <input type="range" id="replay-set-rate" class="replay-top-slider" min="0.25" max="2" step="0.05" value="1">
                     <span class="replay-top-value" id="replay-rate-value">1.00x</span>
                     <button type="button" id="replay-reset-rate" class="replay-top-reset" title="${escapeHtml(t('replay_reset_rate'))}">↺</button>
                 </div>
                 <div class="replay-top-group">
-                    <span class="replay-top-label">${escapeHtml(t('replay_settings_offset'))}</span>
+                    <span class="replay-top-label">🍐 ${escapeHtml(t('replay_settings_offset'))}</span>
                     <button type="button" id="replay-offset-minus" class="replay-top-step">−</button>
                     <span class="replay-top-value" id="replay-offset-value">+0 ms</span>
                     <button type="button" id="replay-offset-plus" class="replay-top-step">+</button>
                     <button type="button" id="replay-offset-reset" class="replay-top-reset" title="${escapeHtml(t('replay_reset_offset'))}">↺</button>
                 </div>
                 <div class="replay-top-group">
-                    <span class="replay-top-label">${escapeHtml(t('replay_settings_dim'))}</span>
+                    <span class="replay-top-label">🍑 ${escapeHtml(t('replay_settings_dim'))}</span>
                     <input type="range" id="replay-set-dim" class="replay-top-slider" min="0" max="90" step="5" value="${dim}">
                     <span class="replay-top-value" id="replay-dim-value">${dim}%</span>
                 </div>
@@ -1614,10 +1641,14 @@ function theaterHtml(meta, settings) {
                     <button type="button" id="replay-playpause" class="replay-play-btn">▶</button>
                     <span class="replay-time" id="replay-time">0:00 / 0:00</span>
                     <div class="replay-bottom-spacer"></div>
+                    <select id="replay-default-skin" class="replay-skin-select" title="${escapeHtml(t('replay_default_skin'))}">
+                        ${DEFAULT_SKINS.map(s => `<option value="${s.id}">${escapeHtml(t(s.nameKey))}</option>`).join('')}
+                    </select>
                     <label class="replay-icon-btn" for="replay-skin-input">${escapeHtml(t('replay_use_skin'))}</label>
                     <input type="file" id="replay-skin-input" accept=".osk" hidden>
                     <button type="button" id="replay-skin-clear" class="replay-icon-btn" hidden>${escapeHtml(t('replay_clear_skin'))}</button>
                     <span id="replay-skin-status" class="replay-skin-status"></span>
+                    <span id="replay-skin-credit" class="replay-skin-credit"></span>
                     <button type="button" id="replay-settings-toggle" class="replay-icon-btn">${escapeHtml(t('replay_settings'))}</button>
                     <button type="button" id="replay-fullscreen-toggle" class="replay-icon-btn" title="Fullscreen">⤢</button>
                 </div>
@@ -1882,15 +1913,21 @@ async function run() {
         document.getElementById('replay-offset-plus').addEventListener('click', () => applyOffset(offsetMs + OFFSET_STEP_MS));
         document.getElementById('replay-offset-reset').addEventListener('click', () => applyOffset(0));
 
+        const skinCredit = document.getElementById('replay-skin-credit');
         skinInput.addEventListener('change', async () => {
             const file = skinInput.files && skinInput.files[0];
             if (!file) return;
             skinStatus.textContent = t('replay_skin_loading');
+            skinCredit.textContent = '';
             try {
                 const sprites = await loadSkinSprites(file);
                 player.setSprites(sprites);
                 skinStatus.textContent = t('replay_skin_loaded', { n: Object.keys(sprites).length });
                 skinClearBtn.hidden = false;
+                // A custom upload wins over any built-in default pick —
+                // reset the dropdown so it doesn't keep showing a skin
+                // that's no longer actually applied.
+                document.getElementById('replay-default-skin').value = 'squares';
             } catch (skinErr) {
                 console.warn('[replay] skin load failed:', skinErr);
                 skinStatus.textContent = t('replay_skin_invalid');
@@ -1900,15 +1937,52 @@ async function run() {
             player.setSprites({});
             skinInput.value = '';
             skinStatus.textContent = '';
+            skinCredit.textContent = '';
             skinClearBtn.hidden = true;
             clearSkinDB();
+            document.getElementById('replay-default-skin').value = 'squares';
         });
 
-        // Auto-load a previously-imported skin (IndexedDB) so a visitor
-        // doesn't have to re-upload every visit — best-effort, silently
-        // does nothing if there's no cached skin or it fails to decode.
+        // Built-in default skins (see DEFAULT_SKINS) — a viewer with no
+        // .osk of their own can still pick something other than the plain
+        // procedural shapes. Picking one here always wins over whatever a
+        // custom upload had set, same as a fresh upload would. Each
+        // bundled skin's real creator is shown next to it, not just noted
+        // in a code comment — these are other people's work, credited
+        // wherever a viewer actually sees the skin applied.
+        const CT_DEFAULT_SKIN_KEY = 'ct_default_skin';
+        const defaultSkinSelect = document.getElementById('replay-default-skin');
+        const applyDefaultSkin = async (id, persist) => {
+            const sprites = await loadBundledSkinSprites(id);
+            player.setSprites(sprites);
+            skinInput.value = '';
+            skinClearBtn.hidden = true;
+            skinStatus.textContent = Object.keys(sprites).length
+                ? t('replay_skin_loaded', { n: Object.keys(sprites).length })
+                : '';
+            const meta = DEFAULT_SKINS.find(s => s.id === id);
+            skinCredit.textContent = meta && meta.credit ? t('replay_skin_credit', { credit: meta.credit }) : '';
+            if (persist) { try { localStorage.setItem(CT_DEFAULT_SKIN_KEY, id); } catch { /* per-viewer convenience only */ } }
+        };
+        defaultSkinSelect.addEventListener('change', () => applyDefaultSkin(defaultSkinSelect.value, true));
+
+        // Auto-load a previously-imported CUSTOM skin (IndexedDB) so a
+        // visitor doesn't have to re-upload every visit — best-effort,
+        // silently does nothing if there's no cached skin or it fails to
+        // decode. A custom upload still wins over a saved default-skin
+        // pick, matching how picking a default always overrides a custom
+        // upload the other way — whichever was set most recently wins.
         loadSkinBytesFromDB().then(async rawBytesByKey => {
-            if (!rawBytesByKey) return;
+            if (!rawBytesByKey) {
+                try {
+                    const savedDefault = localStorage.getItem(CT_DEFAULT_SKIN_KEY);
+                    if (savedDefault && savedDefault !== 'squares') {
+                        defaultSkinSelect.value = savedDefault;
+                        await applyDefaultSkin(savedDefault, false);
+                    }
+                } catch { /* per-viewer convenience only */ }
+                return;
+            }
             try {
                 const sprites = await decodeSpritesFromBytes(rawBytesByKey);
                 if (Object.keys(sprites).length) {
