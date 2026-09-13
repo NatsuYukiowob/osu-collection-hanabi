@@ -996,10 +996,15 @@ async function loadSkinSprites(file) {
 // that's visible wherever this list is read from, not just in a commit
 // message.
 const DEFAULT_SKINS = [
-    { id: 'squares', nameKey: 'replay_skin_default_squares' }, // no assets — the existing procedural fallback shapes
     { id: 'bubble', nameKey: 'replay_skin_default_bubble', credit: 'BubbleSkin — skins.osuck.net' },
     { id: 'panko', nameKey: 'replay_skin_default_panko', credit: 'wide_panko (plox base) — prank855, Myuka, icetea, Reapix, Scylla67, ALX13 · skins.osuck.net' },
+    { id: 'squares', nameKey: 'replay_skin_default_squares' }, // no assets — the plain procedural fallback shapes
 ];
+// A visitor who's never picked anything (no saved preference, no custom
+// upload) gets this rather than the bare procedural shapes — 'squares'
+// stays a real, explicit, rememberable choice for anyone who prefers it,
+// just no longer the initial one.
+const INITIAL_DEFAULT_SKIN = 'bubble';
 
 async function loadBundledSkinSprites(id) {
     if (id === 'squares') return {};
@@ -1975,11 +1980,13 @@ async function run() {
         loadSkinBytesFromDB().then(async rawBytesByKey => {
             if (!rawBytesByKey) {
                 try {
-                    const savedDefault = localStorage.getItem(CT_DEFAULT_SKIN_KEY);
-                    if (savedDefault && savedDefault !== 'squares') {
-                        defaultSkinSelect.value = savedDefault;
-                        await applyDefaultSkin(savedDefault, false);
-                    }
+                    // No saved preference at all (a genuinely first-time
+                    // visitor) starts on INITIAL_DEFAULT_SKIN rather than
+                    // the bare procedural shapes — 'squares' is only shown
+                    // once someone has actually picked it explicitly.
+                    const savedDefault = localStorage.getItem(CT_DEFAULT_SKIN_KEY) || INITIAL_DEFAULT_SKIN;
+                    defaultSkinSelect.value = savedDefault;
+                    if (savedDefault !== 'squares') await applyDefaultSkin(savedDefault, false);
                 } catch { /* per-viewer convenience only */ }
                 return;
             }
