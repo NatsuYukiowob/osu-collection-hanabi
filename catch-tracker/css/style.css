@@ -1626,7 +1626,7 @@ footer.site-footer {
     position: relative;
     flex: 1 1 auto;
     width: 100%;
-    max-width: 1400px;
+    max-width: 1600px;
     /* osu!'s real playfield is 512x384 (4:3) — locking the theater's own
        box to that ratio (rather than letting flex hand it an arbitrary
        width/height combination) keeps the fruit-fall geometry visually
@@ -1634,7 +1634,7 @@ footer.site-footer {
        shape. Width/height caps above and below now just bound how big
        or small that fixed-ratio box gets, they don't set it directly. */
     aspect-ratio: 512 / 384;
-    max-height: 720px;
+    max-height: 900px;
     overflow: hidden;
     background: #05050c center / cover no-repeat;
     isolation: isolate;

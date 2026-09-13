@@ -701,11 +701,15 @@ class ReplayPlayer {
                 // element's own clock doesn't update every single rAF
                 // frame on every browser/backend, so doing that produced
                 // a visible staircase-step fall motion instead of smooth
-                // interpolation. Only snap to the audio clock when it's
-                // drifted noticeably, so playback still stays locked to
-                // the real audio over time without the per-frame jitter.
+                // interpolation. Stay locked to the real audio over time
+                // by continuously blending a fraction of the drift back
+                // in every frame (exponential smoothing) rather than a
+                // hard snap once a threshold is crossed — a snap is
+                // itself a small visible jump; this converges just as
+                // fast but never produces one.
                 const audioMs = this.audio.currentTime * 1000;
-                if (Math.abs(this.mapTime - audioMs) > 80) this.mapTime = audioMs;
+                const drift = audioMs - this.mapTime;
+                this.mapTime += drift * Math.min(1, dt / 200);
             }
             if (this.mapTime >= this.maxTime) {
                 this.mapTime = this.maxTime;
