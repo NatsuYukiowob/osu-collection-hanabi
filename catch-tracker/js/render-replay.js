@@ -126,6 +126,155 @@ async function fetchLeaderboard(beatmapId) {
     }
 }
 
+/* ---------- faithful port of osu!lazer's CatchBeatmapProcessor.ApplyPositionOffsets ----------
+   osu-catch-stable (the decode library used here) does NOT apply this at
+   all — live-verified: effectiveX===originalX for every object it decodes
+   regardless of mods, and the library's own exported CatchBeatmapProcessor
+   (it has one!) had zero effect when invoked directly (postProcess() and
+   its private _applyXOffsets() both ran with no error but left every
+   object's position completely unchanged — tried both the ruleset-
+   converted beatmap and calling it before conversion; whatever internal
+   state it expects isn't what either produces). Rather than keep guessing
+   at an undocumented minified library, this is a direct port of the real
+   game's algorithm from osu.Game.Rulesets.Catch/Beatmaps/
+   CatchBeatmapProcessor.cs (ppy/osu, MIT licensed), including its own
+   documented stable-compatibility quirks — those are deliberate bugs in
+   the real game being preserved for parity, not mistakes introduced here.
+   This was a real, verified source of judgement error (a wrong-score-ID
+   test aside, even a CORRECTLY fetched HR replay showed catcher-to-object
+   distances the un-offset positions couldn't explain), not cosmetic:
+   - Regular Fruit objects get NO offset unless Hard Rock is active, in
+     which case consecutive fruits close in time get "trilled" apart.
+   - JuiceStream-nested TinyDroplets ALWAYS get a small random jitter
+     (±20px), regardless of mods.
+   - BananaShower's Bananas ALWAYS get scattered across the full playfield
+     width, regardless of mods.
+   All three draw from ONE shared, seeded RNG stream advanced in beatmap
+   order — the exact call sequence (including calls whose results are
+   discarded, e.g. droplet rotation) has to match or every offset after
+   the first divergence would desync from the real game's. */
+const HR_OFFSET_RNG_SEED = 1337;
+
+class LegacyRandom {
+    constructor(seed) {
+        this.x = seed >>> 0;
+        this.y = 842502087;
+        this.z = 3579807591;
+        this.w = 273326509;
+        this.bitBuffer = 0;
+        this.bitIndex = 32;
+    }
+    nextUInt() {
+        const t = (this.x ^ (this.x << 11)) >>> 0;
+        this.x = this.y; this.y = this.z; this.z = this.w;
+        this.w = (this.w ^ (this.w >>> 19) ^ t ^ (t >>> 8)) >>> 0;
+        return this.w;
+    }
+    next() { return this.nextUInt() & 0x7fffffff; }
+    nextDouble() { return (1.0 / 2147483648.0) * this.next(); }
+    nextRange(lowerBound, upperBound) { return Math.trunc(lowerBound + this.nextDouble() * (upperBound - lowerBound)); }
+    nextBool() {
+        if (this.bitIndex === 32) {
+            this.bitBuffer = this.nextUInt();
+            this.bitIndex = 1;
+            return (this.bitBuffer & 1) === 1;
+        }
+        this.bitIndex++;
+        this.bitBuffer = this.bitBuffer >>> 1;
+        return (this.bitBuffer & 1) === 1;
+    }
+}
+
+function hrApplyRandomOffset(position, maxOffset, rng) {
+    const right = rng.nextBool();
+    const rand = Math.min(20, rng.nextRange(0, Math.max(0, maxOffset)));
+    if (right) return (position + rand <= PLAYFIELD_X) ? position + rand : position - rand;
+    return (position - rand >= 0) ? position - rand : position + rand;
+}
+
+function hrApplyOffset(position, amount) {
+    if (amount > 0) return (position + amount < PLAYFIELD_X) ? position + amount : position;
+    return (position + amount > 0) ? position + amount : position;
+}
+
+// Returns a Map<hitObject, xOffset> covering every top-level object and
+// every nested object (juice stream droplets, banana-shower bananas).
+// Objects with no applicable offset are simply absent from the map — treat
+// a missing entry as 0.
+function computePositionOffsets(hitObjects, classes, hardRockOffsets) {
+    const { Fruit, Banana, JuiceStream, JuiceDroplet, JuiceTinyDroplet } = classes;
+    const rng = new LegacyRandom(HR_OFFSET_RNG_SEED);
+    const offsets = new Map();
+    let lastPosition = null;
+    let lastStartTime = 0;
+
+    for (const obj of hitObjects) {
+        if (Fruit && obj instanceof Fruit) {
+            if (!hardRockOffsets) continue;
+            const originalX = getObjectX(obj);
+
+            if (lastPosition === null || lastPosition === 0) {
+                lastPosition = originalX;
+                lastStartTime = obj.startTime;
+                continue;
+            }
+
+            const positionDiff = originalX - lastPosition;
+            const timeDiff = Math.trunc(obj.startTime - lastStartTime);
+
+            if (timeDiff > 1000) {
+                lastPosition = originalX;
+                lastStartTime = obj.startTime;
+                continue;
+            }
+
+            if (positionDiff === 0) {
+                const offsetPosition = hrApplyRandomOffset(originalX, timeDiff / 4, rng);
+                offsets.set(obj, offsetPosition - originalX);
+                continue; // preserved stable bug: lastPosition/lastStartTime NOT updated here
+            }
+
+            let offsetPosition = originalX;
+            if (Math.abs(positionDiff) < timeDiff / 3) offsetPosition = hrApplyOffset(originalX, positionDiff);
+            offsets.set(obj, offsetPosition - originalX);
+            lastPosition = offsetPosition;
+            lastStartTime = obj.startTime;
+        } else if (JuiceStream && obj instanceof JuiceStream) {
+            // BUG preserved from stable (see real source comment): uses the
+            // stream's start position + its path's LAST CONTROL POINT x
+            // (not the actual computed curve endpoint), and its START time
+            // (not end time) — intentionally not "fixed" here either.
+            const originalX = getObjectX(obj);
+            const cps = obj.path && (obj.path.controlPoints || obj.path._controlPoints);
+            const lastCp = cps && cps.length ? cps[cps.length - 1] : null;
+            const lastCpX = lastCp && (lastCp.position ? lastCp.position.x : lastCp.x);
+            lastPosition = originalX + (typeof lastCpX === 'number' ? lastCpX : 0);
+            lastStartTime = obj.startTime;
+
+            for (const n of (obj.nestedHitObjects || [])) {
+                if (JuiceTinyDroplet && n instanceof JuiceTinyDroplet) {
+                    const nx = getObjectX(n);
+                    const off = rng.nextRange(-20, 20);
+                    offsets.set(n, Math.max(-nx, Math.min(PLAYFIELD_X - nx, off)));
+                } else if (JuiceDroplet && n instanceof JuiceDroplet) {
+                    rng.next(); // discarded — matches stable's "random droplet rotation" draw, keeps the RNG stream aligned
+                }
+            }
+        } else if (Banana && obj.nestedHitObjects && obj.nestedHitObjects.length && obj.nestedHitObjects[0] instanceof Banana) {
+            // BananaShower — matched by its nested objects (osu-catch-stable
+            // doesn't export a BananaShower class distinguishable the same
+            // way Fruit/JuiceStream are here).
+            for (const n of obj.nestedHitObjects) {
+                const nx = getObjectX(n);
+                offsets.set(n, rng.nextDouble() * PLAYFIELD_X - nx);
+                rng.next(); rng.next(); rng.next(); // discarded — type/rotation/colour draws in stable
+            }
+        }
+    }
+
+    return offsets;
+}
+
 /* ---------- data-shape helpers ----------
    Confirmed correct on a real replay — kept as a candidate list rather
    than collapsed to a single property access since it costs nothing and
@@ -158,8 +307,8 @@ function getFruitType(h, index) {
     return FRUIT_TYPE_CYCLE[index % FRUIT_TYPE_CYCLE.length];
 }
 
-function buildDropItem(h, classes, index) {
-    const x = getObjectX(h);
+function buildDropItem(h, classes, index, offsets) {
+    const x = getObjectX(h) + (offsets.get(h) || 0);
     const preempt = (typeof h.timePreempt === 'number' && h.timePreempt > 0) ? h.timePreempt : 800;
     const kind = classifyObject(h, classes);
     return {
@@ -169,14 +318,14 @@ function buildDropItem(h, classes, index) {
     };
 }
 
-function flattenHitObjects(hitObjects, classes) {
+function flattenHitObjects(hitObjects, classes, offsets) {
     const out = [];
     let i = 0;
     for (const h of hitObjects) {
         if (Array.isArray(h.nestedHitObjects) && h.nestedHitObjects.length) {
-            for (const n of h.nestedHitObjects) out.push(buildDropItem(n, classes, i++));
+            for (const n of h.nestedHitObjects) out.push(buildDropItem(n, classes, i++, offsets));
         } else {
-            out.push(buildDropItem(h, classes, i++));
+            out.push(buildDropItem(h, classes, i++, offsets));
         }
     }
     out.sort((a, b) => a.time - b.time);
@@ -315,13 +464,29 @@ function extractKiaiRanges(beatmap) {
     }
 }
 
+// Judgement weighting confirmed against the real source (CatchScoreProcessor.cs):
+// Fruit/Droplet/TinyDroplet are "dirty-hack"ed to weigh EQUALLY (300 each)
+// toward accuracy on purpose (matches stable) — so tiny droplets belong in
+// the accuracy ratio, not excluded. Banana is HitResult.LargeBonus: bonus
+// results never affect combo or accuracy at all, in any osu! ruleset.
+// Combo, separately, only breaks on Fruit/Droplet (HitResult.AffectsCombo
+// lists Great/LargeTickHit but not SmallTickHit) — a missed tiny droplet
+// or banana never resets it.
 function computeStats(items, mapTime) {
     let combo = 0, maxCombo = 0, caught = 0, miss = 0, hp = 100;
     for (const it of items) {
         if (it.time > mapTime) break;
-        if (it.kind === 'tiny' || it.unknown) continue;
-        if (it.caught) { combo++; caught++; hp = Math.min(100, hp + HP_GAIN); }
-        else { combo = 0; miss++; hp = Math.max(0, hp - HP_LOSS); }
+        if (it.kind === 'banana' || it.unknown) continue;
+        const affectsCombo = it.kind !== 'tiny';
+        if (it.caught) {
+            if (affectsCombo) combo++;
+            caught++;
+            hp = Math.min(100, hp + HP_GAIN);
+        } else {
+            if (affectsCombo) combo = 0;
+            miss++;
+            hp = Math.max(0, hp - HP_LOSS);
+        }
         if (combo > maxCombo) maxCombo = combo;
     }
     const total = caught + miss;
@@ -910,7 +1075,8 @@ async function run() {
 
         const { BeatmapDecoder, ScoreDecoder } = await import(PARSERS_URL);
         const catchStable = await import(CATCH_STABLE_URL);
-        const { CatchRuleset, Fruit, Banana, JuiceDroplet, JuiceTinyDroplet } = catchStable;
+        const { CatchRuleset, Fruit, Banana, JuiceDroplet, JuiceTinyDroplet, JuiceStream } = catchStable;
+        const objectClasses = { Fruit, Banana, JuiceDroplet, JuiceTinyDroplet, JuiceStream };
 
         const ruleset = new CatchRuleset();
         const parsedBeatmap = new BeatmapDecoder().decodeFromString(osuText);
@@ -918,7 +1084,8 @@ async function run() {
         const cs = (catchBeatmap.difficulty && catchBeatmap.difficulty.circleSize)
             ?? (parsedBeatmap.difficulty && parsedBeatmap.difficulty.circleSize) ?? 5;
 
-        const items = flattenHitObjects(catchBeatmap.hitObjects, { Fruit, Banana, JuiceDroplet, JuiceTinyDroplet });
+        const positionOffsets = computePositionOffsets(catchBeatmap.hitObjects, objectClasses, mods.includes('HR'));
+        const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets);
 
         const parsedScore = await new ScoreDecoder().decodeFromBuffer(new Uint8Array(replayBuffer));
         console.log('[replay] parsed score:', parsedScore);
