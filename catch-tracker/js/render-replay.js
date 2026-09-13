@@ -417,6 +417,31 @@ const CATCHER_ALLOWED_CATCH_RANGE = 0.8;
 function catcherVisualWidth(cs) {
     return Math.max(20, CATCHER_BASE_SIZE * catcherScaleFor(cs));
 }
+
+// Fruit/droplet/banana visual radius was a flat made-up percentage of the
+// canvas before (never tied to CS) — live-verified this feels wrong/too
+// small compared to every real skin, and got MORE wrong once the theater
+// went 16:9 (the playfield sub-rect shrank, so a flat percentage of it
+// shrank too). Real sizing, from CatchHitObject.ApplyDefaultsToSelf +
+// OBJECT_RADIUS (osu.Game.Rulesets.Catch/Objects/CatchHitObject.cs) +
+// DrawableTinyDroplet.cs's ScaleFactor override:
+//   object scale  = CalculateScaleFromCircleSize(cs) = catcherScaleFor(cs)/2
+//     (the catcher DOUBLES this same base scale — see the comment above
+//     catcherScaleFor(); fruit/droplet/banana do NOT double it)
+//   radius (osu!px) = OBJECT_RADIUS(64) * scale, for Fruit/Droplet/Banana
+//   TinyDroplet is exactly HALF that radius (DrawableTinyDroplet's
+//   ScaleFactor => base/2) — the only kind with a different scale at all;
+//   Droplet and Banana are otherwise the same physical size as Fruit.
+// Banana also has a real falling wobble (2.2x shrinking to 0.6x) that
+// isn't reproduced here — a decorative animation detail, not load-bearing
+// for anything this renderer needs to be correct about.
+const OBJECT_RADIUS = 64;
+function objectScaleFromCS(cs) {
+    return catcherScaleFor(cs) / 2;
+}
+function fruitRadius(cs) {
+    return OBJECT_RADIUS * objectScaleFromCS(cs);
+}
 function catcherHitWidth(cs) {
     return catcherVisualWidth(cs) * CATCHER_ALLOWED_CATCH_RANGE;
 }
@@ -700,6 +725,7 @@ class ReplayPlayer {
         this.frames = frames;
         this.clockRate = opts.clockRate;
         this.catcherWidth = opts.catcherWidth;
+        this.fruitRadiusOsuPx = opts.fruitRadiusOsuPx || 32;
         this.hiddenMod = !!opts.hiddenMod;
         this.hyperdashWindows = opts.hyperdashWindows || [];
         this.kiaiRanges = opts.kiaiRanges || [];
@@ -813,8 +839,13 @@ class ReplayPlayer {
         const playfieldOffsetX = (w - playfieldW) / 2;
         const catchLineY = h * 0.86;
         const toPx = x => playfieldOffsetX + (x / PLAYFIELD_X) * playfieldW;
-        const fruitSize = playfieldW * 0.016;
-        const sizeFor = kind => kind === 'tiny' ? playfieldW * 0.006 : kind === 'droplet' ? playfieldW * 0.011 : kind === 'banana' ? playfieldW * 0.014 : fruitSize;
+        // Real proportions (see the comment on fruitRadius()): Fruit/
+        // Droplet/Banana share the same CS-derived radius; TinyDroplet is
+        // exactly half. Was a flat made-up percentage of the canvas before
+        // (never tied to CS at all) — confirmed live as visibly too small
+        // next to every real skin.
+        const fruitPx = (this.fruitRadiusOsuPx / PLAYFIELD_X) * playfieldW;
+        const sizeFor = kind => kind === 'tiny' ? fruitPx / 2 : fruitPx;
 
         ctx.strokeStyle = 'rgba(255,255,255,0.12)';
         ctx.beginPath(); ctx.moveTo(playfieldOffsetX, catchLineY); ctx.lineTo(playfieldOffsetX + playfieldW, catchLineY); ctx.stroke();
@@ -1262,6 +1293,7 @@ async function run() {
         const player = new ReplayPlayer(canvas, items, frames, {
             clockRate: clockRateForMods(mods),
             catcherWidth,
+            fruitRadiusOsuPx: fruitRadius(cs),
             hiddenMod: mods.includes('HD'),
             hyperdashWindows,
             kiaiRanges,
