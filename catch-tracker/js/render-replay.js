@@ -234,8 +234,12 @@ function computePositionOffsets(hitObjects, classes, hardRockOffsets) {
                 continue; // preserved stable bug: lastPosition/lastStartTime NOT updated here
             }
 
+            // timeDiff/3 is INTEGER division in the real source (a documented
+            // ReSharper-suppressed "possible loss of fraction" — preserved on
+            // purpose, not a float divide) — confirmed against an independent
+            // TypeScript port (replayviewer-js) of this exact function.
             let offsetPosition = originalX;
-            if (Math.abs(positionDiff) < timeDiff / 3) offsetPosition = hrApplyOffset(originalX, positionDiff);
+            if (Math.abs(positionDiff) < Math.trunc(timeDiff / 3)) offsetPosition = hrApplyOffset(originalX, positionDiff);
             offsets.set(obj, offsetPosition - originalX);
             lastPosition = offsetPosition;
             lastStartTime = obj.startTime;
