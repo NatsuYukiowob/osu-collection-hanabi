@@ -239,9 +239,22 @@ function catcherXAt(frames, t) {
     return a.x + (b.x - a.x) * frac;
 }
 
+// Live-verified this session on a real 7.5-minute marathon map's replay:
+// osu!'s stored .osr for it only actually contained ~68s of frames (15%
+// of the map) despite downloading successfully with no error — not a
+// decode bug on our end (confirmed by re-decoding the raw bytes directly
+// and checking the last frame's own timestamp against the beatmap's last
+// object). Past the last real frame, catcherXAt() has nothing to
+// interpolate toward and holds the catcher frozen at wherever it last
+// was, which would silently manufacture a "miss" for every object after
+// that point — actively misleading rather than a harmless gap. Anything
+// beyond the recorded frame range is marked `unknown` instead of judged,
+// so stats/popups stop rather than lie past the point our data runs out.
 function computeJudgements(items, frames, catcherHitWidthPx) {
     const halfWidth = catcherHitWidthPx / 2;
+    const coverageEnd = frames.length ? frames[frames.length - 1].time : -Infinity;
     for (const it of items) {
+        if (it.time > coverageEnd) { it.unknown = true; continue; }
         it.caught = Math.abs(catcherXAt(frames, it.time) - it.x) <= halfWidth;
     }
     return items;
@@ -306,7 +319,7 @@ function computeStats(items, mapTime) {
     let combo = 0, maxCombo = 0, caught = 0, miss = 0, hp = 100;
     for (const it of items) {
         if (it.time > mapTime) break;
-        if (it.kind === 'tiny') continue;
+        if (it.kind === 'tiny' || it.unknown) continue;
         if (it.caught) { combo++; caught++; hp = Math.min(100, hp + HP_GAIN); }
         else { combo = 0; miss++; hp = Math.max(0, hp - HP_LOSS); }
         if (combo > maxCombo) maxCombo = combo;
@@ -554,7 +567,7 @@ class ReplayPlayer {
         const jumped = Math.abs(prevTime - this.lastPoppedTime) > 50 || this.mapTime < this.lastPoppedTime;
         if (this.showPopups && !jumped && this.mapTime > this.lastPoppedTime) {
             for (const it of this.items) {
-                if (it.kind === 'tiny') continue;
+                if (it.kind === 'tiny' || it.unknown) continue;
                 if (it.time > this.lastPoppedTime && it.time <= this.mapTime) {
                     this.popups.push({ time: it.time, x: it.x, caught: it.caught });
                 }
@@ -782,6 +795,7 @@ function theaterHtml(meta) {
 
             <div class="replay-hud-acc" id="replay-hud-acc">100.00%</div>
             <div class="replay-hud-combo" id="replay-hud-combo">0</div>
+            <div class="replay-coverage-note" id="replay-coverage-note" hidden>${escapeHtml(t('replay_coverage_incomplete'))}</div>
 
             <div class="replay-hud-info">
                 <div class="replay-hud-title">${escapeHtml(title || '')}</div>
@@ -931,6 +945,15 @@ async function run() {
         const hyperdashWindows = computeHyperdash(items, catcherWidth);
         const kiaiRanges = extractKiaiRanges(catchBeatmap);
 
+        // See computeJudgements()'s own comment — a stored .osr can end well
+        // before the map does (live-verified on a 7.5-minute marathon map
+        // whose replay only actually covered the first 15%). Only worth
+        // surfacing if the gap is more than a couple seconds — a replay
+        // ending a beat or two before the last object is normal/expected.
+        const frameCoverageEnd = frames.length ? frames[frames.length - 1].time : -Infinity;
+        const lastItemTime = items.length ? items[items.length - 1].time : 0;
+        const coverageIncomplete = lastItemTime - frameCoverageEnd > 2000;
+
         const settings = loadSettings();
         setStatus(theaterHtml(meta));
         const theater = document.getElementById('replay-theater');
@@ -954,6 +977,7 @@ async function run() {
         const settingsToggle = document.getElementById('replay-settings-toggle');
         const settingsDrawer = document.getElementById('replay-settings-drawer');
         const fullscreenToggle = document.getElementById('replay-fullscreen-toggle');
+        const coverageNote = document.getElementById('replay-coverage-note');
 
         audioEl.volume = settings.volume / 100;
         if (beatmapsetId) {
@@ -979,6 +1003,7 @@ async function run() {
                 statMiss.textContent = stats.miss;
                 hudAcc.textContent = `${(stats.accuracy * 100).toFixed(2)}%`;
                 hudCombo.textContent = String(stats.combo).padStart(4, '0');
+                if (coverageIncomplete) coverageNote.hidden = mapTime <= frameCoverageEnd;
                 const currentLbRow = leaderboardEl.querySelector('.replay-lb-current');
                 if (currentLbRow) {
                     const comboEl = currentLbRow.querySelector('.replay-lb-combo');

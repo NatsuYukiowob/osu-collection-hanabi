@@ -58,6 +58,7 @@ const LANG_STRINGS = {
         replay_settings_banana_rain: '顯示香蕉背景動畫',
         replay_info_by: '由 {name} 遊玩',
         replay_disclaimer: '這是依據回放資料與圖譜物件重建的簡化動畫，非官方畫面；接到/漏接與統計數據皆為視覺估算，非官方判定。',
+        replay_coverage_incomplete: '⚠ 此回放檔案未涵蓋圖譜剩餘部分，之後的接到/漏接與統計數字不會再更新',
 
         h1_feed: '即時分數動態',
         filter_any_grade: '任何評級', filter_fc_only: '僅 FC', filter_choke_only: '僅撞/失敗',
@@ -244,6 +245,7 @@ const LANG_STRINGS = {
         replay_settings_banana_rain: 'Show banana background',
         replay_info_by: 'Played by {name}',
         replay_disclaimer: 'This is a simplified reconstruction from replay + beatmap data, not an official view; catch/miss results and stats are visual estimates, not official judgements.',
+        replay_coverage_incomplete: '⚠ This replay file doesn\'t cover the rest of the map — catch/miss and stats will stop updating from here',
 
         h1_feed: 'Live Score Feed',
         filter_any_grade: 'Any grade', filter_fc_only: 'FC only', filter_choke_only: 'Choke/fail only',
