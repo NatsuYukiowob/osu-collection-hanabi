@@ -7,8 +7,21 @@
    endpoint — and the requesting user's own rate limit — on every repeat
    view). On a cache miss, resolves the caller's own valid osu! bearer
    token via _user-auth.js (general-login primitive restored after this
-   feature's first removal — see that file's own header comment) and
-   calls osu!'s GET /api/v2/scores/{score}/download.
+   feature's first removal — see that file's own header comment).
+
+   Real, confirmed-live bug this session: osu! has TWO non-overlapping score
+   id namespaces — legacy (pre-lazer, the `scores` table) and "solo score"
+   (lazer-era, the `solo_scores` table, a completely separate id sequence).
+   `GET /api/v2/scores/{id}/download` only resolves a LEGACY id; a solo-score
+   id 404s there. `GET /api/v2/scores/{ruleset}/{id}/download` is the
+   reverse — resolves a solo-score id, 404s on a legacy one. Every score
+   this site's own crawlers/API calls surface today (`/users/{id}/scores/
+   best`, `/scores/recent`, `GET /scores/{id}`) returns a solo-score id, so
+   the mode-scoped route is tried FIRST (covers virtually everything now),
+   falling back to the legacy generic route only if that 404s (keeps any
+   older legacy id — e.g. a score cached from before osu!'s lazer
+   transition — working too). Before this fix, every non-legacy score's
+   "看回放" link 404'd regardless of whether a real replay existed.
 
    Unverified assumption (flagged in the implementation plan): whether
    osu! allows downloading ANY visible score's replay once logged in (like
@@ -19,6 +32,7 @@
 const { verifyAuthToken } = require('./_auth-token');
 const { getValidUserAccessToken, UserAuthError } = require('./_user-auth');
 const { getReplayCacheStore } = require('./_blobs-store');
+const { MODE } = require('./_catch-constants');
 
 exports.handler = async (event) => {
     const corsHeaders = { 'Access-Control-Allow-Origin': '*' };
@@ -59,9 +73,14 @@ exports.handler = async (event) => {
                 throw err;
             }
 
-            const res = await fetch(`https://osu.ppy.sh/api/v2/scores/${scoreId}/download`, {
+            let res = await fetch(`https://osu.ppy.sh/api/v2/scores/${MODE}/${scoreId}/download`, {
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
+            if (res.status === 404) {
+                res = await fetch(`https://osu.ppy.sh/api/v2/scores/${scoreId}/download`, {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+            }
             if (res.status === 403 || res.status === 401) {
                 return { statusCode: 403, headers: jsonHeaders, body: JSON.stringify({ error: 'owner_only' }) };
             }

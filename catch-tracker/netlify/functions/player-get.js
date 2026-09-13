@@ -44,7 +44,12 @@ function normalizeScore(score) {
         pp: score.pp ?? null,
         is_fc: isFC(score),
         passed: score.passed !== false,
-        has_replay: score.has_replay === true,
+        // score.has_replay doesn't exist on the real API payload (GET
+        // /users/{id}/scores/best uses a plain `replay: boolean` — checked
+        // live this session, same real bug as _scores-poll-core.js's
+        // toFeedRecord()) — was hard-false for every best-play regardless
+        // of whether a replay actually existed.
+        has_replay: score.replay === true,
         created_at: score.created_at || null,
         score_id: score.id ?? score.best_id ?? null,
         // Same shape _scores-poll-core.js already stores on feed records —

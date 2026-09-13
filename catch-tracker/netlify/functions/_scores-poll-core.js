@@ -86,11 +86,19 @@ function toFeedRecord(score, player) {
         statistics: score.statistics || {},
         is_fc: isFC(score),
         passed: score.passed !== false,
-        // Confirmed against osu!'s own API docs (Score object: "has_replay
-        // boolean — Whether an online replay exists for this score.").
-        // Genuinely false for plenty of real, good plays — replay upload
-        // isn't guaranteed for every score, not a field-name bug.
-        has_replay: score.has_replay === true,
+        // Was `score.has_replay` — that field genuinely does not exist on
+        // any real osu! API v2 score payload (checked live this session
+        // against /users/{id}/scores/recent, /scores/best, and the newer
+        // GET /scores/{id}: all three use a plain `replay: boolean`). The
+        // old comment's API-docs citation was simply wrong, and since
+        // `undefined === true` is always false, every score this poller
+        // ever wrote had has_replay hard-set to false — 看回放 could never
+        // appear anywhere fed by feed:recent (the live feed, and a
+        // player's own 近期成績 tab) regardless of whether a real replay
+        // existed. Still genuinely false for plenty of real, good plays —
+        // replay upload isn't guaranteed for every score — just no longer
+        // false for ALL of them.
+        has_replay: score.replay === true,
         created_at: score.created_at || null,
         seenAt: new Date().toISOString(),
     };

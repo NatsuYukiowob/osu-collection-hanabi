@@ -621,6 +621,28 @@ function saveSettings(s) {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* per-viewer convenience only */ }
 }
 
+// Feeds replays.html's "recently viewed" strip (js/render-replays.js reads
+// the same key) — per-browser only, recorded once a replay actually loads
+// successfully (not on every navigation attempt), most-recent-first,
+// de-duplicated by score id, capped so it can't grow unbounded.
+const RECENT_REPLAYS_KEY = 'ct_recent_replays';
+const RECENT_REPLAYS_MAX = 12;
+// Stored snake_case to match replay.html's own URL param names (and what
+// render-replays.js reads back) rather than this file's internal camelCase
+// locals — keeps the localStorage shape a stable external contract.
+function recordRecentlyViewedReplay({ scoreId, beatmapId, userId, title, artist, version, username, rank, beatmapsetId, mods }) {
+    try {
+        const entry = {
+            score_id: scoreId, beatmap_id: beatmapId, beatmapset_id: beatmapsetId, user_id: userId,
+            title, artist, version, username, rank, mods,
+        };
+        const list = JSON.parse(localStorage.getItem(RECENT_REPLAYS_KEY) || '[]')
+            .filter(r => r.score_id !== entry.score_id);
+        list.unshift(entry);
+        localStorage.setItem(RECENT_REPLAYS_KEY, JSON.stringify(list.slice(0, RECENT_REPLAYS_MAX)));
+    } catch { /* per-viewer convenience only */ }
+}
+
 const COLORS = { fruit: '#fb5a8c', droplet: '#60a5fa', tiny: '#93c5fd', banana: '#facc15' };
 
 /* ---------- skin import (opt-in, client-side only) ----------
@@ -1395,6 +1417,7 @@ async function run() {
 
         const settings = loadSettings();
         setStatus(theaterHtml(meta, settings));
+        recordRecentlyViewedReplay({ scoreId, beatmapId, userId, ...meta });
         const theater = document.getElementById('replay-theater');
         // Upgrade from cover.jpg (osu!'s own pre-cropped ~3.6:1 promo
         // banner, shown immediately above via theaterHtml's bgUrl) to the
