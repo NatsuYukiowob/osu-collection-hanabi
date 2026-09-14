@@ -1,6 +1,6 @@
 I18N.zh = {
     title: 'osu! 歌曲收藏', site_title: 'osu! 歌曲收藏', site_tagline: '一起來收藏你專屬的歌曲收藏庫吧',
-    site_like_label: '讚', site_like_title: '喜歡這個網站的話，幫我按個讚吧！', site_share_label: '分享', site_share_title: '把這個網站分享給朋友', site_share_copied: '網站連結已複製！', site_share_text: '一起來收藏你專屬的 osu! 歌曲收藏庫吧！',
+    site_like_label: '讚', site_like_title: '喜歡這個網站的話，幫我按個讚吧！', site_changelog_label: '更新內容', site_changelog_title: '這次部署更新了什麼', site_share_label: '分享', site_share_title: '把這個網站分享給朋友', site_share_copied: '網站連結已複製！', site_share_text: '一起來收藏你專屬的 osu! 歌曲收藏庫吧！',
     pwa_install_btn_title: '加到主畫面（離線可用）',
     site_update_btn_title: '網站有更新，點擊更新', site_update_available: '目前網站有更新，請點擊重新載入以獲取最新版本',
     maintenance_banner_text: '目前該網頁正在修改中，如果有任何疑問或 bug 的話請聯絡我！',
@@ -14,7 +14,7 @@ I18N.zh = {
     push_enable: '開啟推播通知', push_disable: '關閉推播通知', push_on: '已開啟推播，追蹤玩家 PP 有變化時會通知你（即使沒開著網頁）', push_off: '已關閉推播通知', push_blocked: '瀏覽器已封鎖通知權限，請到瀏覽器設定開啟', push_fail: '推播訂閱失敗，請稍後再試',
     tracked_players_title: '追蹤中的玩家', tracked_players_empty: '尚未追蹤任何玩家，查詢後點擊「追蹤」即可加入清單，PP 有變化時會通知你',
     notif_bell_title: '通知', notif_clear_btn: '清除全部', notif_empty: '目前沒有通知',
-    contact_info_title: '聯絡資訊',
+    contact_info_title: '聯絡資訊', accent_picker_title: '自訂主題色', accent_picker_custom: '自訂顏色', accent_picker_reset: '恢復預設',
     notif_pp_changed_detail: '{sign}{delta}pp（目前 {pp}pp）', notif_tournament_new_title: '新賽事貼文',
     back_to_main: '返回 Hanabiの小天地',
     nav_collection: '收藏', nav_lookup: 'PP 查詢', nav_skins: '皮膚', nav_updates: '更新情報', nav_mapper_tracking: '追蹤 Mapper', nav_tournaments: '賽事', nav_resources: '資源', nav_bbcode: 'BBCode', nav_feedback: '建議&改進', nav_menu_open: '開啟選單', nav_more: '更多', nav_menu_title: '選單', nav_group_core: '核心功能', nav_group_tools: '工具庫', nav_group_resources: '資源區',
@@ -141,6 +141,7 @@ I18N.zh = {
 
     osu_download_btn_title: '直接下載（免登入鏡像站）',
     mplist_mp_hint: '複製這張圖的 !mp map 指令，貼進多人房', mplist_mp_copied: '已複製 —— 貼進你的多人房',
+    mini_player_playpause: '播放/暫停', mini_player_loop: '循環播放', mini_player_close: '關閉播放器',
     batch_dl_btn: '批量下載此清單圖檔', batch_dl_empty: '這個清單是空的，沒有東西可以下載',
     batch_dl_confirm: '要下載目前清單的 {n} 個圖檔嗎？會依序觸發 {n} 次瀏覽器下載，需要一段時間，請勿關閉分頁',
     batch_dl_progress: '下載中... {done}/{total}',
@@ -212,7 +213,7 @@ I18N.zh = {
     catalog_load_fail: '載入曲庫失敗，稍後再試',
     catalog_combo_no_match: '沒有符合的結果', catalog_combo_more_hint: '還有 {n} 筆結果，輸入關鍵字可縮小範圍',
     catalog_create_collection_btn: '➕ 建立此分類的收藏',
-    catalog_smart_toggle: '設為動態分類', smart_cat_badge: '動態分類', smart_cat_last_sync: '上次同步 {d}', smart_cat_refresh_btn: '拉取新上榜的圖', smart_cat_detach: '改為靜態分類', smart_cat_detach_confirm: '要取消這個分類的動態同步嗎？（已收藏的圖會保留）', smart_cat_no_new: '沒有符合條件的新圖', smart_cat_synced: '已加入 {n} 張新圖',
+    catalog_star_filter_label: '難度篩選', catalog_smart_toggle: '設為動態分類', smart_cat_badge: '動態分類', smart_cat_last_sync: '上次同步 {d}', smart_cat_refresh_btn: '拉取新上榜的圖', smart_cat_detach: '改為靜態分類', smart_cat_detach_confirm: '要取消這個分類的動態同步嗎？（已收藏的圖會保留）', smart_cat_no_new: '沒有符合條件的新圖', smart_cat_synced: '已加入 {n} 張新圖',
     catalog_create_collection_hint: '先選定一個歌手／語言／曲風／來源，才能建立對應的收藏分類',
     catalog_create_collection_confirm: '要把「{name}」的 {n} 個譜面組加進你的收藏、並建立同名分類嗎？',
     catalog_create_collection_done: '已把「{name}」加進收藏：新增 {n} 個譜面組、{cat} 個分類',

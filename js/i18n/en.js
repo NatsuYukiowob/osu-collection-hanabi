@@ -1,6 +1,6 @@
 I18N.en = {
     title: 'osu! Collection', site_title: 'osu! Collection', site_tagline: 'Build your very own song collection',
-    site_like_label: 'Like', site_like_title: 'Like this site if you enjoy it!', site_share_label: 'Share', site_share_title: 'Share this site with friends', site_share_copied: 'Site link copied!', site_share_text: 'Build your very own osu! song collection!',
+    site_like_label: 'Like', site_like_title: 'Like this site if you enjoy it!', site_changelog_label: 'Updates', site_changelog_title: 'What changed in this deployment', site_share_label: 'Share', site_share_title: 'Share this site with friends', site_share_copied: 'Site link copied!', site_share_text: 'Build your very own osu! song collection!',
     pwa_install_btn_title: 'Add to home screen (works offline)',
     site_update_btn_title: 'An update is available, click to update', site_update_available: 'A new version of the site is available — click to reload and get the latest version',
     maintenance_banner_text: 'This site is currently being updated — if you run into any questions or bugs, please get in touch!',
@@ -190,7 +190,7 @@ I18N.en = {
     push_enable: 'Enable push notifications', push_disable: 'Disable push notifications', push_on: "Push on — we'll notify you when a tracked player's PP changes, even with the site closed", push_off: 'Push notifications turned off', push_blocked: 'Your browser has blocked notifications — enable them in its settings', push_fail: 'Could not subscribe to push — try again later',
     tracked_players_title: 'Tracked players', tracked_players_empty: "You're not tracking anyone yet — look someone up and hit \"Track\" to get notified when their PP changes",
     notif_bell_title: 'Notifications', notif_clear_btn: 'Clear all', notif_empty: 'No notifications yet',
-    contact_info_title: 'Contact info',
+    contact_info_title: 'Contact info', accent_picker_title: 'Customise accent colour', accent_picker_custom: 'Custom colour', accent_picker_reset: 'Reset to default',
     notif_pp_changed_detail: '{sign}{delta}pp (now {pp}pp)', notif_tournament_new_title: 'New tournament post',
     back_to_main: 'Back to Hanabiの小天地',
     nav_collection: 'Collection', nav_lookup: 'PP Lookup', nav_skins: 'Skins', nav_updates: 'News', nav_mapper_tracking: 'Tracked Mappers', nav_tournaments: 'Tournaments', nav_resources: 'Resources', nav_bbcode: 'BBCode', nav_feedback: 'Suggestions', nav_menu_open: 'Open menu', nav_more: 'More', nav_menu_title: 'Menu', nav_group_core: 'Core', nav_group_tools: 'Tools', nav_group_resources: 'Resources',
@@ -317,6 +317,7 @@ I18N.en = {
 
     osu_download_btn_title: 'Direct download (no-login mirror)',
     mplist_mp_hint: 'Copy this map as an !mp map line for a multiplayer lobby', mplist_mp_copied: 'Copied — paste it in your lobby',
+    mini_player_playpause: 'Play/Pause', mini_player_loop: 'Loop', mini_player_close: 'Close player',
     batch_dl_btn: 'Batch-download this list\'s files', batch_dl_empty: 'This list is empty — nothing to download',
     batch_dl_confirm: 'Download all {n} beatmapsets in this list? This triggers {n} browser downloads one after another — it\'ll take a while, so keep this tab open',
     batch_dl_progress: 'Downloading... {done}/{total}',
@@ -388,7 +389,7 @@ I18N.en = {
     catalog_load_fail: 'Failed to load the catalog, try again later',
     catalog_combo_no_match: 'No matching results', catalog_combo_more_hint: '{n} more results — keep typing to narrow it down',
     catalog_create_collection_btn: '➕ Make a collection from this facet',
-    catalog_smart_toggle: 'Make it a dynamic category', smart_cat_badge: 'Dynamic', smart_cat_last_sync: 'Last synced {d}', smart_cat_refresh_btn: 'Pull in newly ranked maps', smart_cat_detach: 'Make static', smart_cat_detach_confirm: 'Stop keeping this category in sync? (collected maps stay)', smart_cat_no_new: 'No new matching maps', smart_cat_synced: 'Added {n} new maps',
+    catalog_star_filter_label: 'Difficulty filter', catalog_smart_toggle: 'Make it a dynamic category', smart_cat_badge: 'Dynamic', smart_cat_last_sync: 'Last synced {d}', smart_cat_refresh_btn: 'Pull in newly ranked maps', smart_cat_detach: 'Make static', smart_cat_detach_confirm: 'Stop keeping this category in sync? (collected maps stay)', smart_cat_no_new: 'No new matching maps', smart_cat_synced: 'Added {n} new maps',
     catalog_create_collection_hint: 'Pick one artist / language / genre / source first to build a matching collection category',
     catalog_create_collection_confirm: 'Add the {n} beatmapsets of "{name}" to your collection and create a category with that name?',
     catalog_create_collection_done: 'Added "{name}" to your collection: {n} new beatmapsets, {cat} categories',

@@ -33,6 +33,11 @@ exports.handler = async (event) => {
     const language = (qs.language || '').trim();      // '' | 'unknown' | '<id>'
     const genre = (qs.genre || '').trim();            // '' | 'unknown' | '<id>'
     const source = (qs.source || '').trim();          // '' | 'none' | '<source>'
+    // Star-rating range — an overlap test against the set's own star_min/
+    // star_max (any difficulty of the set falling in range is a match), not
+    // an exact containment test. starMax absent/blank means "no upper bound".
+    const starMin = qs.starMin !== undefined && qs.starMin !== '' ? parseFloat(qs.starMin) : null;
+    const starMax = qs.starMax !== undefined && qs.starMax !== '' ? parseFloat(qs.starMax) : null;
     const modeRaw = parseInt(qs.mode, 10);
     const mode = (modeRaw === 0 || modeRaw === 1 || modeRaw === 2 || modeRaw === 3) ? modeRaw : null;
     const includeNsfw = qs.includeNsfw === '1';
@@ -79,6 +84,14 @@ exports.handler = async (event) => {
         if (artist) {
             items = items.filter(r => Array.isArray(r.artist_keys) && r.artist_keys.includes(artist));
         }
+        if (Number.isFinite(starMin) || Number.isFinite(starMax)) {
+            items = items.filter(r => {
+                if (r.star_min == null || r.star_max == null) return false;
+                if (Number.isFinite(starMin) && r.star_max < starMin) return false;
+                if (Number.isFinite(starMax) && r.star_min > starMax) return false;
+                return true;
+            });
+        }
         if (q) {
             items = items.filter(r =>
                 (r.artist || '').toLowerCase().includes(q) ||
@@ -124,13 +137,13 @@ exports.handler = async (event) => {
                 for (const k of r.artist_keys) artistCounts.set(k, (artistCounts.get(k) || 0) + 1);
             }
         }
-        // Every name carrying >=2 maps (rarer ones fold into "all"/"none"),
+        // Every name carrying >30 maps (rarer ones fold into "all"/"none"),
         // sorted alphabetically for display — no top-N cap, the frontend is a
         // searchable combobox rather than a plain <select> so a long list is
         // fine. 'ja' locale collation orders kana by あいうえお reading order
         // while still sorting Latin names A-Z.
         const topBy = (map, keyName) => [...map.entries()]
-            .filter(([, c]) => c >= 2)
+            .filter(([, c]) => c > 30)
             .sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'ja'))
             .map(([k, c]) => ({ [keyName]: k, count: c }));
 

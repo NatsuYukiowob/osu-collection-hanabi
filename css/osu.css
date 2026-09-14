@@ -690,11 +690,10 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     padding: 12px;
 }
 
-/* Still used by the publish/unpublish button row on the gallery page
-   (index.html #page-public-collections) — the volume slider that used to
-   share this class moved to the standalone .volume-fab (css/base.css),
-   floating next to .page-refresh-fab, so every page can reach it instead
-   of only the Collection tab's Add Beatmap card. */
+/* Used by the publish/unpublish button row on the gallery page
+   (index.html #page-public-collections) — unrelated to the #osu-volume
+   preview-volume slider below despite the similar name (that one lives
+   inside .osu-mini-player-volume-row now). */
 .osu-volume {
     display: flex;
     flex-wrap: wrap;
@@ -1399,7 +1398,6 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
 .osu-card-actions .osu-fav-btn.active { color: var(--accent-pink); }
 .osu-card-actions .osu-fav-btn.active:hover { color: #fff; }
 .osu-card-actions .osu-download-btn.db-matched { background: rgba(52,211,153,0.85); color: #fff; }
-.osu-card-actions .osu-play-btn.playing { background: rgba(var(--pink-rgb),0.75); color: #fff; }
 .osu-card-actions .osu-copy-btn.copied { color: #34d399; }
 .osu-card-actions .osu-delete-btn:hover { background: rgba(255,90,90,0.6); }
 
@@ -1445,9 +1443,9 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
 }
 .osu-play-btn {
     position: absolute;
-    top: 8px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     background: rgba(0,0,0,0.5);
     color: rgba(255,255,255,0.7);
     border: none;
@@ -1468,35 +1466,177 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
 .osu-play-btn:hover {
     color: #fff;
     background: rgba(244,114,182,0.6);
-    transform: translateX(-50%) scale(1.1);
+    transform: translate(-50%, -50%) scale(1.1);
 }
 
-/* Preview waveform: the static play icon swaps for 4 tiny audio-reactive
-   bars while playing (js/osu.js startOsuViz() drives their scaleY per
-   animation frame from an AnalyserNode). Same markup on every .osu-play-btn
-   plus the mini-games' .games-card-btn (js/games.js). */
+/* Preview waveform — ported from catch-tracker/css/style.css's .icon-eq to
+   match it exactly (see js/osu.js playBtnIcon()'s header comment for why
+   this is pure CSS transform(scaleY) animation, not real audio analysis).
+   Idle: hidden, 12px tall, sized to its own content inside the small
+   circle button. Playing (.osu-play-btn only — see the shape-change rule
+   below; .games-card-btn stays a small circle and just shows these same
+   bars at that size): full width/height of the button, flex:1 bars. */
 .osu-play-bars {
     display: none;
     align-items: flex-end;
     justify-content: center;
     gap: 2px;
-    width: 13px;
-    height: 11px;
+    height: 14px;
 }
 .osu-play-bars i {
     display: block;
-    width: 2px;
-    height: 100%;
+    width: 3px;
     background: currentColor;
     border-radius: 1px;
-    transform: scaleY(0.15);
     transform-origin: bottom;
-    transition: transform 0.08s linear;
+    animation: osuEqBounce 1s ease-in-out infinite;
 }
 .osu-play-btn.playing .icon-svg,
 .games-card-btn.playing .icon-svg { display: none; }
 .osu-play-btn.playing .osu-play-bars,
 .games-card-btn.playing .osu-play-bars { display: flex; }
+.osu-play-btn.playing .osu-play-bars {
+    width: 100%;
+    height: 100%;
+    gap: 3px;
+}
+.osu-play-btn.playing .osu-play-bars i {
+    flex: 1 1 0;
+    width: auto;
+    border-radius: 2px 2px 0 0;
+}
+/* Each bar's duration/delay is a multiple of --beat-s (set inline per
+   button by js/osu.js osuPreviewBeatStyle(), from the map's own BPM), same
+   hand-tuned per-bar height/multiplier values as catch-tracker's .icon-eq
+   so both sites' equalizers read identically. */
+.osu-play-bars i:nth-child(1) { height: 35%; animation-duration: calc(var(--beat-s, 0.4s) * 2); animation-delay: calc(var(--beat-s, 0.4s) * -1.55); }
+.osu-play-bars i:nth-child(2) { height: 62%; animation-duration: calc(var(--beat-s, 0.4s) * 2.625); animation-delay: calc(var(--beat-s, 0.4s) * -0.25); }
+.osu-play-bars i:nth-child(3) { height: 45%; animation-duration: calc(var(--beat-s, 0.4s) * 1.75); animation-delay: calc(var(--beat-s, 0.4s) * -2.35); }
+.osu-play-bars i:nth-child(4) { height: 90%; animation-duration: calc(var(--beat-s, 0.4s) * 3.25); animation-delay: calc(var(--beat-s, 0.4s) * -1); }
+.osu-play-bars i:nth-child(5) { height: 55%; animation-duration: calc(var(--beat-s, 0.4s) * 2.25); animation-delay: calc(var(--beat-s, 0.4s) * -1.8); }
+.osu-play-bars i:nth-child(6) { height: 100%; animation-duration: calc(var(--beat-s, 0.4s) * 3.5); animation-delay: calc(var(--beat-s, 0.4s) * -0.375); }
+.osu-play-bars i:nth-child(7) { height: 68%; animation-duration: calc(var(--beat-s, 0.4s) * 2.125); animation-delay: calc(var(--beat-s, 0.4s) * -2.75); }
+.osu-play-bars i:nth-child(8) { height: 48%; animation-duration: calc(var(--beat-s, 0.4s) * 2.75); animation-delay: calc(var(--beat-s, 0.4s) * -1.375); }
+.osu-play-bars i:nth-child(9) { height: 80%; animation-duration: calc(var(--beat-s, 0.4s) * 2.375); animation-delay: calc(var(--beat-s, 0.4s) * -0.7); }
+.osu-play-bars i:nth-child(10) { height: 40%; animation-duration: calc(var(--beat-s, 0.4s) * 3); animation-delay: calc(var(--beat-s, 0.4s) * -2.125); }
+.osu-play-bars i:nth-child(11) { height: 60%; animation-duration: calc(var(--beat-s, 0.4s) * 1.875); animation-delay: calc(var(--beat-s, 0.4s) * -0.125); }
+.osu-play-bars i:nth-child(12) { height: 30%; animation-duration: calc(var(--beat-s, 0.4s) * 2.625); animation-delay: calc(var(--beat-s, 0.4s) * -1.2); }
+@keyframes osuEqBounce {
+    0%, 100% { transform: scaleY(0.2); }
+    50% { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .osu-play-bars i { animation: none; height: 60%; }
+}
+
+/* Floating mini-player — ported from catch-tracker's own bottom-right
+   mini-player (see js/osu.js ensureOsuMiniPlayer()), same bottom:20px/
+   right:20px corner catch-tracker itself uses (the FABs that used to sit
+   there — .volume-fab, .page-refresh-fab — are both gone now). */
+.osu-mini-player {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 500;
+    width: 300px;
+    max-width: calc(100vw - 40px);
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--r-card);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    padding: 12px 14px;
+}
+.osu-mini-player-top { display: flex; align-items: center; gap: 10px; }
+.osu-mini-player-cover {
+    width: 38px;
+    height: 38px;
+    border-radius: 7px;
+    object-fit: cover;
+    background: var(--bg-stat);
+    flex: none;
+}
+.osu-mini-player-info { min-width: 0; flex: 1 1 auto; }
+.osu-mini-player-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.osu-mini-player-artist {
+    font-size: 0.74rem;
+    color: var(--text-dim2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.osu-mini-player-icon-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim2);
+    cursor: pointer;
+    border-radius: 6px;
+    flex: none;
+    transition: color 0.15s, background 0.15s;
+}
+.osu-mini-player-icon-btn .icon-svg { width: 15px; height: 15px; }
+.osu-mini-player-icon-btn:hover { color: var(--text); background: var(--bg-stat); }
+.osu-mini-player-icon-btn.active { color: var(--accent-pink); }
+.osu-mini-player-controls { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.osu-mini-player-playpause {
+    background: var(--pink);
+    color: #14101c;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: none;
+}
+.osu-mini-player-playpause .icon-svg { width: 15px; height: 15px; }
+/* min-width:0 overrides the flex default of min-width:auto, which for a
+   range input resolves to its intrinsic UA width — without this, the seek
+   bar refuses to shrink below that, pushing the time text out past the
+   panel's edge (same fix catch-tracker's own mini-player needed live). */
+.osu-mini-player-controls input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--accent-pink); height: 4px; cursor: pointer; }
+.osu-mini-player-time {
+    font-size: 0.7rem;
+    color: var(--text-dim2);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+    white-space: nowrap;
+}
+/* Preview volume — moved here from the old always-on #volume-fab (removed
+   2026-09-13, see css/base.css), since it's only ever meaningful while a
+   preview is actually playing, i.e. while this panel is even visible. */
+.osu-mini-player-volume-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+.osu-mini-player-volume-icon { color: var(--text-dim2); cursor: default; }
+.osu-mini-player-volume-icon:hover { background: none; }
+#osu-volume {
+    flex: 1 1 auto;
+    min-width: 0;
+    accent-color: var(--accent-pink);
+    height: 4px;
+    cursor: pointer;
+}
+@media (max-width: 480px) {
+    .osu-mini-player { right: 12px; bottom: 12px; left: 12px; width: auto; }
+}
 
 /* Touch devices have no :hover, so these hover-reveal action buttons would
    otherwise be permanently invisible and untappable — show them by default
@@ -1639,6 +1779,99 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
         gap: 8px;
     }
 }
+
+/* ⭐ Catalog star-rating range slider — two overlapping native
+   <input type="range">, transparent except the thumb (classic dual-thumb
+   trick), so both ends stay independently draggable. Track gradient is
+   painted from js/catalog.js's catalogStarGradient() (built from
+   starRatingColor(), the same difficulty colour used on every mode-diff
+   icon elsewhere), not hand-picked here. */
+.catalog-star-filter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: -4px 0 12px;
+    flex-wrap: wrap;
+}
+.catalog-star-filter-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+.catalog-star-filter-value {
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    min-width: 108px;
+}
+.catalog-star-slider {
+    position: relative;
+    flex: 1 1 200px;
+    min-width: 140px;
+    max-width: 360px;
+    height: 22px;
+}
+.catalog-star-track {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    transform: translateY(-50%);
+    border-radius: 3px;
+    /* background painted inline by catalogStarGradient() */
+}
+.catalog-star-dim {
+    position: absolute;
+    top: 50%;
+    height: 6px;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+}
+.catalog-star-dim-before { left: 0; border-radius: 3px 0 0 3px; }
+.catalog-star-dim-after { right: 0; border-radius: 0 3px 3px 0; }
+.catalog-star-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 22px;
+    margin: 0;
+    background: none;
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: none;
+}
+.catalog-star-input::-webkit-slider-runnable-track { background: none; }
+.catalog-star-input::-moz-range-track { background: none; border: none; }
+.catalog-star-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+}
+.catalog-star-input::-moz-range-thumb {
+    pointer-events: auto;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+}
+.catalog-star-input:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--accent-pink); outline-offset: 1px; }
+.catalog-star-input:focus-visible::-moz-range-thumb { outline: 2px solid var(--accent-pink); outline-offset: 1px; }
 
 /* 補完度 panel — appears above the grid when a single facet is active:
    how much of that artist/source/genre/language the visitor already owns,
@@ -2451,7 +2684,6 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     display: flex;
     align-items: center;
 }
-:root[data-theme="light"] .cmpool-add-map button { color: #fff; }
 /* secondary "paste many" toggle sitting next to the solid + button */
 .cmpool-add-map .cmpool-bulk-btn {
     background: transparent;
@@ -2488,7 +2720,6 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     cursor: pointer;
 }
 .cmpool-bulk-actions button:disabled { opacity: 0.6; cursor: default; }
-:root[data-theme="light"] .cmpool-bulk-actions button { color: #fff; }
 .cmpool-bulk-status { font-size: 0.78rem; color: var(--text-dim); }
 
 /* Tournament-style mod icon: a flat-topped hexagon with bold 2-letter text
@@ -2560,15 +2791,41 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     }
 }
 
+/* Playing state, ported from catch-tracker's .preview-btn.playing exactly:
+   the same <button> restyles from a small centered circle into a full-
+   width strip pinned to the card's bottom edge, and .osu-play-bars (above)
+   becomes a full-bleed bouncing equalizer rising from that bottom border.
+   The click target (and its event.stopPropagation() stop-on-click, set on
+   the onclick attribute) doesn't move, only the shape/position, so
+   toggling playback back off still works anywhere in the strip. Per
+   explicit request this deliberately sits on top of — and briefly hides —
+   .osu-card-info's title/artist underneath while a preview is playing;
+   stopping playback (click again, or the track ending) restores it. */
 .osu-play-btn.playing {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    height: 42%;
+    border-radius: 0;
+    background: linear-gradient(180deg, rgba(10,10,22,0) 0%, rgba(10,10,22,0.45) 45%, rgba(10,10,22,0.7) 100%);
+    color: #fff;
+    opacity: 1;
+    align-items: flex-end;
+    padding-bottom: 6px;
+}
+.osu-play-btn.playing:hover {
+    transform: none;
+    background: linear-gradient(180deg, rgba(10,10,22,0) 0%, rgba(10,10,22,0.5) 45%, rgba(10,10,22,0.78) 100%);
+}
+/* .games-card-btn (mini-games) keeps its small circle shape when playing —
+   its wrapper (.games-card-btns) is a shrink-to-fit icon row, not a full-
+   card-width box, so it has no room for the same expand-to-strip move. */
+.games-card-btn.playing {
     opacity: 1;
     color: #fff;
     background: rgba(244,114,182,0.7);
-    animation: playPulse 1s ease-in-out infinite;
-}
-@keyframes playPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(244,114,182,0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(244,114,182,0); }
 }
 
 .osu-card-info {
@@ -2597,6 +2854,25 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     margin-right: 2px;
     flex-shrink: 0;
     filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+}
+
+/* 收藏頁卡片的語言標籤 — 移到右下角、難度色徽章的左側（見 osu-card-mode-badge），
+   而非疊在標題上方的左上角。用 flex + 固定高度對齊圓形徽章的中心，而不是自行算
+   padding 湊出置中效果。 */
+.osu-card-lang-corner {
+    position: absolute;
+    bottom: 8px;
+    right: 56px;
+    height: 40px;
+    max-width: calc(100% - 64px);
+    display: flex;
+    align-items: center;
+    z-index: 2;
+    pointer-events: none;
+}
+.osu-card-lang-corner .osu-lang-badge {
+    margin-bottom: 0;
+    pointer-events: auto;
 }
 
 .osu-card-mode-badge {
@@ -4167,7 +4443,6 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     box-shadow: 0 24px 80px rgba(0,0,0,0.5);
     padding: 24px;
 }
-:root[data-theme="light"] .pp-calc-modal { box-shadow: 0 20px 60px rgba(20,16,28,0.18); }
 .pp-calc-close {
     position: absolute;
     top: 12px;
@@ -4629,7 +4904,6 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     cursor: pointer;
 }
 .chat-edit-save { background: var(--pink); color: #14101c; }
-:root[data-theme="light"] .chat-edit-save { color: #fff; }
 .chat-edit-cancel { background: var(--bg-stat); color: var(--text-secondary); }
 
 /* ===== Emoji picker =====
@@ -4742,7 +5016,6 @@ input[type="file"] { max-width: 100%; box-sizing: border-box; }
     cursor: pointer;
     line-height: 1;
 }
-:root[data-theme="light"] .chat-media-preview button { color: #fff; }
 
 /* ===== Direct messages (js/dm.js) =====
    Reuses .chat-* building blocks (avatar-with-flag, .chat-message-name,

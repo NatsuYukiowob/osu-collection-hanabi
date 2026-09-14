@@ -1,6 +1,6 @@
 I18N.fr = {
     title: 'osu! Collection', site_title: 'osu! Collection', site_tagline: 'Constitue ta propre collection de morceaux',
-    site_like_label: 'J’aime', site_like_title: 'Ce site vous plaît ? Mettez un like !', site_share_label: 'Partager', site_share_title: 'Partager ce site avec des amis', site_share_copied: 'Lien du site copié !', site_share_text: 'Constitue ta propre collection de musiques osu !',
+    site_like_label: 'J’aime', site_like_title: 'Ce site vous plaît ? Mettez un like !', site_changelog_label: 'Nouveautés', site_changelog_title: 'Ce qui a changé dans ce déploiement', site_share_label: 'Partager', site_share_title: 'Partager ce site avec des amis', site_share_copied: 'Lien du site copié !', site_share_text: 'Constitue ta propre collection de musiques osu !',
     pwa_install_btn_title: "Ajouter à l'écran d'accueil (fonctionne hors ligne)",
     site_update_btn_title: 'Une mise à jour est disponible, cliquez pour mettre à jour', site_update_available: 'Une nouvelle version du site est disponible — cliquez pour recharger et obtenir la dernière version',
     maintenance_banner_text: "Ce site est actuellement en cours de modification — si vous avez des questions ou rencontrez un bug, n'hésitez pas à me contacter !",
@@ -44,7 +44,7 @@ I18N.fr = {
     push_enable: 'Activer les notifications push', push_disable: 'Désactiver les notifications push', push_on: "Push activé — on vous préviendra quand le PP d'un joueur suivi change, même site fermé", push_off: 'Notifications push désactivées', push_blocked: 'Votre navigateur a bloqué les notifications — activez-les dans ses paramètres', push_fail: "Impossible de s'abonner aux notifications push — réessayez plus tard",
     tracked_players_title: 'Joueurs suivis', tracked_players_empty: "Vous ne suivez personne pour l'instant — recherchez un joueur et cliquez sur « Suivre » pour être averti d'un changement de PP",
     notif_bell_title: 'Notifications', notif_clear_btn: 'Tout effacer', notif_empty: 'Aucune notification',
-    contact_info_title: 'Coordonnées',
+    contact_info_title: 'Coordonnées', accent_picker_title: 'Personnaliser la couleur d’accent', accent_picker_custom: 'Couleur personnalisée', accent_picker_reset: 'Réinitialiser',
     notif_pp_changed_detail: '{sign}{delta}pp (maintenant {pp}pp)', notif_tournament_new_title: 'Nouveau sujet de tournoi',
     back_to_main: 'Retour à Hanabiの小天地',
     nav_collection: 'Collection', nav_lookup: 'Recherche PP', nav_skins: 'Skins', nav_updates: 'Actualités', nav_mapper_tracking: 'Mappers suivis', nav_tournaments: 'Tournois', nav_resources: 'Ressources', nav_bbcode: 'BBCode', nav_feedback: 'Suggestions', nav_menu_open: 'Ouvrir le menu', nav_more: 'Plus', nav_menu_title: 'Menu', nav_group_core: 'Essentiel', nav_group_tools: 'Outils', nav_group_resources: 'Ressources',
@@ -181,6 +181,7 @@ I18N.fr = {
 
     osu_download_btn_title: 'Téléchargement direct (miroir sans connexion)',
     mplist_mp_hint: 'Copier cette map en ligne !mp map pour un lobby multi', mplist_mp_copied: 'Copié — colle-le dans ton lobby',
+    mini_player_playpause: 'Lecture/Pause', mini_player_loop: 'Boucle', mini_player_close: 'Fermer le lecteur',
     batch_dl_btn: 'Télécharger toute cette liste', batch_dl_empty: 'Cette liste est vide, rien à télécharger',
     batch_dl_confirm: 'Télécharger les {n} beatmapsets de cette liste ? Cela déclenche {n} téléchargements du navigateur à la suite — ça prendra un moment, laissez cet onglet ouvert',
     batch_dl_progress: 'Téléchargement... {done}/{total}',
@@ -251,7 +252,7 @@ I18N.fr = {
     catalog_load_fail: 'Échec du chargement du catalogue, réessayez plus tard',
     catalog_combo_no_match: 'Aucun résultat correspondant', catalog_combo_more_hint: '{n} résultats de plus — affinez votre recherche',
     catalog_create_collection_btn: '➕ Créer une collection depuis ce critère',
-    catalog_smart_toggle: 'En faire une catégorie dynamique', smart_cat_badge: 'Dynamique', smart_cat_last_sync: 'Dernière synchro {d}', smart_cat_refresh_btn: 'Récupérer les maps nouvellement classées', smart_cat_detach: 'Rendre statique', smart_cat_detach_confirm: 'Arrêter de synchroniser cette catégorie ? (les maps collectées restent)', smart_cat_no_new: 'Aucune nouvelle map correspondante', smart_cat_synced: '{n} nouvelles maps ajoutées',
+    catalog_star_filter_label: 'Filtre de difficulté', catalog_smart_toggle: 'En faire une catégorie dynamique', smart_cat_badge: 'Dynamique', smart_cat_last_sync: 'Dernière synchro {d}', smart_cat_refresh_btn: 'Récupérer les maps nouvellement classées', smart_cat_detach: 'Rendre statique', smart_cat_detach_confirm: 'Arrêter de synchroniser cette catégorie ? (les maps collectées restent)', smart_cat_no_new: 'Aucune nouvelle map correspondante', smart_cat_synced: '{n} nouvelles maps ajoutées',
     catalog_create_collection_hint: 'Choisissez d\'abord un artiste / une langue / un genre / une source',
     catalog_create_collection_confirm: 'Ajouter les {n} beatmapsets de « {name} » à votre collection et créer une catégorie de ce nom ?',
     catalog_create_collection_done: '« {name} » ajouté à votre collection : {n} nouveaux beatmapsets, {cat} catégories',

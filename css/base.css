@@ -153,8 +153,8 @@ a:hover { text-decoration: underline; }
 /* ===== Corner-pinned header controls =====
    Top-right cluster: a row of contact / notification / login-avatar /
    language, with the .nav-menu-btn hamburger on its own row beneath.
-   Top-left cluster (.header-corner-left): theme switch + hidden PWA /
-   update buttons. Both are pinned corners of .site-header, which supplies
+   Top-left cluster (.header-corner-left): normally-hidden PWA-install /
+   site-update buttons only. Both are pinned corners of .site-header, which supplies
    the `position: relative` containing block (set above). */
 .header-corner-actions {
     position: absolute;
@@ -179,8 +179,8 @@ a:hover { text-decoration: underline; }
 }
 
 /* Mirror of .header-corner-actions, pinned to the opposite corner — holds
-   the theme switch plus the normally-hidden PWA-install / site-update
-   buttons so the top-left stays clean but the controls are one reach away. */
+   the normally-hidden PWA-install / site-update buttons so the top-left
+   stays clean but the controls are one reach away when they do appear. */
 .header-corner-left {
     position: absolute;
     top: 18px;
@@ -244,13 +244,6 @@ a:hover { text-decoration: underline; }
         position: static;
         justify-content: center;
         margin-top: 8px;
-    }
-    /* Desktop nudges the switch off its left edge into the header margin;
-       centred on mobile that origin + margin just looks lopsided. */
-    .header-corner-left .theme-switch {
-        transform: scale(1.25);
-        transform-origin: center;
-        margin-right: 0;
     }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -773,6 +766,71 @@ a.contact-info-item:hover { background: var(--bg-stat); text-decoration: none; }
     padding-left: 10px;
 }
 
+/* ✨ Changelog dropdown — sits inline in the centered .site-social row (not
+   a header corner), so its menu is centred under the button rather than
+   right-aligned like .contact-info-menu. */
+.site-changelog {
+    position: relative;
+}
+.site-changelog-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(320px, calc(100vw - 24px));
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
+    z-index: 210;
+}
+.site-changelog.open .site-changelog-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+.changelog-entry-date {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--text-pink);
+    margin-bottom: 4px;
+}
+.changelog-entry-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.changelog-entry-list li {
+    font-size: 0.82rem;
+    color: var(--text);
+    line-height: 1.4;
+}
+.changelog-entry + .changelog-entry {
+    padding-top: 10px;
+    border-top: 1px solid var(--border-card);
+}
+.changelog-empty {
+    font-size: 0.82rem;
+    color: var(--text-dim2);
+    padding: 4px 2px;
+}
+@media (max-width: 480px) {
+    .site-changelog-menu { width: min(300px, calc(100vw - 24px)); }
+}
+
 .lang-globe {
     position: relative;
 }
@@ -882,115 +940,117 @@ a.contact-info-item:hover { background: var(--bg-stat); text-decoration: none; }
 }
 .theme-toggle-btn:active { transform: scale(0.92) rotate(15deg); }
 
-/* ===== #theme-toggle — a real sliding switch, not just an icon button =====
-   Track depicts the theme itself (night sky w/ moon+twinkling stars, or day
-   sky w/ sun+drifting clouds) and the knob physically slides from one end
-   to the other. Built once by js/theme.js (themeSwitchHTML()) with BOTH
-   icon groups always in the DOM — everything below is driven purely by the
-   [data-theme] attribute on <html> (same mechanism css/theme.css's color
-   tokens already use), so toggling is just that attribute flipping; no
-   innerHTML rebuild needed on every click. */
-.theme-switch {
+/* ===== 🎨 Accent colour picker =====
+   Replaces the old #theme-toggle dark/light sliding switch (removed
+   2026-09-13) — the site is dark-only now, and a visitor recolours it via
+   this popover instead of switching palettes. Sits in .header-corner-row,
+   left of #contact-info. Same 36px/42px sizing + hover treatment as
+   .contact-info-btn/.global-search-btn, and the same right-anchored
+   dropdown pattern as .contact-info-menu. */
+.accent-picker {
     position: relative;
-    width: 56px;
-    height: 30px;
-    padding: 0;
-    border: none;
-    border-radius: 15px;
+}
+.accent-picker-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--lang-pill-bg);
+    border: 1px solid var(--lang-pill-border);
+    color: var(--lang-pill-text);
+    font-size: 1.05rem;
     cursor: pointer;
-    overflow: hidden;
-    box-shadow: 0 0 0 1px var(--theme-toggle-border), 0 2px 8px rgba(0,0,0,0.25);
-    transition: box-shadow 0.25s var(--ease-out);
-}
-.theme-switch:hover { box-shadow: 0 0 0 1px var(--accent-purple), 0 0 12px rgba(var(--accent-purple-rgb), 0.35); }
-.theme-switch:active .theme-switch-thumb { width: 27px; }
-/* In the top-left header cluster, scale the whole switch up so its 30px
-   height reads as the same 42px as the notif bell / login / language
-   controls on the other side. Scaling the component (rather than resizing
-   its ~10 internal magic-number offsets) keeps the moon/stars/thumb
-   geometry intact. Origin left so the extra width spills right into the
-   margin, not off the header's left edge. */
-.header-corner-left .theme-switch {
-    transform: scale(1.4);
-    transform-origin: left center;
-    margin-right: 22px;
-}
-.theme-switch-track {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(160deg, #10173a 0%, #1c2b5e 60%, #2a3f7a 100%);
-    transition: background 0.5s var(--ease-out);
-}
-[data-theme="light"] .theme-switch-track {
-    background: linear-gradient(160deg, #7ec8f2 0%, #bfe4fb 60%, #eef8ff 100%);
-}
-/* Base scale(0.4) + the per-group opacity:0 below is the "hidden" resting
-   state; the active side's rule (.theme-switch-moon-group, and light's
-   override of -sun-group) bumps opacity to 1 and scale back to 1 — since
-   both live on the same transitioned properties, flipping [data-theme]
-   plays as a pop-in "emerge" for the side switching on and a shrink-away
-   for the side switching off, not just a plain crossfade. */
-.theme-switch-icon-group {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%) scale(0.4);
     display: flex;
     align-items: center;
-    opacity: 0;
-    transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-spring);
+    justify-content: center;
+    transition: border-color 0.25s var(--ease-out), background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), transform 0.2s var(--ease-spring);
 }
-.theme-switch-moon-group {
-    left: 7px;
-    color: #fde68a;
-    filter: drop-shadow(0 0 3px rgba(253, 230, 138, 0.7));
-    opacity: 1;
-    transform: translateY(-50%) scale(1);
+.accent-picker-btn:hover,
+.accent-picker.open .accent-picker-btn {
+    background: rgba(var(--accent-pink-rgb), 0.14);
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 10px rgba(var(--accent-pink-rgb), 0.30);
+    transform: scale(1.05);
 }
-[data-theme="light"] .theme-switch-moon-group { opacity: 0; transform: translateY(-50%) scale(0.4); }
-.theme-switch-star { position: absolute; color: #fef9c3; animation: switchStarTwinkle 2.4s ease-in-out infinite; }
-.theme-switch-star-a { top: -7px; left: 13px; animation-delay: 0s; }
-.theme-switch-star-b { top: 6px; left: 19px; animation-delay: 1.1s; }
-@keyframes switchStarTwinkle {
-    0%, 100% { opacity: 0.35; transform: scale(0.8); }
-    50%      { opacity: 1; transform: scale(1.15); }
+.header-corner-actions .accent-picker-btn {
+    width: 42px;
+    height: 42px;
+    font-size: 1.2rem;
 }
-.theme-switch-sun-group {
-    right: 7px;
-    color: #fbbf24;
-    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
-    opacity: 0;
-}
-[data-theme="light"] .theme-switch-sun-group { opacity: 1; transform: translateY(-50%) scale(1); }
-.theme-switch-cloud { position: absolute; color: #fff; animation: switchCloudDrift 5s ease-in-out infinite; }
-.theme-switch-cloud-a { top: -6px; right: 10px; animation-delay: 0s; }
-.theme-switch-cloud-b { bottom: -5px; right: 2px; animation-delay: -2.5s; }
-@keyframes switchCloudDrift {
-    0%, 100% { transform: translateX(0); }
-    50%      { transform: translateX(-2px); }
-}
-.theme-switch-thumb {
+.accent-picker-menu {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 24px;
-    height: 24px;
+    top: calc(100% + 8px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 220px;
+    padding: 12px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s;
+    z-index: 210;
+}
+.accent-picker.open .accent-picker-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.accent-swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+.accent-swatch {
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    background: linear-gradient(160deg, #fff, #d8dce6);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
-    /* Dark (default): thumb sits on the right, opposite the moon+stars at
-       the left. Light flips it to the left, opposite the sun+clouds at the
-       right — icon positions themselves never move, only which one is
-       visible (see the opacity toggle above) and which side the thumb is on. */
-    transform: translateX(26px);
-    transition: transform 0.4s var(--ease-spring), width 0.15s var(--ease-out);
+    border: 2px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.15s var(--ease-out);
 }
-[data-theme="light"] .theme-switch-thumb {
-    transform: translateX(0);
-    background: linear-gradient(160deg, #fffdf5, #ffe8a3);
+.accent-swatch:hover { transform: scale(1.15); }
+.accent-swatch.active {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.45);
 }
+.accent-picker-custom-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    padding-top: 4px;
+    border-top: 1px solid var(--border-card);
+}
+.accent-picker-custom-row input[type="color"] {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+}
+.accent-picker-reset {
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-stat);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.accent-picker-reset:hover { background: rgba(var(--accent-pink-rgb), 0.12); color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
-    .theme-switch-thumb, .theme-switch-track, .theme-switch-icon-group { transition: none; }
-    .theme-switch-star, .theme-switch-cloud { animation: none; }
+    .accent-picker-btn, .accent-swatch { transition: none; }
 }
 
 /* Gentle pulse so a waiting update doesn't just sit there unnoticed in a
@@ -1253,107 +1313,15 @@ a.contact-info-item:hover { background: var(--bg-stat); text-decoration: none; }
 }
 .site-topnav-more { opacity: 0.85; }
 
-/* ===== Page-refresh FAB =====
-   The old header refresh button, promoted to a fixed circular control so
-   it's reachable while scrolling any tab. Glassmorphism + faint purple
-   glow; sits in the bottom-right corner. */
-.page-refresh-fab {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    /* Below .nav-drawer-scrim (80) so an open drawer covers it, but well
-       above ordinary page content. */
-    z-index: 40;
-    display: grid;
-    place-items: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: var(--bg-modal);
-    border: 1px solid var(--border-strong);
-    color: var(--text-secondary);
-    cursor: pointer;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: 0 0 18px rgba(var(--accent-purple-rgb), 0.35), 0 6px 20px rgba(0, 0, 0, 0.35);
-    transition: transform 0.2s var(--ease-spring), box-shadow 0.25s var(--ease-out), color 0.2s var(--ease-out);
-}
-.page-refresh-fab:hover {
-    color: var(--text-pink);
-    transform: scale(1.08);
-    box-shadow: 0 0 26px rgba(var(--accent-purple-rgb), 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-.page-refresh-fab .icon-svg { transition: transform 0.3s var(--ease-out); }
-.page-refresh-fab:active .icon-svg { transform: rotate(90deg); }
-
-/* Beatmap-preview volume slider (js/osu.js osuSetVolume/playOsuPreview) —
-   used to live buried in the Collection tab's "Add Beatmap" card even
-   though the preview player it controls is shared across every tab
-   (Catalog/Farm/Mappools/Gallery all call the same playOsuPreview). Same
-   glass-pill treatment as .page-refresh-fab, floating just to its left so
-   it's reachable everywhere; see index.html for the fixed left/right math
-   between the two. */
-.volume-fab {
-    position: fixed;
-    right: 88px;
-    bottom: 24px;
-    z-index: 40;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 52px;
-    padding: 0 16px;
-    border-radius: 999px;
-    background: var(--bg-modal);
-    border: 1px solid var(--border-strong);
-    color: var(--text-secondary);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: 0 0 18px rgba(var(--accent-purple-rgb), 0.35), 0 6px 20px rgba(0, 0, 0, 0.35);
-    transition: box-shadow 0.25s var(--ease-out), color 0.2s var(--ease-out);
-}
-.volume-fab:hover {
-    color: var(--text-pink);
-    box-shadow: 0 0 26px rgba(var(--accent-purple-rgb), 0.55), 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-.volume-fab .icon-svg { flex-shrink: 0; }
-.volume-fab input[type="range"] {
-    width: 90px;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(168,85,247,0.3);
-    border-radius: 2px;
-    outline: none;
-}
-.volume-fab input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent-pink), var(--accent-light-purple));
-    cursor: pointer;
-    box-shadow: 0 0 6px rgba(244,114,182,0.4);
-}
-.volume-fab input[type="range"]::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border: none;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent-pink), var(--accent-light-purple));
-    cursor: pointer;
-    box-shadow: 0 0 6px rgba(244,114,182,0.4);
-}
+/* Beatmap-preview volume — used to be a persistent bottom-right FAB
+   (.volume-fab; its neighbour .page-refresh-fab is also gone, both removed
+   2026-09-13); now lives inside #osu-mini-player (css/osu.css
+   .osu-mini-player-volume-row) instead, next to that panel's seek bar,
+   since it's only ever meaningful while a preview is actually playing —
+   see js/osu.js osuSetVolume()/ensureOsuMiniPlayer(). */
 
 @media (prefers-reduced-motion: reduce) {
-    .nav-drawer, .nav-drawer-scrim,
-    .page-refresh-fab, .page-refresh-fab .icon-svg,
-    .volume-fab { transition: none; }
-}
-@media (max-width: 600px) {
-    .page-refresh-fab { width: 46px; height: 46px; right: 16px; bottom: 16px; }
-    .volume-fab { height: 46px; right: 74px; bottom: 16px; padding: 0 12px; }
-    .volume-fab input[type="range"] { width: 60px; }
+    .nav-drawer, .nav-drawer-scrim { transition: none; }
 }
 
 /* 1080px matches what #page-collection (js/osu.js's two-column layout)
@@ -1480,9 +1448,6 @@ a.contact-info-item:hover { background: var(--bg-stat); text-decoration: none; }
     box-shadow: 0 0 18px rgba(var(--pink-rgb), 0.3);
 }
 .input-group button:active, .btn:active { transform: scale(0.97); }
-/* Light theme: --pink is the deeper #db2777 — white text on it, not near-black. */
-:root[data-theme="light"] .input-group button,
-:root[data-theme="light"] .btn { color: #fff; }
 
 .guestbook-input {
     flex: 1;

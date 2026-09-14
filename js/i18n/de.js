@@ -1,6 +1,6 @@
 I18N.de = {
     title: 'osu! Sammlung', site_title: 'osu! Sammlung', site_tagline: 'Bau dir deine eigene Songsammlung auf',
-    site_like_label: 'Gefällt mir', site_like_title: 'Gefällt dir die Seite? Gib ein Like!', site_share_label: 'Teilen', site_share_title: 'Diese Seite mit Freunden teilen', site_share_copied: 'Seitenlink kopiert!', site_share_text: 'Bau dir deine eigene osu!-Songsammlung auf!',
+    site_like_label: 'Gefällt mir', site_like_title: 'Gefällt dir die Seite? Gib ein Like!', site_changelog_label: 'Neuigkeiten', site_changelog_title: 'Was sich in diesem Deployment geändert hat', site_share_label: 'Teilen', site_share_title: 'Diese Seite mit Freunden teilen', site_share_copied: 'Seitenlink kopiert!', site_share_text: 'Bau dir deine eigene osu!-Songsammlung auf!',
     pwa_install_btn_title: 'Zum Startbildschirm hinzufügen (funktioniert offline)',
     site_update_btn_title: 'Ein Update ist verfügbar, zum Aktualisieren klicken', site_update_available: 'Eine neue Version der Seite ist verfügbar — klicke, um neu zu laden und die neueste Version zu erhalten',
     maintenance_banner_text: 'Diese Website wird gerade überarbeitet — bei Fragen oder Bugs meld dich gerne bei mir!',
@@ -44,7 +44,7 @@ I18N.de = {
     push_enable: 'Push-Benachrichtigungen aktivieren', push_disable: 'Push-Benachrichtigungen deaktivieren', push_on: 'Push aktiviert — wir benachrichtigen dich bei PP-Änderungen eines beobachteten Spielers, auch bei geschlossener Seite', push_off: 'Push-Benachrichtigungen deaktiviert', push_blocked: 'Dein Browser blockiert Benachrichtigungen — aktiviere sie in den Browsereinstellungen', push_fail: 'Push-Abo fehlgeschlagen — bitte später erneut versuchen',
     tracked_players_title: 'Beobachtete Spieler', tracked_players_empty: 'Du beobachtest noch niemanden — suche einen Spieler und klicke auf "Verfolgen", um bei PP-Änderungen benachrichtigt zu werden',
     notif_bell_title: 'Benachrichtigungen', notif_clear_btn: 'Alle löschen', notif_empty: 'Noch keine Benachrichtigungen',
-    contact_info_title: 'Kontaktinformationen',
+    contact_info_title: 'Kontaktinformationen', accent_picker_title: 'Akzentfarbe anpassen', accent_picker_custom: 'Eigene Farbe', accent_picker_reset: 'Zurücksetzen',
     notif_pp_changed_detail: '{sign}{delta}pp (jetzt {pp}pp)', notif_tournament_new_title: 'Neuer Turnier-Thread',
     back_to_main: 'Zurück zu Hanabiの小天地',
     nav_collection: 'Sammlung', nav_lookup: 'PP-Suche', nav_skins: 'Skins', nav_updates: 'Neuigkeiten', nav_mapper_tracking: 'Beobachtete Mapper', nav_tournaments: 'Turniere', nav_resources: 'Ressourcen', nav_bbcode: 'BBCode', nav_feedback: 'Vorschläge', nav_menu_open: 'Menü öffnen', nav_more: 'Mehr', nav_menu_title: 'Menü', nav_group_core: 'Kern', nav_group_tools: 'Werkzeuge', nav_group_resources: 'Ressourcen',
@@ -181,6 +181,7 @@ I18N.de = {
 
     osu_download_btn_title: 'Direkter Download (Mirror ohne Login)',
     mplist_mp_hint: 'Diese Map als !mp-map-Zeile für eine Multi-Lobby kopieren', mplist_mp_copied: 'Kopiert — füge es in deiner Lobby ein',
+    mini_player_playpause: 'Wiedergabe/Pause', mini_player_loop: 'Wiederholen', mini_player_close: 'Player schließen',
     batch_dl_btn: 'Diese Liste als Dateien herunterladen', batch_dl_empty: 'Diese Liste ist leer — nichts zum Herunterladen',
     batch_dl_confirm: 'Alle {n} Beatmapsets dieser Liste herunterladen? Das löst {n} Browser-Downloads nacheinander aus und dauert eine Weile — Tab bitte offen lassen',
     batch_dl_progress: 'Wird heruntergeladen... {done}/{total}',
@@ -251,7 +252,7 @@ I18N.de = {
     catalog_load_fail: 'Katalog konnte nicht geladen werden, später erneut versuchen',
     catalog_combo_no_match: 'Keine passenden Ergebnisse', catalog_combo_more_hint: 'Noch {n} weitere Ergebnisse — Suche eingrenzen',
     catalog_create_collection_btn: '➕ Sammlung aus diesem Merkmal erstellen',
-    catalog_smart_toggle: 'Als dynamische Kategorie', smart_cat_badge: 'Dynamisch', smart_cat_last_sync: 'Zuletzt synchronisiert {d}', smart_cat_refresh_btn: 'Neu gerankte Maps holen', smart_cat_detach: 'Statisch machen', smart_cat_detach_confirm: 'Diese Kategorie nicht mehr synchron halten? (gesammelte Maps bleiben)', smart_cat_no_new: 'Keine neuen passenden Maps', smart_cat_synced: '{n} neue Maps hinzugefügt',
+    catalog_star_filter_label: 'Schwierigkeitsfilter', catalog_smart_toggle: 'Als dynamische Kategorie', smart_cat_badge: 'Dynamisch', smart_cat_last_sync: 'Zuletzt synchronisiert {d}', smart_cat_refresh_btn: 'Neu gerankte Maps holen', smart_cat_detach: 'Statisch machen', smart_cat_detach_confirm: 'Diese Kategorie nicht mehr synchron halten? (gesammelte Maps bleiben)', smart_cat_no_new: 'Keine neuen passenden Maps', smart_cat_synced: '{n} neue Maps hinzugefügt',
     catalog_create_collection_hint: 'Wähle zuerst einen Künstler / eine Sprache / ein Genre / eine Quelle',
     catalog_create_collection_confirm: 'Die {n} Beatmapsets von „{name}“ zu deiner Sammlung hinzufügen und eine Kategorie mit diesem Namen erstellen?',
     catalog_create_collection_done: '„{name}“ zu deiner Sammlung hinzugefügt: {n} neue Beatmapsets, {cat} Kategorien',

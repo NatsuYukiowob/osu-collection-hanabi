@@ -22,10 +22,25 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="osu!收藏">
-<!-- Set [data-theme] before first paint. theme.js is deferred now, so its
-     own top-level applyTheme() runs too late to stop a dark→light flash for
-     light-theme users; this tiny inline copy does it during head parse. -->
-<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('theme')||'dark');}catch(e){}</script>
+<!-- Apply the saved accent colour before first paint. js/theme.js is
+     deferred, so its own top-level applyAccent() runs too late to stop a
+     flash of the default pink for a visitor who picked a custom accent;
+     this tiny inline copy (same recipe as applyAccent()) does it during
+     head parse instead. -->
+<script>try{
+    var _ac = localStorage.getItem('osu_accent_color');
+    if (_ac && /^#[0-9a-f]{6}$/i.test(_ac)) {
+        var _root = document.documentElement.style;
+        var _base = {'--bg':'#0b0b10','--bg-body-1':'#0b0b10','--bg-body-2':'#0b0b10','--bg-body-3':'#0c0c12','--bg-card':'#17141c','--bg-input':'#1c1922','--border':'rgba(255,255,255,0.08)','--border-card':'rgba(255,255,255,0.11)'};
+        ['--pink','--pink-bright','--text-pink','--accent-pink','--accent-purple'].forEach(function(p){_root.setProperty(p,_ac);});
+        _root.setProperty('--accent-light-purple','color-mix(in srgb, '+_ac+' 65%, white)');
+        var _n = parseInt(_ac.slice(1),16), _rgb = ((_n>>16)&255)+', '+((_n>>8)&255)+', '+(_n&255);
+        _root.setProperty('--pink-rgb', _rgb);
+        _root.setProperty('--accent-pink-rgb', _rgb);
+        _root.setProperty('--accent-purple-rgb', _rgb);
+        Object.keys(_base).forEach(function(p){_root.setProperty(p, 'color-mix(in srgb, '+_ac+' 12%, '+_base[p]+')');});
+    }
+}catch(e){}</script>
 <!-- No web font. The Google Fonts <link> for Noto Sans TC/JP/KR (400/700/900
      each) returned a ~1 MB render-blocking stylesheet — on throttled mobile
      that alone was ~5 s of FCP. The system-font stacks in css/base.css keep
@@ -46,12 +61,35 @@
 
 <header class="site-header">
     <div class="header-corner-left">
-        <button id="theme-toggle" class="theme-switch" onclick="toggleTheme()" aria-label="Toggle light/dark mode"></button>
         <button id="pwa-install-btn" class="theme-toggle-btn header-ctl" onclick="promptPwaInstall()" style="display:none;" data-i18n-title="pwa_install_btn_title" title="加到主畫面" data-icon="download"></button>
         <button id="site-update-btn" class="theme-toggle-btn site-update-btn header-ctl" onclick="applySiteUpdate()" style="display:none;" data-i18n-title="site_update_btn_title" title="網站有更新，點擊更新" data-icon="refreshCw"></button>
     </div>
     <div class="header-corner-actions">
         <div class="header-corner-row">
+        <div class="accent-picker" id="accent-picker">
+            <button class="accent-picker-btn header-ctl" id="accent-picker-btn" onclick="toggleAccentPicker()" aria-haspopup="true" aria-expanded="false" data-i18n-title="accent_picker_title" title="自訂主題色" data-icon="palette"></button>
+            <div class="accent-picker-menu" id="accent-picker-menu">
+                <div class="accent-swatches">
+                    <button type="button" class="accent-swatch" style="background:#f472b6" data-color="#f472b6" onclick="setAccentColor('#f472b6')" aria-label="#f472b6"></button>
+                    <button type="button" class="accent-swatch" style="background:#fb7185" data-color="#fb7185" onclick="setAccentColor('#fb7185')" aria-label="#fb7185"></button>
+                    <button type="button" class="accent-swatch" style="background:#fb923c" data-color="#fb923c" onclick="setAccentColor('#fb923c')" aria-label="#fb923c"></button>
+                    <button type="button" class="accent-swatch" style="background:#facc15" data-color="#facc15" onclick="setAccentColor('#facc15')" aria-label="#facc15"></button>
+                    <button type="button" class="accent-swatch" style="background:#84cc16" data-color="#84cc16" onclick="setAccentColor('#84cc16')" aria-label="#84cc16"></button>
+                    <button type="button" class="accent-swatch" style="background:#34d399" data-color="#34d399" onclick="setAccentColor('#34d399')" aria-label="#34d399"></button>
+                    <button type="button" class="accent-swatch" style="background:#22d3ee" data-color="#22d3ee" onclick="setAccentColor('#22d3ee')" aria-label="#22d3ee"></button>
+                    <button type="button" class="accent-swatch" style="background:#38bdf8" data-color="#38bdf8" onclick="setAccentColor('#38bdf8')" aria-label="#38bdf8"></button>
+                    <button type="button" class="accent-swatch" style="background:#818cf8" data-color="#818cf8" onclick="setAccentColor('#818cf8')" aria-label="#818cf8"></button>
+                    <button type="button" class="accent-swatch" style="background:#a78bfa" data-color="#a78bfa" onclick="setAccentColor('#a78bfa')" aria-label="#a78bfa"></button>
+                    <button type="button" class="accent-swatch" style="background:#e879f9" data-color="#e879f9" onclick="setAccentColor('#e879f9')" aria-label="#e879f9"></button>
+                    <button type="button" class="accent-swatch" style="background:#94a3b8" data-color="#94a3b8" onclick="setAccentColor('#94a3b8')" aria-label="#94a3b8"></button>
+                </div>
+                <div class="accent-picker-custom-row">
+                    <input type="color" id="accent-picker-custom" value="#f472b6" oninput="setAccentColor(this.value)" aria-label="自訂顏色">
+                    <span data-i18n="accent_picker_custom">自訂顏色</span>
+                </div>
+                <button type="button" class="accent-picker-reset" onclick="resetAccentColor()" data-i18n="accent_picker_reset">恢復預設</button>
+            </div>
+        </div>
         <div class="contact-info" id="contact-info">
             <button class="contact-info-btn header-ctl" id="contact-info-btn" onclick="toggleContactMenu()" aria-haspopup="true" aria-expanded="false" data-i18n-title="contact_info_title" title="聯絡資訊" data-icon="mail"></button>
             <div class="contact-info-menu" id="contact-info-menu">
@@ -128,6 +166,12 @@
                     <span data-i18n="site_like_label">讚</span>
                     <span class="site-like-count" id="site-like-count" aria-hidden="true">–</span>
                 </button>
+                <div class="site-changelog" id="site-changelog">
+                    <button class="site-social-btn site-changelog-btn" id="site-changelog-btn" type="button" onclick="toggleChangelogMenu()" aria-haspopup="true" aria-expanded="false" data-icon="sparkles" data-i18n-title="site_changelog_title" title="這次部署更新了什麼">
+                        <span data-i18n="site_changelog_label">更新內容</span>
+                    </button>
+                    <div class="site-changelog-menu" id="site-changelog-menu"></div>
+                </div>
                 <button class="site-social-btn" type="button" onclick="switchTab('howto')" data-icon="bookOpen" data-i18n-title="site_howto_title" title="每個分頁跟按鈕的用途說明">
                     <span data-i18n="site_howto_label">使用手冊</span>
                 </button>
@@ -177,11 +221,6 @@
         </div>
     </nav>
 </aside>
-<div class="volume-fab" id="volume-fab" data-i18n-title="volume_fab_title" title="調整預覽音量">
-    <span data-icon="volume2"></span>
-    <input type="range" id="osu-volume" min="0" max="1" step="0.05" value="0.4" oninput="osuSetVolume(this.value)">
-</div>
-<button class="page-refresh-fab" id="page-refresh-fab" onclick="location.reload()" data-i18n-title="page_refresh_btn_title" title="重新整理頁面" data-icon="rotateCw"></button>
 
 <div id="maintenance-banner" class="maintenance-banner" style="display:none;">
     <span data-icon="settings" data-icon-gap></span>
@@ -516,6 +555,18 @@
                 <span data-i18n="catalog_smart_toggle">設為動態分類</span>
             </label>
             <button id="catalog-create-collection-btn" class="btn" onclick="catalogCreateCollectionFromFacet()" disabled data-i18n="catalog_create_collection_btn">➕ 建立此分類的收藏</button>
+        </div>
+
+        <div class="catalog-star-filter" id="catalog-star-filter">
+            <span class="catalog-star-filter-label" data-i18n="catalog_star_filter_label">難度篩選</span>
+            <div class="catalog-star-slider">
+                <div class="catalog-star-track" id="catalog-star-track"></div>
+                <div class="catalog-star-dim catalog-star-dim-before" id="catalog-star-dim-before"></div>
+                <div class="catalog-star-dim catalog-star-dim-after" id="catalog-star-dim-after"></div>
+                <input type="range" class="catalog-star-input" id="catalog-star-min" min="0" max="10" step="0.1" value="0" oninput="onCatalogStarInput()" aria-label="最低星數">
+                <input type="range" class="catalog-star-input" id="catalog-star-max" min="0" max="10" step="0.1" value="10" oninput="onCatalogStarInput()" aria-label="最高星數">
+            </div>
+            <span class="catalog-star-filter-value" id="catalog-star-filter-value">0.0 - 10.0+ ⭐</span>
         </div>
 
         <div id="catalog-coverage" class="farm-coverage"></div>
@@ -1272,6 +1323,7 @@ if (typeof applyLangDom === 'function' && window.__LANG && typeof I18N !== 'unde
 <script defer src="js/chat.js"></script>
 <script defer src="js/dm.js"></script>
 <script defer src="js/resources-data.js"></script>
+<script defer src="js/site-changelog-data.js"></script>
 <script defer src="js/bbcode.js"></script>
 <script defer src="js/tournaments.js"></script>
 <script defer src="js/celebrate.js"></script>

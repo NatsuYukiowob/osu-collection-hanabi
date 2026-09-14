@@ -1,6 +1,6 @@
 I18N.ja = {
     title: 'osu! コレクション', site_title: 'osu! コレクション', site_tagline: 'あなただけの楽曲コレクションを作ろう',
-    site_like_label: 'いいね', site_like_title: 'このサイトが気に入ったら、いいねしてね！', site_share_label: 'シェア', site_share_title: 'このサイトを友達にシェア', site_share_copied: 'サイトのリンクをコピーしました！', site_share_text: 'あなただけの osu! 楽曲コレクションを作ろう！',
+    site_like_label: 'いいね', site_like_title: 'このサイトが気に入ったら、いいねしてね！', site_changelog_label: '更新内容', site_changelog_title: '今回のデプロイでの変更点', site_share_label: 'シェア', site_share_title: 'このサイトを友達にシェア', site_share_copied: 'サイトのリンクをコピーしました！', site_share_text: 'あなただけの osu! 楽曲コレクションを作ろう！',
     pwa_install_btn_title: 'ホーム画面に追加（オフライン対応）',
     site_update_btn_title: '更新があります。クリックして更新', site_update_available: 'サイトの新しいバージョンがあります。クリックして再読み込みし、最新版を取得してください',
     maintenance_banner_text: '現在このサイトは修正中です。ご質問やバグがあればご連絡ください！',
@@ -44,7 +44,7 @@ I18N.ja = {
     push_enable: 'プッシュ通知をオンにする', push_disable: 'プッシュ通知をオフにする', push_on: 'プッシュ通知をオンにしました。サイトを閉じていても、追跡中のプレイヤーの PP が変化したら通知します', push_off: 'プッシュ通知をオフにしました', push_blocked: 'ブラウザで通知がブロックされています。ブラウザの設定で許可してください', push_fail: 'プッシュ通知の登録に失敗しました。後でもう一度お試しください',
     tracked_players_title: 'フォロー中のプレイヤー', tracked_players_empty: 'まだ誰もフォローしていません。検索して「フォロー」を押すと、PP の変化を通知します',
     notif_bell_title: '通知', notif_clear_btn: 'すべて消去', notif_empty: '通知はありません',
-    contact_info_title: '連絡先',
+    contact_info_title: '連絡先', accent_picker_title: 'テーマカラーをカスタマイズ', accent_picker_custom: 'カスタムカラー', accent_picker_reset: 'デフォルトに戻す',
     notif_pp_changed_detail: '{sign}{delta}pp（現在 {pp}pp）', notif_tournament_new_title: '新しい大会スレッド',
     back_to_main: 'Hanabiの小天地に戻る',
     nav_collection: 'コレクション', nav_lookup: 'PP検索', nav_skins: 'スキン', nav_updates: '更新情報', nav_mapper_tracking: 'マッパーをフォロー', nav_tournaments: '大会', nav_resources: 'リソース', nav_bbcode: 'BBCode', nav_feedback: 'ご意見&改善', nav_menu_open: 'メニューを開く', nav_more: 'その他', nav_menu_title: 'メニュー', nav_group_core: 'コア機能', nav_group_tools: 'ツール', nav_group_resources: 'リソース',
@@ -181,6 +181,7 @@ I18N.ja = {
 
     osu_download_btn_title: '直接ダウンロード（ログイン不要ミラー）',
     mplist_mp_hint: 'この譜面の !mp map 行をコピー（マルチ用）', mplist_mp_copied: 'コピーしました。ロビーに貼り付けてください',
+    mini_player_playpause: '再生/一時停止', mini_player_loop: 'ループ再生', mini_player_close: 'プレーヤーを閉じる',
     batch_dl_btn: 'このリストの譜面を一括ダウンロード', batch_dl_empty: 'このリストは空です。ダウンロードできるものがありません',
     batch_dl_confirm: 'このリストの {n} 個の譜面をダウンロードしますか？ブラウザのダウンロードを {n} 回連続で実行します。時間がかかるのでタブを閉じないでください',
     batch_dl_progress: 'ダウンロード中... {done}/{total}',
@@ -251,7 +252,7 @@ I18N.ja = {
     catalog_load_fail: 'カタログの読み込みに失敗しました。後でもう一度お試しください',
     catalog_combo_no_match: '該当する結果がありません', catalog_combo_more_hint: '他に{n}件あります。入力して絞り込んでください',
     catalog_create_collection_btn: '➕ この分類でコレクションを作成',
-    catalog_smart_toggle: '動的分類にする', smart_cat_badge: '動的分類', smart_cat_last_sync: '最終同期 {d}', smart_cat_refresh_btn: '新しくランクされた譜面を取得', smart_cat_detach: '静的分類に戻す', smart_cat_detach_confirm: 'この分類の動的同期をやめますか？（追加済みの譜面は残ります）', smart_cat_no_new: '条件に合う新しい譜面はありません', smart_cat_synced: '{n} 件の新しい譜面を追加しました',
+    catalog_star_filter_label: '難易度フィルター', catalog_smart_toggle: '動的分類にする', smart_cat_badge: '動的分類', smart_cat_last_sync: '最終同期 {d}', smart_cat_refresh_btn: '新しくランクされた譜面を取得', smart_cat_detach: '静的分類に戻す', smart_cat_detach_confirm: 'この分類の動的同期をやめますか？（追加済みの譜面は残ります）', smart_cat_no_new: '条件に合う新しい譜面はありません', smart_cat_synced: '{n} 件の新しい譜面を追加しました',
     catalog_create_collection_hint: 'まずアーティスト／言語／ジャンル／ソースを1つ選んでください',
     catalog_create_collection_confirm: '「{name}」の {n} 個のビートマップセットをコレクションに追加し、同名のカテゴリを作成しますか？',
     catalog_create_collection_done: '「{name}」をコレクションに追加：{n} 個の新規ビートマップセット、{cat} 個のカテゴリ',

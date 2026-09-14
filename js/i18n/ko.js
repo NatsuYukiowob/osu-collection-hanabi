@@ -1,6 +1,6 @@
 I18N.ko = {
     title: 'osu! 컬렉션', site_title: 'osu! 컬렉션', site_tagline: '나만의 곡 컬렉션을 만들어보세요',
-    site_like_label: '좋아요', site_like_title: '이 사이트가 마음에 들면 좋아요를 눌러주세요!', site_share_label: '공유', site_share_title: '이 사이트를 친구에게 공유하기', site_share_copied: '사이트 링크를 복사했습니다!', site_share_text: '나만의 osu! 곡 컬렉션을 만들어 보세요!',
+    site_like_label: '좋아요', site_like_title: '이 사이트가 마음에 들면 좋아요를 눌러주세요!', site_changelog_label: '업데이트 내용', site_changelog_title: '이번 배포에서 무엇이 바뀌었는지', site_share_label: '공유', site_share_title: '이 사이트를 친구에게 공유하기', site_share_copied: '사이트 링크를 복사했습니다!', site_share_text: '나만의 osu! 곡 컬렉션을 만들어 보세요!',
     pwa_install_btn_title: '홈 화면에 추가 (오프라인 사용 가능)',
     site_update_btn_title: '업데이트가 있습니다. 클릭해서 업데이트', site_update_available: '새 버전이 있습니다 — 클릭하면 새로고침하여 최신 버전을 받습니다',
     maintenance_banner_text: '현재 이 사이트는 수정 중입니다. 궁금한 점이나 버그가 있으면 연락해 주세요!',
@@ -44,7 +44,7 @@ I18N.ko = {
     push_enable: '푸시 알림 켜기', push_disable: '푸시 알림 끄기', push_on: '푸시 알림을 켰습니다. 사이트를 닫아도 추적 중인 플레이어의 PP가 변하면 알려드릴게요', push_off: '푸시 알림을 껐습니다', push_blocked: '브라우저에서 알림이 차단되어 있습니다. 브라우저 설정에서 허용해 주세요', push_fail: '푸시 알림 구독에 실패했습니다. 나중에 다시 시도해 주세요',
     tracked_players_title: '추적 중인 플레이어', tracked_players_empty: '아직 추적 중인 플레이어가 없습니다. 검색 후 "추적"을 누르면 PP 변화를 알려드립니다',
     notif_bell_title: '알림', notif_clear_btn: '모두 지우기', notif_empty: '알림이 없습니다',
-    contact_info_title: '연락처',
+    contact_info_title: '연락처', accent_picker_title: '테마 색상 사용자 지정', accent_picker_custom: '사용자 지정 색상', accent_picker_reset: '기본값으로 재설정',
     notif_pp_changed_detail: '{sign}{delta}pp (현재 {pp}pp)', notif_tournament_new_title: '새 대회 게시글',
     back_to_main: 'Hanabiの小天地로 돌아가기',
     nav_collection: '컬렉션', nav_lookup: 'PP 조회', nav_skins: '스킨', nav_updates: '업데이트 소식', nav_mapper_tracking: '매퍼 추적', nav_tournaments: '대회', nav_resources: '리소스', nav_bbcode: 'BBCode', nav_feedback: '제안&개선', nav_menu_open: '메뉴 열기', nav_more: '더 보기', nav_menu_title: '메뉴', nav_group_core: '핵심 기능', nav_group_tools: '도구', nav_group_resources: '리소스',
@@ -181,6 +181,7 @@ I18N.ko = {
 
     osu_download_btn_title: '직접 다운로드 (로그인 불필요 미러)',
     mplist_mp_hint: '이 맵의 !mp map 줄 복사 (멀티용)', mplist_mp_copied: '복사됨 — 로비에 붙여넣으세요',
+    mini_player_playpause: '재생/일시정지', mini_player_loop: '반복 재생', mini_player_close: '플레이어 닫기',
     batch_dl_btn: '이 목록 전체 다운로드', batch_dl_empty: '이 목록은 비어 있어 다운로드할 것이 없습니다',
     batch_dl_confirm: '이 목록의 {n}개 비트맵셋을 다운로드할까요? 브라우저 다운로드가 {n}번 연속으로 실행되어 시간이 걸리니 탭을 닫지 마세요',
     batch_dl_progress: '다운로드 중... {done}/{total}',
@@ -251,7 +252,7 @@ I18N.ko = {
     catalog_load_fail: '카탈로그를 불러오지 못했습니다. 나중에 다시 시도해 주세요',
     catalog_combo_no_match: '일치하는 결과가 없습니다', catalog_combo_more_hint: '{n}개의 결과가 더 있습니다. 검색어를 입력해 좁혀보세요',
     catalog_create_collection_btn: '➕ 이 분류로 컬렉션 만들기',
-    catalog_smart_toggle: '동적 분류로 설정', smart_cat_badge: '동적 분류', smart_cat_last_sync: '마지막 동기화 {d}', smart_cat_refresh_btn: '새로 랭크된 맵 가져오기', smart_cat_detach: '정적 분류로 전환', smart_cat_detach_confirm: '이 분류의 동적 동기화를 중지할까요? (이미 추가된 맵은 유지됩니다)', smart_cat_no_new: '조건에 맞는 새 맵이 없습니다', smart_cat_synced: '새 맵 {n}개를 추가했습니다',
+    catalog_star_filter_label: '난이도 필터', catalog_smart_toggle: '동적 분류로 설정', smart_cat_badge: '동적 분류', smart_cat_last_sync: '마지막 동기화 {d}', smart_cat_refresh_btn: '새로 랭크된 맵 가져오기', smart_cat_detach: '정적 분류로 전환', smart_cat_detach_confirm: '이 분류의 동적 동기화를 중지할까요? (이미 추가된 맵은 유지됩니다)', smart_cat_no_new: '조건에 맞는 새 맵이 없습니다', smart_cat_synced: '새 맵 {n}개를 추가했습니다',
     catalog_create_collection_hint: '먼저 아티스트／언어／장르／소스 하나를 선택하세요',
     catalog_create_collection_confirm: '"{name}"의 비트맵셋 {n}개를 컬렉션에 추가하고 같은 이름의 카테고리를 만들까요?',
     catalog_create_collection_done: '"{name}"을(를) 컬렉션에 추가: 신규 비트맵셋 {n}개, 카테고리 {cat}개',

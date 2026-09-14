@@ -23,6 +23,15 @@ let catalogLang = 'all';     // 'all' | 'unknown' | '<language id>'
 let catalogGenre = 'all';    // 'all' | 'unknown' | '<genre id>'
 let catalogSource = 'all';   // 'all' | 'none' | '<source string>'
 let catalogArtist = 'all';   // 'all' | '<artist key>'
+// Star-rating range filter — 0..CATALOG_STAR_SLIDER_MAX, matching osu!'s own
+// difficulty colour ramp (see catalogStarGradient() / js/osu.js's
+// STAR_COLOR_STOPS). catalogStarMax sitting at the slider's own max means
+// "no upper bound" (a set with a 12★ meme diff still matches "10+"),
+// mirrored by catalogBuildParams() only sending starMax when it's below it.
+const CATALOG_STAR_SLIDER_MAX = 10;
+let catalogStarMin = 0;
+let catalogStarMax = CATALOG_STAR_SLIDER_MAX;
+let catalogStarDebounce = null;
 let catalogNsfw = false;
 let catalogItems = [];
 let catalogTotal = 0;
@@ -43,6 +52,7 @@ const catalogComboState = {
 
 function ensureCatalogLoaded() {
     if (!catalogLoaded) loadCatalogPage(0);
+    initCatalogStarSlider();
 }
 
 function catalogActiveFacet() {
@@ -80,6 +90,8 @@ function catalogBuildParams(extra) {
     if (catalogGenre !== 'all') params.set('genre', catalogGenre);
     if (catalogSource !== 'all') params.set('source', catalogSource);
     if (catalogArtist !== 'all') params.set('artist', catalogArtist);
+    if (catalogStarMin > 0) params.set('starMin', String(catalogStarMin));
+    if (catalogStarMax < CATALOG_STAR_SLIDER_MAX) params.set('starMax', String(catalogStarMax));
     if (catalogNsfw) params.set('includeNsfw', '1');
     for (const [k, v] of Object.entries(extra || {})) params.set(k, String(v));
     return params;
@@ -92,6 +104,77 @@ function switchCatalogGenre(v) { catalogGenre = v; loadCatalogPage(0); }
 function switchCatalogSource(v) { catalogSource = v; loadCatalogPage(0); }
 function switchCatalogArtist(v) { catalogArtist = v; loadCatalogPage(0); }
 function toggleCatalogNsfw(checked) { catalogNsfw = checked; loadCatalogPage(0); }
+
+/* ===== ⭐ Star-rating range slider =====
+   Two overlapping native <input type="range"> (the standard dual-thumb-
+   slider trick: both track/thumbs transparent by CSS except the thumb
+   itself, which is where pointer-events stay enabled — see
+   .catalog-star-input in css/osu.css). Track gradient is generated here
+   from starRatingColor() (js/osu.js) rather than hand-picked colours, so it
+   always matches the exact difficulty colour used on every mode-diff-icon
+   elsewhere on the site. */
+function catalogStarGradient() {
+    if (typeof starRatingColor !== 'function') return '';
+    const stops = [];
+    for (let s = 0; s <= CATALOG_STAR_SLIDER_MAX; s += 0.25) {
+        stops.push(`${starRatingColor(s)} ${(s / CATALOG_STAR_SLIDER_MAX * 100).toFixed(1)}%`);
+    }
+    return `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+let catalogStarSliderInited = false;
+function initCatalogStarSlider() {
+    if (!catalogStarSliderInited) {
+        const track = document.getElementById('catalog-star-track');
+        if (track) track.style.background = catalogStarGradient();
+        // Whichever thumb was last grabbed renders on top, so the min thumb
+        // can still be dragged back down after the two meet/cross — plain
+        // static z-index would let one thumb permanently shadow the other.
+        const minEl = document.getElementById('catalog-star-min');
+        const maxEl = document.getElementById('catalog-star-max');
+        if (minEl) minEl.addEventListener('pointerdown', () => { minEl.style.zIndex = 2; if (maxEl) maxEl.style.zIndex = 1; });
+        if (maxEl) maxEl.addEventListener('pointerdown', () => { maxEl.style.zIndex = 2; if (minEl) minEl.style.zIndex = 1; });
+        catalogStarSliderInited = true;
+    }
+    renderCatalogStarUI();
+}
+
+function onCatalogStarInput() {
+    const minEl = document.getElementById('catalog-star-min');
+    const maxEl = document.getElementById('catalog-star-max');
+    if (!minEl || !maxEl) return;
+    let minV = parseFloat(minEl.value);
+    let maxV = parseFloat(maxEl.value);
+    // Don't let the two thumbs cross — push whichever one wasn't just
+    // dragged along instead, so the range always stays non-inverted.
+    if (minV > maxV) {
+        if (document.activeElement === minEl) { maxV = minV; maxEl.value = String(maxV); }
+        else { minV = maxV; minEl.value = String(minV); }
+    }
+    catalogStarMin = minV;
+    catalogStarMax = maxV;
+    renderCatalogStarUI();
+    clearTimeout(catalogStarDebounce);
+    catalogStarDebounce = setTimeout(() => loadCatalogPage(0), 300);
+}
+
+function renderCatalogStarUI() {
+    const minEl = document.getElementById('catalog-star-min');
+    const maxEl = document.getElementById('catalog-star-max');
+    if (minEl) minEl.value = String(catalogStarMin);
+    if (maxEl) maxEl.value = String(catalogStarMax);
+    const minPct = catalogStarMin / CATALOG_STAR_SLIDER_MAX * 100;
+    const maxPct = catalogStarMax / CATALOG_STAR_SLIDER_MAX * 100;
+    const before = document.getElementById('catalog-star-dim-before');
+    const after = document.getElementById('catalog-star-dim-after');
+    if (before) before.style.width = minPct + '%';
+    if (after) after.style.width = (100 - maxPct) + '%';
+    const label = document.getElementById('catalog-star-filter-value');
+    if (label) {
+        const maxText = catalogStarMax >= CATALOG_STAR_SLIDER_MAX ? `${CATALOG_STAR_SLIDER_MAX.toFixed(1)}+` : catalogStarMax.toFixed(1);
+        label.textContent = `${catalogStarMin.toFixed(1)} - ${maxText} ⭐`;
+    }
+}
 
 function searchCatalog(value) {
     catalogQuery = value.trim();
@@ -167,7 +250,7 @@ function rebuildCatalogFacetSelects() {
 }
 
 /* Every option for a combo kind, current facet counts plus a fallback entry
-   for the active selection if it's since dropped below the >=2 cutoff (so
+   for the active selection if it's since dropped below the >30 cutoff (so
    the active filter still has a matching row). Source's "none" bucket is
    pinned first, ahead of the alphabetically-sorted names from the server. */
 function catalogComboOptions(kind) {

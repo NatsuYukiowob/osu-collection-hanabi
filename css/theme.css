@@ -72,58 +72,12 @@
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-:root[data-theme="light"] {
-    --bg:            #faf8fc;
-    --bg-modal:      #ffffff;
-    --surface-1:     rgba(20,16,28,0.03);
-    --surface-2:     rgba(20,16,28,0.06);
-    --border:        rgba(20,16,28,0.10);
-    --border-strong: rgba(20,16,28,0.16);
-    --text-dim:      rgba(26,21,35,0.66);
-    --text-faint:    rgba(26,21,35,0.45);
-    --pink:          #db2777;
-    --pink-rgb:      219,39,119;
-    --pink-bright:   #ec4899;
+/* Light theme was removed 2026-09-13 in favour of a catch-tracker-style
+   accent colour picker (js/theme.js applyAccent()) — the site is dark-only
+   now, recoloured per-visitor by color-mix()ing their chosen accent into
+   these dark bases rather than swapping to a separate light palette. */
 
-    --bg-body-1: #faf8fc;
-    --bg-body-2: #faf8fc;
-    --bg-body-3: #f7f4fb;
-    --bg-card: #ffffff;
-    --bg-card-alt: rgba(20,16,28,0.03);
-    --bg-input: #ffffff;
-    --bg-stat: rgba(20,16,28,0.03);
-    --text: #1a1523;
-    --text-secondary: rgba(26,21,35,0.66);
-    --text-label: rgba(26,21,35,0.5);
-    --text-accent: rgba(26,21,35,0.9);
-    --text-pink: #be185d;
-    --text-dim2: rgba(26,21,35,0.5);
-    --border-card: rgba(20,16,28,0.12);
-    --border-light: rgba(20,16,28,0.10);
-    --border-input: rgba(20,16,28,0.12);
-    --accent-pink: #db2777;
-    --accent-purple: #db2777;
-    --accent-light-purple: #db2777;
-    --accent-yellow: #d97706;
-    --shadow-card: none;
-    --shadow-card-inset: inset 0 1px 0 rgba(255,255,255,0.8);
-    --lang-pill-bg: rgba(20,16,28,0.03);
-    --lang-pill-border: rgba(20,16,28,0.10);
-    --lang-pill-text: rgba(26,21,35,0.5);
-    --osu-card-shadow: none;
-    --osu-overlay: linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.12) 40%, rgba(20,16,28,0.72) 80%, rgba(20,16,28,0.88) 100%);
-    --theme-toggle-bg: rgba(20,16,28,0.05);
-    --theme-toggle-border: rgba(20,16,28,0.12);
-    --accent-pink-rgb: 219, 39, 119;
-    --accent-purple-rgb: 219, 39, 119;
-    --accent-cyan: #0891b2;
-    --accent-cyan-rgb: 8, 145, 178;
-    --glass-blur: 0px;
-    --overlap-panel-bg: transparent;
-    --site-page-bg: transparent;
-}
-
-/* Theme-switch tween (kept narrow: colour props only). */
+/* Colour-prop tween (kept narrow) — also smooths an accent-colour change. */
 *, *::before, *::after {
     transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }

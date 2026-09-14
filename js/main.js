@@ -174,6 +174,49 @@ function onContactMenuEscape(e) {
     if (e.key === 'Escape') toggleContactMenu(false);
 }
 
+/* ===== ✨ Changelog dropdown ===== (same open/outside-click/Escape pattern
+   as the language/contact dropdowns above). Content is the manually
+   maintained SITE_CHANGELOG list — see js/site-changelog-data.js. */
+function toggleChangelogMenu(forceOpen) {
+    const wrap = document.getElementById('site-changelog');
+    const btn = document.getElementById('site-changelog-btn');
+    const header = document.querySelector('.site-header');
+    if (!wrap || !btn) return;
+    const open = typeof forceOpen === 'boolean' ? forceOpen : !wrap.classList.contains('open');
+    wrap.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    if (header) header.classList.toggle('changelog-menu-open', open);
+    if (open) {
+        document.addEventListener('click', onChangelogMenuOutsideClick);
+        document.addEventListener('keydown', onChangelogMenuEscape);
+    } else {
+        document.removeEventListener('click', onChangelogMenuOutsideClick);
+        document.removeEventListener('keydown', onChangelogMenuEscape);
+    }
+}
+function onChangelogMenuOutsideClick(e) {
+    if (!e.target.closest('#site-changelog')) toggleChangelogMenu(false);
+}
+function onChangelogMenuEscape(e) {
+    if (e.key === 'Escape') toggleChangelogMenu(false);
+}
+function renderChangelogMenu() {
+    const menu = document.getElementById('site-changelog-menu');
+    if (!menu) return;
+    const entries = typeof SITE_CHANGELOG !== 'undefined' ? SITE_CHANGELOG : [];
+    if (!entries.length) {
+        menu.innerHTML = `<div class="changelog-empty">${escHtml(t('site_changelog_title'))}</div>`;
+        return;
+    }
+    menu.innerHTML = entries.map(entry => `
+        <div class="changelog-entry">
+            <div class="changelog-entry-date">${escHtml(entry.date)}</div>
+            <ul class="changelog-entry-list">
+                ${entry.items.map(item => `<li>${escHtml(item)}</li>`).join('')}
+            </ul>
+        </div>`).join('');
+}
+
 /* ===== Re-render already-rendered dynamic content after a language switch =====
    The collection grid bakes t()-driven strings (mapped_by, empty-state text)
    into its innerHTML at render time, so a language switch needs a re-render
@@ -224,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', onGlobalShortcutKeydown);
     if (typeof renderStaticIcons === 'function') renderStaticIcons();
     if (typeof wireModalHowto === 'function') wireModalHowto();
+    if (typeof renderChangelogMenu === 'function') renderChangelogMenu();
     applyLang(siteLang);
     initMaintenanceBanner();
     // Top up language/genre for collection sets saved before that feature —

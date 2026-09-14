@@ -1,6 +1,6 @@
 I18N.ru = {
     title: 'osu! Коллекция', site_title: 'osu! Коллекция', site_tagline: 'Собери свою собственную коллекцию песен',
-    site_like_label: 'Нравится', site_like_title: 'Понравился сайт? Поставьте лайк!', site_share_label: 'Поделиться', site_share_title: 'Поделиться сайтом с друзьями', site_share_copied: 'Ссылка на сайт скопирована!', site_share_text: 'Собери свою собственную коллекцию любимых карт osu!',
+    site_like_label: 'Нравится', site_like_title: 'Понравился сайт? Поставьте лайк!', site_changelog_label: 'Обновления', site_changelog_title: 'Что изменилось в этом деплое', site_share_label: 'Поделиться', site_share_title: 'Поделиться сайтом с друзьями', site_share_copied: 'Ссылка на сайт скопирована!', site_share_text: 'Собери свою собственную коллекцию любимых карт osu!',
     pwa_install_btn_title: 'Добавить на главный экран (работает офлайн)',
     site_update_btn_title: 'Доступно обновление, нажмите для обновления', site_update_available: 'Доступна новая версия сайта — нажмите, чтобы перезагрузить и получить последнюю версию',
     maintenance_banner_text: 'Сайт сейчас находится в процессе доработки — если у вас есть вопросы или вы нашли баг, пожалуйста, свяжитесь со мной!',
@@ -44,7 +44,7 @@ I18N.ru = {
     push_enable: 'Включить push-уведомления', push_disable: 'Выключить push-уведомления', push_on: 'Push включён — сообщим об изменении PP отслеживаемого игрока, даже если сайт закрыт', push_off: 'Push-уведомления выключены', push_blocked: 'Браузер заблокировал уведомления — включите их в его настройках', push_fail: 'Не удалось подписаться на push — попробуйте позже',
     tracked_players_title: 'Отслеживаемые игроки', tracked_players_empty: 'Вы пока никого не отслеживаете — найдите игрока и нажмите «Отслеживать», чтобы получать уведомления об изменении PP',
     notif_bell_title: 'Уведомления', notif_clear_btn: 'Очистить всё', notif_empty: 'Пока нет уведомлений',
-    contact_info_title: 'Контактная информация',
+    contact_info_title: 'Контактная информация', accent_picker_title: 'Настроить акцентный цвет', accent_picker_custom: 'Свой цвет', accent_picker_reset: 'Сбросить',
     notif_pp_changed_detail: '{sign}{delta}pp (сейчас {pp}pp)', notif_tournament_new_title: 'Новая тема турнира',
     back_to_main: 'Назад на Hanabiの小天地',
     nav_collection: 'Коллекция', nav_lookup: 'Поиск PP', nav_skins: 'Скины', nav_updates: 'Новости', nav_mapper_tracking: 'Отслеживаемые мапперы', nav_tournaments: 'Турниры', nav_resources: 'Ресурсы', nav_bbcode: 'BBCode', nav_feedback: 'Предложения', nav_menu_open: 'Открыть меню', nav_more: 'Ещё', nav_menu_title: 'Меню', nav_group_core: 'Основное', nav_group_tools: 'Инструменты', nav_group_resources: 'Ресурсы',
@@ -181,6 +181,7 @@ I18N.ru = {
 
     osu_download_btn_title: 'Прямая загрузка (зеркало без входа)',
     mplist_mp_hint: 'Скопировать эту карту строкой !mp map для мульти-лобби', mplist_mp_copied: 'Скопировано — вставьте в лобби',
+    mini_player_playpause: 'Воспроизвести/Пауза', mini_player_loop: 'Повтор', mini_player_close: 'Закрыть плеер',
     batch_dl_btn: 'Скачать все файлы этого списка', batch_dl_empty: 'Список пуст — нечего скачивать',
     batch_dl_confirm: 'Скачать все {n} битмапсетов из этого списка? Это запустит {n} загрузок браузера подряд — займёт время, не закрывайте вкладку',
     batch_dl_progress: 'Загрузка... {done}/{total}',
@@ -251,7 +252,7 @@ I18N.ru = {
     catalog_load_fail: 'Не удалось загрузить каталог, попробуйте позже',
     catalog_combo_no_match: 'Нет совпадений', catalog_combo_more_hint: 'Ещё {n} результатов — уточните запрос',
     catalog_create_collection_btn: '➕ Создать коллекцию из этого признака',
-    catalog_smart_toggle: 'Сделать динамической категорией', smart_cat_badge: 'Динамическая', smart_cat_last_sync: 'Последняя синхронизация {d}', smart_cat_refresh_btn: 'Подтянуть новые ранкнутые карты', smart_cat_detach: 'Сделать статической', smart_cat_detach_confirm: 'Прекратить синхронизацию этой категории? (добавленные карты останутся)', smart_cat_no_new: 'Нет новых подходящих карт', smart_cat_synced: 'Добавлено новых карт: {n}',
+    catalog_star_filter_label: 'Фильтр по сложности', catalog_smart_toggle: 'Сделать динамической категорией', smart_cat_badge: 'Динамическая', smart_cat_last_sync: 'Последняя синхронизация {d}', smart_cat_refresh_btn: 'Подтянуть новые ранкнутые карты', smart_cat_detach: 'Сделать статической', smart_cat_detach_confirm: 'Прекратить синхронизацию этой категории? (добавленные карты останутся)', smart_cat_no_new: 'Нет новых подходящих карт', smart_cat_synced: 'Добавлено новых карт: {n}',
     catalog_create_collection_hint: 'Сначала выберите один исполнитель / язык / жанр / источник',
     catalog_create_collection_confirm: 'Добавить {n} наборов карт «{name}» в вашу коллекцию и создать категорию с этим именем?',
     catalog_create_collection_done: '«{name}» добавлено в коллекцию: {n} новых наборов карт, категорий: {cat}',
