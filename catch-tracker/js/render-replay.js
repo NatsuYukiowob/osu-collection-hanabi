@@ -91,7 +91,8 @@ const POPUP_DURATION_MS = 600;
 const PLATE_STACK_MAX = 8;
 const PLATE_EXPLODE_MS = 750;
 const PLATE_Y_OFFSET_OSU = 5;
-const PLATE_POP_OSU = 50;
+const LEADERBOARD_WINDOW = 6;
+const PLATE_BURST_RISE_OSU = 35;
 const SETTINGS_KEY = 'ct_replay_settings';
 // blur/brightness default to the same values the .replay-theater-scrim CSS
 // rule used before these became adjustable — see applyBackgroundSettings().
@@ -709,8 +710,6 @@ function outQuint(p) {
     const u = 1 - x;
     return 1 - u * u * u * u * u;
 }
-function outSine(p) { return Math.sin(Math.max(0, Math.min(1, p)) * Math.PI / 2); }
-function inSine(p) { return 1 - Math.cos(Math.max(0, Math.min(1, p)) * Math.PI / 2); }
 
 // How "hyper" the catcher should look at time t: 0 outside any hyperdash
 // window, ramping to 1 over HYPER_TRANSITION_MS at the start of a window
@@ -1535,14 +1534,19 @@ class ReplayPlayer {
                 const exploded = this.mapTime >= item.explodeAt;
                 let xOsu, yOffsetPx, alpha;
                 if (exploded) {
+                    // An outward-and-up burst, no vertical bob. Ported this
+                    // closer to replayviewer.com's own pop-up-then-fall arc
+                    // at first, but live-reported that the initial downward
+                    // dip read as "先往下再上去", not a clean burst — and
+                    // once that was removed, "可以往上爆開而不是左右爆開而
+                    // 已" — so it now rises steadily while flying outward,
+                    // never dipping down first.
                     const age = this.mapTime - item.explodeAt;
                     if (age >= PLATE_EXPLODE_MS) { this.plateStack.splice(i, 1); continue; }
                     const xProg = Math.min(1, age / 1000);
+                    const upProg = Math.min(1, age / 500);
                     xOsu = this.catcherXAt(item.explodeAt) + item.landOffsetOsu * (1 + 6 * xProg);
-                    const yOsu = age < 250
-                        ? -PLATE_POP_OSU * outSine(age / 250)
-                        : -PLATE_POP_OSU + 2 * PLATE_POP_OSU * inSine((age - 250) / 500);
-                    yOffsetPx = (PLATE_Y_OFFSET_OSU + yOsu) * osuPxToScreenPx;
+                    yOffsetPx = (PLATE_Y_OFFSET_OSU + PLATE_BURST_RISE_OSU * upProg) * osuPxToScreenPx;
                     alpha = 1 - age / PLATE_EXPLODE_MS;
                 } else {
                     xOsu = this.catcherXAt(this.mapTime) + item.jitterXOsu;
@@ -1678,9 +1682,10 @@ function fmtClockTime(ms) {
     return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function leaderboardRowHtml(row, isCurrent) {
+function leaderboardRowHtml(row, isCurrent, rank) {
     return `
         <div class="replay-lb-row${isCurrent ? ' replay-lb-current' : ''}" data-user-id="${row.user_id ?? ''}">
+            ${rank ? `<span class="replay-lb-rank">#${rank}</span>` : ''}
             <img class="replay-lb-avatar" src="${escapeHtml(row.avatar_url || '')}" alt="">
             <span class="replay-lb-name">${escapeHtml(row.username || '?')}</span>
             <span class="replay-lb-score">${fmtScore(row.total_score)}</span>
@@ -1997,6 +2002,16 @@ async function run() {
             audioEl.load();
         }
 
+        // Populated once the leaderboard fetch resolves (see below) — kept
+        // outside that closure so onTick can read the live-climbing window
+        // every frame. `otherLbRows` excludes the watched player's own real
+        // row (if they're actually in the top 50) so it never gets shown
+        // twice; `playerRowMeta` is the identity used for the player's own
+        // sliding row.
+        let otherLbRows = null;
+        let playerRowMeta = null;
+        let lastRenderedRank = null;
+
         const player = new ReplayPlayer(canvas, items, frames, {
             clockRate: clockRateForMods(mods),
             catcherWidth,
@@ -2020,13 +2035,42 @@ async function run() {
                 hudAcc.textContent = `${(stats.accuracy * 100).toFixed(2)}%`;
                 hudCombo.textContent = String(stats.combo).padStart(4, '0');
                 if (coverageIncomplete) coverageNote.hidden = mapTime <= frameCoverageEnd;
-                const currentLbRow = leaderboardEl.querySelector('.replay-lb-current');
-                if (currentLbRow) {
-                    const comboEl = currentLbRow.querySelector('.replay-lb-combo');
-                    if (comboEl) comboEl.textContent = `${stats.combo}x`;
-                    const scoreEl = currentLbRow.querySelector('.replay-lb-score');
-                    if (scoreEl && realTotalScore && finalCatchableCount > 0) {
-                        scoreEl.textContent = fmtScore(Math.round(realTotalScore * stats.caught / finalCatchableCount));
+                // Leaderboard: a live-climbing sliding window, not a static
+                // top-50 list — the watched player sits at the bottom and
+                // rises past a real name the moment their own live score
+                // actually overtakes it, rather than showing all 50 names
+                // at once. Live-reported: "回放者的名字會在最下面...不是把
+                // 所有50名都顯示出來而是先從後面的排名45-50名先列出來，如
+                // 果回放者打超過這些名次再逐一顯示".
+                //
+                // This depends on otherLbRows actually being sorted by
+                // score — briefly wasn't: beatmap-leaderboard.js's upstream
+                // osu! endpoint doesn't reliably return scores in score
+                // order (confirmed by dumping the raw response directly),
+                // which surfaced here as "分數跟排名對不上、爬名次的動機也
+                // 不對" before that function started re-sorting its own
+                // response. With that fixed at the source, comparing the
+                // live score against each real row's total_score is valid
+                // again.
+                if (otherLbRows) {
+                    const liveScore = (realTotalScore && finalCatchableCount > 0)
+                        ? Math.round(realTotalScore * stats.caught / finalCatchableCount) : 0;
+                    const currentRank = 1 + otherLbRows.filter(r => r.total_score > liveScore).length;
+                    if (currentRank !== lastRenderedRank) {
+                        lastRenderedRank = currentRank;
+                        const better = otherLbRows.filter(r => r.rank < currentRank);
+                        const windowRows = better.slice(Math.max(0, better.length - LEADERBOARD_WINDOW));
+                        let html = '';
+                        windowRows.forEach(row => { html += leaderboardRowHtml(row, false, row.rank); });
+                        html += leaderboardRowHtml(playerRowMeta, true, currentRank <= otherLbRows.length + 1 ? currentRank : null);
+                        leaderboardEl.innerHTML = html;
+                    }
+                    const currentLbRow = leaderboardEl.querySelector('.replay-lb-current');
+                    if (currentLbRow) {
+                        const comboEl = currentLbRow.querySelector('.replay-lb-combo');
+                        if (comboEl) comboEl.textContent = `${stats.combo}x`;
+                        const scoreEl = currentLbRow.querySelector('.replay-lb-score');
+                        if (scoreEl) scoreEl.textContent = fmtScore(liveScore);
                     }
                 }
             },
@@ -2250,21 +2294,18 @@ async function run() {
             el.addEventListener('input', onSettingsChange);
         });
 
-        // Leaderboard panel — the map's real top scores, with the score
-        // being watched highlighted (or appended if it's not already in
-        // the top ones shown). Best-effort/decorative: never blocks setup.
+        // Leaderboard panel — the map's real top scores, rendered as a
+        // sliding window that climbs live as the watched score rises (see
+        // onTick above), rather than a static top-50 dump. Best-effort/
+        // decorative: never blocks setup.
         fetchLeaderboard(beatmapId).then(rows => {
-            const currentIdIdx = userId ? rows.findIndex(r => String(r.user_id) === String(userId)) : -1;
-            let html = '';
-            rows.forEach((row, i) => { html += leaderboardRowHtml(row, i === currentIdIdx); });
-            if (currentIdIdx === -1 && (userId || meta.username)) {
-                html += leaderboardRowHtml({
-                    user_id: userId, username: meta.username,
-                    avatar_url: userId ? `https://a.ppy.sh/${userId}` : '',
-                    total_score: realTotalScore, max_combo: 0,
-                }, true);
-            }
-            leaderboardEl.innerHTML = html;
+            rows.forEach((row, i) => { row.rank = i + 1; });
+            const selfRow = userId ? rows.find(r => String(r.user_id) === String(userId)) : null;
+            playerRowMeta = selfRow || {
+                user_id: userId, username: meta.username,
+                avatar_url: userId ? `https://a.ppy.sh/${userId}` : '',
+            };
+            otherLbRows = selfRow ? rows.filter(r => r !== selfRow) : rows;
         });
 
         player.start();

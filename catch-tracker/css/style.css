@@ -1880,7 +1880,7 @@ footer.site-footer {
     left: 24px;
     top: 50%;
     transform: translateY(-50%);
-    width: 240px;
+    width: 270px;
     max-height: 80%;
     display: flex;
     flex-direction: column;
@@ -1897,6 +1897,7 @@ footer.site-footer {
     color: rgba(255, 255, 255, 0.75);
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
+.replay-lb-rank { flex: none; width: 1.8em; opacity: 0.55; font-variant-numeric: tabular-nums; font-size: 0.82em; }
 .replay-lb-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; }
 .replay-lb-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .replay-lb-score { font-variant-numeric: tabular-nums; opacity: 0.8; }

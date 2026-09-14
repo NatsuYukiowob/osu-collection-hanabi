@@ -47,7 +47,21 @@ exports.handler = async (event) => {
             return { statusCode: res.status === 404 ? 404 : 502, headers, body: JSON.stringify({ error: `osu! returned ${res.status}` }) };
         }
         const raw = await res.json();
-        const scores = (raw.scores || []).slice(0, 50).map(s => ({
+        // GET /beatmaps/{beatmap}/scores does NOT reliably come back sorted
+        // by score (confirmed live this session by dumping the raw response
+        // for a real beatmap: 17-18 of 49 consecutive pairs had a LOWER
+        // score at a numerically better position — e.g. index 18 sat at
+        // 67,757,738 between neighbours at 223,827,870 and 189,561,030).
+        // osu!'s own beatmap page calls a different, website-internal route
+        // for its leaderboard, which IS correctly ordered — re-sorting this
+        // response by score ourselves reproduces that same real order
+        // (checked directly against the live beatmap page for the same
+        // map: matches rank-for-rank). Without this, both the displayed
+        // rank numbers and anything that reasons about "who's ahead of
+        // whom" here (replay.html's live-climbing leaderboard panel) would
+        // be working from a shuffled list.
+        const sortedScores = [...(raw.scores || [])].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+        const scores = sortedScores.slice(0, 50).map(s => ({
             score_id: s.id,
             user_id: s.user_id,
             username: (s.user && s.user.username) || null,
