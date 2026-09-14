@@ -1802,7 +1802,7 @@ footer.site-footer {
     overflow: hidden;
     background: #05050c center / cover no-repeat;
     isolation: isolate;
-    border: 1px solid var(--border);
+    border: 10px solid var(--accent);
     border-radius: var(--radius);
 }
 .replay-theater-scrim {
@@ -1878,21 +1878,26 @@ footer.site-footer {
     position: absolute;
     z-index: 2;
     left: 24px;
-    top: 100px;
-    width: 200px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 240px;
+    max-height: 80%;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 9px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-right: 4px;
 }
 .replay-lb-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.76rem;
+    gap: 9px;
+    font-size: 0.92rem;
     color: rgba(255, 255, 255, 0.75);
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
-.replay-lb-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex: none; }
+.replay-lb-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; }
 .replay-lb-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .replay-lb-score { font-variant-numeric: tabular-nums; opacity: 0.8; }
 .replay-lb-combo { font-variant-numeric: tabular-nums; width: 3.2em; text-align: right; }
@@ -1982,7 +1987,7 @@ footer.site-footer {
     gap: 8px;
 }
 .replay-top-label {
-    font-size: 0.72rem;
+    font-size: 0.92rem;
     color: rgba(255, 255, 255, 0.6);
     white-space: nowrap;
 }
@@ -2012,7 +2017,7 @@ footer.site-footer {
     cursor: pointer;
 }
 .replay-top-value {
-    font-size: 0.72rem;
+    font-size: 0.9rem;
     color: rgba(255, 255, 255, 0.85);
     font-variant-numeric: tabular-nums;
     min-width: 3.2em;
@@ -2029,7 +2034,28 @@ footer.site-footer {
 }
 .replay-top-reset:hover, .replay-top-step:hover { background: rgba(255, 255, 255, 0.22); }
 .replay-top-spacer { flex: 1 1 auto; }
-.replay-top-mods { display: flex; gap: 6px; align-items: center; }
+.replay-top-mods {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    /* Scale the whole group (grade badge + mod hexes + pp chip) up
+       together rather than re-sizing each shared class individually —
+       those classes (.grade-badge, .mod-icon, .mods-tag-group) are used
+       site-wide (rankings, player page, etc.), so overriding their base
+       size here would leak elsewhere; a transform only affects this one
+       instance. transform-origin keeps the group anchored to where it
+       already sits (top-right of the bar) instead of growing off-screen. */
+    transform: scale(1.4);
+    transform-origin: right center;
+}
+.replay-pp-badge {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 3px 9px;
+    border-radius: 999px;
+}
 .replay-scrub-full {
     -webkit-appearance: none;
     appearance: none;

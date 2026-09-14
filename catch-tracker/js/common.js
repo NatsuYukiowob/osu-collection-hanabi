@@ -63,7 +63,8 @@ const LANG_STRINGS = {
         replay_skin_invalid: '無法讀取這個 .osk 檔案',
         replay_default_skin: '預設皮膚',
         replay_skin_custom_option: '（自訂皮膚）',
-        replay_skin_default_squares: '方塊（預設）',
+        replay_skin_default_vanilla: '原版外觀（預設）',
+        replay_skin_default_squares: '方塊',
         replay_skin_default_bubble: '圓球',
         replay_skin_default_panko: 'wide_panko',
         replay_skin_credit: '皮膚作者：{credit}',
@@ -294,7 +295,8 @@ const LANG_STRINGS = {
         replay_skin_loaded: 'Skin applied ({n} sprites)',
         replay_default_skin: 'Default skin',
         replay_skin_custom_option: '(Custom skin)',
-        replay_skin_default_squares: 'Squares (default)',
+        replay_skin_default_vanilla: 'Vanilla (default)',
+        replay_skin_default_squares: 'Squares',
         replay_skin_default_bubble: 'Bubble',
         replay_skin_default_panko: 'wide_panko',
         replay_skin_credit: 'Skin by {credit}',
@@ -729,6 +731,7 @@ function replayLink(s, username, userId) {
     if (s.artist) params.set('artist', s.artist);
     if (s.version) params.set('version', s.version);
     if (s.rank) params.set('rank', s.rank);
+    if (s.pp != null) params.set('pp', s.pp);
     const uname = username || s.username;
     if (uname) params.set('username', uname);
     const uid = userId || s.user_id;

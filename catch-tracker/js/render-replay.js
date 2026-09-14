@@ -88,6 +88,10 @@ const FRUIT_TYPE_CYCLE = ['apple', 'grapes', 'orange', 'pear'];
 const HP_GAIN = 0.5;
 const HP_LOSS = 4;
 const POPUP_DURATION_MS = 600;
+const PLATE_STACK_MAX = 8;
+const PLATE_EXPLODE_MS = 750;
+const PLATE_Y_OFFSET_OSU = 5;
+const PLATE_POP_OSU = 50;
 const SETTINGS_KEY = 'ct_replay_settings';
 // blur/brightness default to the same values the .replay-theater-scrim CSS
 // rule used before these became adjustable — see applyBackgroundSettings().
@@ -667,42 +671,6 @@ function recordRecentlyViewedReplay({ scoreId, beatmapId, userId, title, artist,
 
 const COLORS = { fruit: '#fb5a8c', droplet: '#60a5fa', tiny: '#93c5fd', banana: '#facc15' };
 
-// A real banana silhouette (osu!'s DEFAULT skin's own fruit-bananas.png) is
-// a curved crescent, not a circle — but the default skin's actual art is
-// baked into the game client itself, never distributed inside a player's
-// .osk (confirmed live this session: a real user-reported skin pack —
-// checked all ~400 files across every bundled sub-skin folder, not just
-// its own root — had exactly one banana-related file in the whole thing,
-// its own fruit-bananas-OVERLAY.png, no base anywhere to fall back to).
-// So when a skin has no banana base of its own, there is no real image
-// this renderer could borrow — draw a procedural crescent instead of the
-// plain circle used for every other missing-sprite fallback, since a
-// circle reads as "wrong shape", not just "wrong texture".
-function drawBananaShape(ctx, cx, cy, r, fillColor) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(-0.55);
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.95, r * 0.55);
-    ctx.quadraticCurveTo(-r * 0.55, -r * 1.05, r * 0.75, -r * 0.85);
-    ctx.quadraticCurveTo(r * 1.15, -r * 0.55, r * 0.95, -r * 0.15);
-    ctx.quadraticCurveTo(r * 0.15, -r * 0.55, -r * 0.55, r * 0.25);
-    ctx.quadraticCurveTo(-r * 0.85, r * 0.55, -r * 0.95, r * 0.55);
-    ctx.closePath();
-    ctx.fillStyle = fillColor || COLORS.banana;
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, r * 0.12);
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.stroke();
-    // Small dark tips at both ends, same as a real banana's stem/end caps —
-    // a cheap detail that reads as "banana" at a glance far more than the
-    // curve alone.
-    ctx.fillStyle = '#6b4a1f';
-    ctx.beginPath(); ctx.arc(r * 0.85, -r * 0.55, r * 0.12, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(-r * 0.9, r * 0.5, r * 0.1, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-}
-
 /* ---------- skin import (opt-in, client-side only) ----------
    Three techniques below were confirmed this session by downloading and
    reading mania-tracker.com's actual replay-skin-import bundle — their
@@ -741,6 +709,8 @@ function outQuint(p) {
     const u = 1 - x;
     return 1 - u * u * u * u * u;
 }
+function outSine(p) { return Math.sin(Math.max(0, Math.min(1, p)) * Math.PI / 2); }
+function inSine(p) { return 1 - Math.cos(Math.max(0, Math.min(1, p)) * Math.PI / 2); }
 
 // How "hyper" the catcher should look at time t: 0 outside any hyperdash
 // window, ramping to 1 over HYPER_TRANSITION_MS at the start of a window
@@ -847,6 +817,31 @@ function tintSprite(sprite, colorRgb) {
     // Carry the source's logical (post-@2x-halving) size over — see
     // logicalSpriteSize() — since the tinted canvas is what draw() actually
     // measures for on-screen sizing after tintCache substitutes it in.
+    c.__logicalW = sprite.__logicalW;
+    c.__logicalH = sprite.__logicalH;
+    return c;
+}
+
+// A flat solid-colour silhouette (alpha preserved, RGB fully replaced),
+// unlike tintSprite()'s multiply-based recolour which leaves any already-
+// dark/black pixel black no matter the tint colour (correct for combo-
+// tinting a grayscale template — real osu! skins keep their black outline
+// black too — but wrong for the hyperdash red GLOW: that's meant to be a
+// solid red halo, and a skin whose sprite has a black outline, like a
+// user-reported real skin's square fruit, was multiply-tinting that
+// outline to black-stays-black, so the additive glow contributed zero red
+// exactly at the object's own edge — the outermost ring a viewer actually
+// looks at to judge "is this glowing red or not". Live-reported as "抓套
+// 方塊的加速水果...最外框還是黑色的".
+function solidTintSprite(sprite, colorRgb) {
+    const { w, h } = spriteSize(sprite);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cctx = c.getContext('2d');
+    cctx.drawImage(sprite, 0, 0, w, h);
+    cctx.globalCompositeOperation = 'source-in';
+    cctx.fillStyle = colorRgb;
+    cctx.fillRect(0, 0, w, h);
     c.__logicalW = sprite.__logicalW;
     c.__logicalH = sprite.__logicalH;
     return c;
@@ -1004,15 +999,19 @@ async function loadSkinSprites(file) {
 // in draw()), not the square fruit shapes this option is named for and
 // that a viewer picking it expects to see.
 const DEFAULT_SKINS = [
+    { id: 'vanilla', nameKey: 'replay_skin_default_vanilla' },
     { id: 'bubble', nameKey: 'replay_skin_default_bubble', credit: 'BubbleSkin — skins.osuck.net' },
     { id: 'panko', nameKey: 'replay_skin_default_panko', credit: 'wide_panko (plox base) — prank855, Myuka, icetea, Reapix, Scylla67, ALX13 · skins.osuck.net' },
     { id: 'squares', nameKey: 'replay_skin_default_squares' },
 ];
 // A visitor who's never picked anything (no saved preference, no custom
-// upload) gets this rather than the bare procedural shapes.
-const INITIAL_DEFAULT_SKIN = 'bubble';
+// upload) gets the plain unskinned look — no bundled skin has any special
+// claim to being "the" default, so this matches vanilla osu!'s own look.
+const INITIAL_DEFAULT_SKIN = 'vanilla';
 
 async function loadBundledSkinSprites(id) {
+    // Not a real bundled skin — no assets folder to fetch at all.
+    if (id === 'vanilla') return {};
     const entriesByKey = {};
     await Promise.all(Object.entries(SKIN_FILES).map(async ([key, base]) => {
         try {
@@ -1044,6 +1043,7 @@ class ReplayPlayer {
         this.tintCache = new Map();
         this.showPopups = true;
         this.popups = [];
+        this.plateStack = [];
         this.lastPoppedTime = null;
         const itemMin = items.length ? items[0].spawnTime : 0;
         const itemMax = items.length ? items[items.length - 1].time : 0;
@@ -1135,6 +1135,44 @@ class ReplayPlayer {
                 if (it.time > this.lastPoppedTime && it.time <= this.mapTime) {
                     if (this.showPopups) this.popups.push({ time: it.time, x: it.x, caught: it.caught });
                     if (this.effectsVolume > 0) playHitSound(it.caught, this.effectsVolume);
+                    // A caught fruit doesn't just vanish — confirmed against
+                    // replayviewer.com's own bundled source (drawCaughtPlate/
+                    // drawPlateFruit in its beatmap-visuals chunk): a caught
+                    // FRUIT rides along resting on the catcher's plate until
+                    // the current combo run ends (their `plated[].explodeAt`,
+                    // computed from newCombo boundaries — NOT specifically
+                    // hyperdash, though the two often line up), at which
+                    // point the whole little pile pops up and flings outward
+                    // while fading over 750ms. Their own plated[] excludes
+                    // bananas (they get a separate, non-persistent catch-
+                    // flash instead) — but live-reported directly that
+                    // bananas should still pile up too, resting through the
+                    // WHOLE banana-shower "rest section" and only ejecting
+                    // once the shower itself ends ("香蕉基本上都是一首歌的
+                    // 休息段會出現，休息段過了後，香蕉就會自然噴出去") — see
+                    // the per-shower groupEndTime computed right after the
+                    // combo-colour one fruit uses, just below where `items`
+                    // is built. Ours previously despawned instantly on
+                    // catch. After an initial version used a tiny generic
+                    // dot for this, "它是圓形的而且很小，請仔細看一下
+                    // replayview 那邊是怎麼用的" — their real version draws
+                    // the actual (tinted) fruit sprite at half the normal
+                    // falling size, not a flat dot.
+                    if (it.caught && (it.kind === 'fruit' || it.kind === 'banana')) {
+                        const halfCatchOsu = this.catcherWidth / 2;
+                        const landOffsetOsu = Math.max(-halfCatchOsu, Math.min(halfCatchOsu, it.x - this.catcherXAt(it.time)));
+                        this.plateStack.push({
+                            time: it.time,
+                            kind: it.kind,
+                            explodeAt: it.groupEndTime ?? it.time,
+                            color: it.kind === 'banana' ? COLORS.banana : (it.color || COLORS.fruit),
+                            fruitType: it.fruitType,
+                            landOffsetOsu,
+                            jitterXOsu: (seededRandom01(it.time, 7) - 0.5) * halfCatchOsu * 0.5,
+                            jitterYOsu: seededRandom01(it.time, 8) * 6,
+                        });
+                        if (this.plateStack.length > PLATE_STACK_MAX) this.plateStack.shift();
+                    }
                 }
             }
         }
@@ -1275,7 +1313,7 @@ class ReplayPlayer {
                     const hyperKey = spriteKey + '|hyper';
                     let hyperSprite = this.tintCache.get(hyperKey);
                     if (!hyperSprite) {
-                        hyperSprite = tintSprite(sprite, '#ff0000');
+                        hyperSprite = solidTintSprite(sprite, '#ff0000');
                         this.tintCache.set(hyperKey, hyperSprite);
                     }
                     const prevOp = ctx.globalCompositeOperation, prevAlpha = ctx.globalAlpha;
@@ -1286,6 +1324,27 @@ class ReplayPlayer {
                     ctx.globalAlpha = prevAlpha;
                 }
                 ctx.drawImage(sprite, -dw / 2, -dh / 2, dw, dh);
+                // The enlarged halo above sits BEHIND the base sprite, so on
+                // a skin whose own art has a dark/black outline (like a
+                // real user-reported square skin) that outline still paints
+                // over the halo at the object's own edge — the one place a
+                // viewer is actually looking to judge "is this red or not".
+                // Overlay the same solid-red silhouette again at the
+                // object's own native size, additively, so the object's own
+                // border also picks up red instead of staying whatever dark
+                // colour the base art used. Live-reported as "最外框還是有
+                // 黑色的" even after the halo itself was already fully red.
+                if (it.isHyperDashTrigger) {
+                    const hyperSprite = this.tintCache.get(spriteKey + '|hyper');
+                    if (hyperSprite) {
+                        const prevOp = ctx.globalCompositeOperation, prevAlpha = ctx.globalAlpha;
+                        ctx.globalCompositeOperation = 'lighter';
+                        ctx.globalAlpha = 0.9 * prevAlpha;
+                        ctx.drawImage(hyperSprite, -dw / 2, -dh / 2, dw, dh);
+                        ctx.globalCompositeOperation = prevOp;
+                        ctx.globalAlpha = prevAlpha;
+                    }
+                }
                 // The "-overlay" sprite draws UNTINTED on top of the tinted
                 // base, at its OWN logical size (real skins can ship an
                 // overlay whose pixel dimensions differ from the base's) —
@@ -1312,14 +1371,10 @@ class ReplayPlayer {
                 // the coloured procedural shape as the base plane instead,
                 // and layer the overlay on top of THAT for whatever extra
                 // fidelity it adds — never worse than before, sometimes better.
-                if (it.kind === 'banana') {
-                    drawBananaShape(ctx, px, y, size, it.color);
-                } else {
-                    ctx.fillStyle = it.color || COLORS[it.kind] || COLORS.fruit;
-                    ctx.beginPath();
-                    ctx.arc(px, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+                ctx.fillStyle = it.kind === 'banana' ? (it.color || COLORS.banana) : (it.color || COLORS[it.kind] || COLORS.fruit);
+                ctx.beginPath();
+                ctx.arc(px, y, size, 0, Math.PI * 2);
+                ctx.fill();
                 if (overlaySprite) {
                     const oLogical = logicalSpriteSize(overlaySprite);
                     const scale = this.objectScale * osuPxToScreenPx * kindScale(it.kind);
@@ -1399,7 +1454,7 @@ class ReplayPlayer {
                 if (redAmount > 0.02 && redCacheKey) {
                     let redSprite = this.tintCache.get(redCacheKey);
                     if (!redSprite) {
-                        redSprite = tintSprite(sprite, '#ff0000');
+                        redSprite = solidTintSprite(sprite, '#ff0000');
                         this.tintCache.set(redCacheKey, redSprite);
                     }
                     ctx.globalAlpha = alpha * redAmount;
@@ -1464,6 +1519,63 @@ class ReplayPlayer {
         if (catcherSprite === this.sprites.catcher_fail) redCacheKey = 'catcher_fail|red';
         else if (catcherSprite === this.sprites.catcher_kiai) redCacheKey = 'catcher_kiai|red';
         drawCatcherSprite(catcherSprite, this.catcherXAt(this.mapTime), { redAmount: hyperFactor, redCacheKey });
+
+        // Caught-fruit pile on the plate (see the push in updatePopups) —
+        // ported from replayviewer.com's own drawCaughtPlate/drawPlateFruit:
+        // the real fruit sprite at HALF the normal falling size (not a flat
+        // dot — a first pass here used one, live-reported as "圓形的而且很
+        // 小"), resting with a small jitter until its combo run's group end
+        // time, then popping up and sliding outward (amplifying its own
+        // original catch-offset from the catcher's centre) while fading
+        // over PLATE_EXPLODE_MS.
+        if (this.plateStack.length) {
+            const plateScale = this.objectScale * osuPxToScreenPx * 0.5;
+            for (let i = this.plateStack.length - 1; i >= 0; i--) {
+                const item = this.plateStack[i];
+                const exploded = this.mapTime >= item.explodeAt;
+                let xOsu, yOffsetPx, alpha;
+                if (exploded) {
+                    const age = this.mapTime - item.explodeAt;
+                    if (age >= PLATE_EXPLODE_MS) { this.plateStack.splice(i, 1); continue; }
+                    const xProg = Math.min(1, age / 1000);
+                    xOsu = this.catcherXAt(item.explodeAt) + item.landOffsetOsu * (1 + 6 * xProg);
+                    const yOsu = age < 250
+                        ? -PLATE_POP_OSU * outSine(age / 250)
+                        : -PLATE_POP_OSU + 2 * PLATE_POP_OSU * inSine((age - 250) / 500);
+                    yOffsetPx = (PLATE_Y_OFFSET_OSU + yOsu) * osuPxToScreenPx;
+                    alpha = 1 - age / PLATE_EXPLODE_MS;
+                } else {
+                    xOsu = this.catcherXAt(this.mapTime) + item.jitterXOsu;
+                    yOffsetPx = (PLATE_Y_OFFSET_OSU + item.jitterYOsu) * osuPxToScreenPx;
+                    alpha = 0.95;
+                }
+                const x = toPx(xOsu);
+                const y = catchLineY - yOffsetPx;
+                const spriteKey = item.kind === 'banana' ? 'banana' : `fruit_${item.fruitType}`;
+                const sprite = this.sprites[spriteKey];
+                const overlaySprite = this.sprites[spriteKey + '_overlay'];
+                ctx.globalAlpha = alpha;
+                if (sprite) {
+                    const cacheKey = spriteKey + '|' + item.color;
+                    let tinted = this.tintCache.get(cacheKey);
+                    if (!tinted) { tinted = tintSprite(sprite, item.color); this.tintCache.set(cacheKey, tinted); }
+                    const logical = logicalSpriteSize(tinted);
+                    const dw = logical.w * plateScale, dh = logical.h * plateScale;
+                    ctx.drawImage(tinted, x - dw / 2, y - dh / 2, dw, dh);
+                    if (overlaySprite) {
+                        const oLogical = logicalSpriteSize(overlaySprite);
+                        const ow = oLogical.w * plateScale, oh = oLogical.h * plateScale;
+                        ctx.drawImage(overlaySprite, x - ow / 2, y - oh / 2, ow, oh);
+                    }
+                } else {
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, sizeFor('fruit') * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.globalAlpha = 1;
+        }
 
         if (this.showPopups) {
             const fontSize = Math.max(12, playfieldW * 0.014);
@@ -1539,6 +1651,7 @@ class ReplayPlayer {
         if (this.audioReady) this.audio.currentTime = Math.max(0, (this.mapTime + this.offsetMs) / 1000);
         this.lastPoppedTime = this.mapTime;
         this.popups = [];
+        this.plateStack = [];
         this.draw();
         this.onTick(this.mapTime, this.minTime, this.maxTime, this.playing, this.currentStats());
     }
@@ -1625,6 +1738,7 @@ function theaterHtml(meta, settings) {
                 </div>
                 <div class="replay-top-spacer"></div>
                 <div class="replay-top-mods">
+                    ${meta.pp ? `<span class="replay-pp-badge">${escapeHtml(fmtPP(Number(meta.pp)))}</span>` : ''}
                     ${meta.rank ? gradeBadge(meta.rank) : ''}
                     ${meta.mods.length ? modsTag(meta.mods) : ''}
                 </div>
@@ -1716,6 +1830,7 @@ async function run() {
         version: params.get('version') || '',
         username: params.get('username') || '',
         rank: params.get('rank') || '',
+        pp: params.get('pp') || '',
         beatmapsetId,
         mods,
     };
@@ -1758,6 +1873,45 @@ async function run() {
         const comboColourMap = computeComboColourMap(catchBeatmap.hitObjects, comboColours);
         const items = flattenHitObjects(catchBeatmap.hitObjects, objectClasses, positionOffsets, preempt, comboColourMap);
 
+        // Each item's "group end time" — the time the current combo-colour
+        // run finishes (i.e. the next newCombo boundary) — confirmed against
+        // replayviewer.com's own source as exactly how it computes when a
+        // catcher's plate-fruit pile pops (its `clearTimes`, derived from
+        // consecutive non-newCombo hit-object runs). A run of same-coloured
+        // items IS one of those runs, since comboColourMap only advances on
+        // isNewCombo — so grouping this flattened, time-ordered list by
+        // colour transitions is an equivalent, much simpler way to get the
+        // same boundaries without re-deriving hitObject source-index groups.
+        // Bananas are excluded from the scan (real replayviewer never plates
+        // them either, and their colour isn't part of the normal combo run).
+        {
+            const seq = items.filter(it => it.kind !== 'banana' && !it.unknown);
+            let groupStart = 0;
+            for (let i = 1; i <= seq.length; i++) {
+                if (i === seq.length || seq[i].color !== seq[groupStart].color) {
+                    const endTime = seq[i - 1].time;
+                    for (let j = groupStart; j < i; j++) seq[j].groupEndTime = endTime;
+                    groupStart = i;
+                }
+            }
+        }
+        // Bananas get the same `groupEndTime` field, but grouped by their
+        // own contiguous run instead of combo colour — a banana shower is a
+        // map's "rest section" ("休息段"), and live-reported: the pile of
+        // caught bananas should sit on the plate for the WHOLE shower, only
+        // ejecting once the shower actually ends, not on some fixed timer.
+        {
+            let i = 0;
+            while (i < items.length) {
+                if (items[i].kind !== 'banana') { i++; continue; }
+                let j = i;
+                while (j < items.length && items[j].kind === 'banana') j++;
+                const endTime = items[j - 1].time;
+                for (let k = i; k < j; k++) items[k].groupEndTime = endTime;
+                i = j;
+            }
+        }
+
         const parsedScore = await new ScoreDecoder().decodeFromBuffer(new Uint8Array(replayBuffer));
         console.log('[replay] parsed score:', parsedScore);
 
@@ -1772,6 +1926,13 @@ async function run() {
             .map(f => ({ time: f.startTime, x: getFrameX(f) }))
             .filter(f => typeof f.time === 'number' && f.x !== null)
             .sort((a, b) => a.time - b.time);
+
+        // The real final score, straight from the decoded replay itself —
+        // used to drive the leaderboard panel's live score column for the
+        // viewer's own row (see onTick below), the same way stats.combo
+        // already drives that row's live combo column.
+        const realTotalScore = (parsedScore.info && parsedScore.info.totalScore) || 0;
+        const finalCatchableCount = items.filter(it => it.kind !== 'banana' && !it.unknown).length;
 
         if (!items.length) {
             setStatus(errorHtml(t('replay_not_found')));
@@ -1863,6 +2024,10 @@ async function run() {
                 if (currentLbRow) {
                     const comboEl = currentLbRow.querySelector('.replay-lb-combo');
                     if (comboEl) comboEl.textContent = `${stats.combo}x`;
+                    const scoreEl = currentLbRow.querySelector('.replay-lb-score');
+                    if (scoreEl && realTotalScore && finalCatchableCount > 0) {
+                        scoreEl.textContent = fmtScore(Math.round(realTotalScore * stats.caught / finalCatchableCount));
+                    }
                 }
             },
         });
@@ -2015,11 +2180,10 @@ async function run() {
                 try {
                     // No saved preference at all (a genuinely first-time
                     // visitor) starts on INITIAL_DEFAULT_SKIN rather than
-                    // the bare procedural shapes — 'squares' is only shown
-                    // once someone has actually picked it explicitly.
+                    // whatever was last picked.
                     const savedDefault = localStorage.getItem(CT_DEFAULT_SKIN_KEY) || INITIAL_DEFAULT_SKIN;
                     defaultSkinSelect.value = savedDefault;
-                    if (savedDefault !== 'squares') await applyDefaultSkin(savedDefault, false);
+                    await applyDefaultSkin(savedDefault, false);
                 } catch { /* per-viewer convenience only */ }
                 return;
             }
@@ -2097,7 +2261,7 @@ async function run() {
                 html += leaderboardRowHtml({
                     user_id: userId, username: meta.username,
                     avatar_url: userId ? `https://a.ppy.sh/${userId}` : '',
-                    total_score: 0, max_combo: 0,
+                    total_score: realTotalScore, max_combo: 0,
                 }, true);
             }
             leaderboardEl.innerHTML = html;

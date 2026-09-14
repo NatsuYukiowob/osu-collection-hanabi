@@ -47,7 +47,7 @@ exports.handler = async (event) => {
             return { statusCode: res.status === 404 ? 404 : 502, headers, body: JSON.stringify({ error: `osu! returned ${res.status}` }) };
         }
         const raw = await res.json();
-        const scores = (raw.scores || []).slice(0, 8).map(s => ({
+        const scores = (raw.scores || []).slice(0, 50).map(s => ({
             score_id: s.id,
             user_id: s.user_id,
             username: (s.user && s.user.username) || null,
