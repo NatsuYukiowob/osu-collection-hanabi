@@ -2299,13 +2299,30 @@ async function run() {
         // onTick above), rather than a static top-50 dump. Best-effort/
         // decorative: never blocks setup.
         fetchLeaderboard(beatmapId).then(rows => {
-            rows.forEach((row, i) => { row.rank = i + 1; });
             const selfRow = userId ? rows.find(r => String(r.user_id) === String(userId)) : null;
             playerRowMeta = selfRow || {
                 user_id: userId, username: meta.username,
                 avatar_url: userId ? `https://a.ppy.sh/${userId}` : '',
             };
             otherLbRows = selfRow ? rows.filter(r => r !== selfRow) : rows;
+            // Rank labels must be assigned AFTER removing the watched
+            // player's own real row, numbered purely by position among the
+            // remaining opponents (1..N) — NOT by each row's original
+            // position in the full fetched list. onTick's currentRank is
+            // "1 + how many of these opponents still beat my live score",
+            // which is already a 1..N+1 scale over exactly this filtered
+            // set. Labelling survivors with their pre-removal position
+            // instead (e.g. 2..50, if the watched player's real score
+            // happened to be #1) put opponents on a different numbering
+            // scale than
+            // currentRank — live-reported and confirmed: a real player
+            // whose score genuinely still beat the live-interpolated score
+            // was silently dropped from the visible window the moment
+            // their leftover original rank number collided with the
+            // player's own newly-computed one, even though they hadn't
+            // actually been overtaken yet ("story 還是2開頭卻直接超過3開頭
+            // 的了").
+            otherLbRows.forEach((row, i) => { row.rank = i + 1; });
         });
 
         player.start();
