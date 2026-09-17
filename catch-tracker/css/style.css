@@ -579,37 +579,103 @@ tr[data-score-id] { cursor: pointer; }
     margin: -6px 0 16px;
 }
 
-/* The decorative peer graph now lives on the landing screen (matching
-   mania-tracker.com's own placement — centered on the viewer's own
-   account), not the results screen, so these two rules are shared between
-   .farm-helper-landing--with-graph (below) and nothing else. */
-.farm-helper-graph-card { position: relative; flex: 0 0 440px; width: 440px; height: 440px; overflow: hidden; }
-.farm-helper-graph { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
-.farm-helper-graph.dragging { cursor: grabbing; }
-.farm-helper-graph-tooltip {
+/* pp ladder: a plain ranked list of nearby peers (own row highlighted),
+   not the earlier rotating-3D-peer-globe — that was too close a match to
+   mania-tracker.com's own signature farm-helper visual, so this is a
+   deliberately different concept (a bar-chart-style ranked strip) reusing
+   this site's own existing bar/row visual language instead. Lives on the
+   landing screen, same placement the globe had. */
+.farm-helper-graph-card {
+    position: relative;
+    flex: 0 0 500px;
+    width: 500px;
+    height: 620px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.farm-helper-ladder-title {
+    flex: none;
+    padding: 18px 20px 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-dim);
+}
+.farm-helper-ladder {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 6px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.farm-helper-ladder-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--text);
+    opacity: 0;
+    transform: translateX(-8px);
+    animation: fh-ladder-in 320ms ease forwards;
+}
+.farm-helper-ladder-row:hover { text-decoration: none; }
+.farm-helper-ladder-bar {
     position: absolute;
-    transform: translate(-50%, -100%);
-    margin-top: -6px;
-    padding: 3px 8px;
-    background: rgba(10, 8, 20, 0.92);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
+    inset: 0;
+    z-index: 0;
+    width: 0;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-radius: var(--radius-sm);
+}
+.farm-helper-ladder-row--you .farm-helper-ladder-bar {
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.farm-helper-ladder-row--you {
+    border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.farm-helper-ladder-avatar { position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: none; }
+.farm-helper-ladder-name {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    border-radius: 6px;
-    pointer-events: none;
-    z-index: 5;
+    font-size: 0.98rem;
+}
+.farm-helper-ladder-row--you .farm-helper-ladder-name { font-weight: 700; color: var(--accent); }
+.farm-helper-ladder-pp {
+    position: relative;
+    z-index: 1;
+    flex: none;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim);
+}
+.farm-helper-ladder-row--you .farm-helper-ladder-pp { color: var(--accent); font-weight: 700; }
+@keyframes fh-ladder-in { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .farm-helper-ladder-row { animation: none; opacity: 1; transform: none; }
 }
 
 /* ---------- farm helper landing (no ?id=) ---------- */
 
 .farm-helper-landing { max-width: 560px; margin: 40px 0; }
-.farm-helper-landing--with-graph { max-width: 1100px; display: flex; gap: 32px; align-items: flex-start; }
+.farm-helper-landing--with-graph { max-width: 1160px; display: flex; gap: 32px; align-items: flex-start; }
 .farm-helper-landing--with-graph .farm-helper-landing-main { flex: 1 1 420px; min-width: 0; }
 .farm-helper-landing--with-graph .farm-helper-graph-card { margin-top: 6px; }
-@media (max-width: 900px) {
+@media (max-width: 960px) {
     .farm-helper-landing--with-graph { flex-direction: column; }
-    .farm-helper-landing--with-graph .farm-helper-graph-card { flex-basis: auto; width: 100%; height: 340px; }
+    .farm-helper-landing--with-graph .farm-helper-graph-card { flex-basis: auto; width: 100%; height: 460px; }
 }
 .farm-helper-landing h1 { margin: 0 0 18px; }
 .farm-helper-landing-self-link { margin: 0 0 22px; border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }

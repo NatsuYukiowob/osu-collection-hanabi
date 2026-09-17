@@ -117,7 +117,11 @@ function renderLanding(main) {
                     ${categoryExplainerRows()}
                 </div>
             </div>
-            ${loggedInUser ? `<div class="farm-helper-graph-card"><canvas id="farm-helper-graph" class="farm-helper-graph"></canvas></div>` : ''}
+            ${loggedInUser ? `
+            <div class="farm-helper-graph-card">
+                <div class="farm-helper-ladder-title">${t('farm_helper_ladder_title')}</div>
+                <div class="farm-helper-ladder" id="farm-helper-ladder"></div>
+            </div>` : ''}
         </div>`;
 
     const input = document.getElementById('farm-helper-search-input');
@@ -160,282 +164,56 @@ function renderLanding(main) {
         renderLanding(main);
     });
 
-    // The graph is centered on the VIEWER's own account (matching the
-    // reference), so it needs its own farm-helper fetch here rather than
-    // reusing anything from a results-page load.
+    // The ladder is centered on the VIEWER's own account, so it needs its
+    // own farm-helper fetch here rather than reusing anything from a
+    // results-page load.
     if (loggedInUser) {
         apiGet('farm-helper', { user_id: loggedInUser.id }).then(data => {
             const peers = data.peers || [];
             if (!peers.length) { document.querySelector('.farm-helper-graph-card')?.remove(); return; }
-            initPeerGraph(
-                document.getElementById('farm-helper-graph'),
-                { avatar_url: loggedInUser.avatar_url || `https://a.ppy.sh/${loggedInUser.id}`, username: loggedInUser.username || `#${loggedInUser.id}` },
+            renderPeerLadder(
+                document.getElementById('farm-helper-ladder'),
+                {
+                    user_id: loggedInUser.id,
+                    avatar_url: loggedInUser.avatar_url || `https://a.ppy.sh/${loggedInUser.id}`,
+                    username: loggedInUser.username || `#${loggedInUser.id}`,
+                    pp: (data.coverage && data.coverage.myPp) || 0,
+                },
                 peers
             );
         }).catch(() => { document.querySelector('.farm-helper-graph-card')?.remove(); });
     }
 }
 
-/* Decorative rotating peer-network graph, per request — modeled on
-   mania-tracker.com/farm-helper's own version. Checked live and it's a
-   genuine 3D sphere, not a flat rotating ring: peer nodes clearly vary in
-   size/brightness and occlude each other as they move (near = bigger/
-   brighter/drawn on top, far = smaller/dimmer/drawn behind), and dragging
-   moves nodes along curved paths consistent with rotating a globe, not a
-   flat disc. Reimplemented here as that: peers are points on a unit
-   sphere (Fibonacci-sphere distribution — evenly spaced, no pole
-   clustering), rotated each frame by 3D rotation matrices (Y-axis for
-   idle auto-spin + horizontal drag, X-axis for vertical drag — a
-   standard trackball/globe interaction), then rendered with simple
-   orthographic projection (screen x/y = the rotated point's x/y directly)
-   plus depth-based size/opacity scaling from the rotated z, painter's-
-   algorithm sorted (far-to-near) so near nodes correctly draw over far
-   ones. No 3D library — it's ~10 lines of matrix math per point, plain
-   Canvas 2D for the actual drawing. Pointer Events (not mouse-specific)
-   so drag-to-spin works on touch too. */
-function initPeerGraph(canvas, center, peers) {
-    if (!canvas || !peers.length) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// "pp ladder": nearby peers ranked by pp with the viewer's own row
+// highlighted at its real sorted position, each row's fill width scaled to
+// its pp relative to the top of this list. Replaced an earlier rotating-
+// 3D-peer-globe here — that was checked live to be a near-exact match of
+// mania-tracker.com's own signature farm-helper visual (same concept: own
+// avatar centered, peers orbiting), which read as too close a copy. This
+// reuses the site's own existing ranked-bar visual language (see
+// .farm-helper-target-bar-fill / .stat-bar-fill) instead of a bespoke 3D
+// widget, and needs no animation loop — a plain scrollable list, own row
+// auto-scrolled into view once rendered.
+function renderPeerLadder(container, viewer, peers) {
+    if (!container || !peers.length) return;
+    const rows = [...peers, { ...viewer, isYou: true }].sort((a, b) => (b.pp || 0) - (a.pp || 0));
+    const maxPp = Math.max(1, ...rows.map(r => r.pp || 0));
 
-    function resize() {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = Math.max(1, Math.round(rect.width * dpr));
-        canvas.height = Math.max(1, Math.round(rect.height * dpr));
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    resize();
-    window.addEventListener('resize', resize);
+    container.innerHTML = rows.map((r, i) => {
+        const pct = Math.max(4, Math.round(((r.pp || 0) / maxPp) * 100));
+        const delay = Math.min(i, 20) * 18;
+        return `
+        <a class="farm-helper-ladder-row${r.isYou ? ' farm-helper-ladder-row--you' : ''}" style="animation-delay:${delay}ms" href="player.html?id=${encodeURIComponent(r.user_id)}">
+            <span class="farm-helper-ladder-bar" style="width:${pct}%"></span>
+            <img class="farm-helper-ladder-avatar" src="${escapeHtml(r.avatar_url || '')}" alt="" loading="lazy">
+            <span class="farm-helper-ladder-name">${escapeHtml(r.username || '')}</span>
+            <span class="farm-helper-ladder-pp">${fmtPP(r.pp)}</span>
+        </a>`;
+    }).join('');
 
-    function loadImg(url) {
-        const img = new Image();
-        img.decoding = 'async';
-        img.src = url || '';
-        return img;
-    }
-    const centerImg = loadImg(center.avatar_url);
-
-    // Fibonacci sphere: N points spread evenly over a unit sphere's
-    // surface using the golden angle — no clustering at the poles the way
-    // a naive lat/long grid would have.
-    const N = peers.length;
-    const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-    const nodes = peers.map((p, i) => {
-        const y = 1 - (i / Math.max(1, N - 1)) * 2; // 1 .. -1
-        const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y));
-        const theta = i * GOLDEN_ANGLE;
-        return {
-            img: loadImg(p.avatar_url),
-            peer: p,
-            // Unit-sphere coordinates — rotated fresh each frame, never
-            // mutated in place.
-            ux: Math.cos(theta) * radiusAtY,
-            uy: y,
-            uz: Math.sin(theta) * radiusAtY,
-        };
-    });
-
-    // A tooltip + click target for each node (matching mania-tracker.com's
-    // own graph — every peer node is hoverable/clickable there, linking to
-    // that player's page). Canvas has no per-shape hit-testing, so this
-    // keeps the current frame's on-screen circles (rebuilt every draw())
-    // to test pointer position against.
-    let lastFrameNodes = [];
-    const tooltip = document.createElement('div');
-    tooltip.className = 'farm-helper-graph-tooltip';
-    tooltip.hidden = true;
-    canvas.parentElement.appendChild(tooltip);
-
-    function nodeAt(x, y) {
-        // Iterate back-to-front (last drawn = nearest/topmost) so an
-        // overlap resolves to whichever node is actually on top.
-        for (let i = lastFrameNodes.length - 1; i >= 0; i--) {
-            const n = lastFrameNodes[i];
-            const dx = x - n.x, dy = y - n.y;
-            if (dx * dx + dy * dy <= n.r * n.r) return n;
-        }
-        return null;
-    }
-
-    const dust = Array.from({ length: 24 }, () => ({
-        x: Math.random(), y: Math.random(), r: 0.6 + Math.random() * 1.3,
-    }));
-
-    const IDLE_YAW_SPEED = 0.00022; // rad/ms
-    let yaw = Math.random() * Math.PI * 2;
-    let pitch = -0.25; // slight tilt so the sphere doesn't read as a flat edge-on ring at rest
-    let yawVelocity = reduceMotion ? 0 : IDLE_YAW_SPEED;
-    let pitchVelocity = 0;
-    let dragging = false;
-    let lastX = 0, lastY = 0;
-    let downX = 0, downY = 0;
-    let lastTime = performance.now();
-
-    canvas.addEventListener('pointerdown', (e) => {
-        dragging = true;
-        yawVelocity = 0;
-        pitchVelocity = 0;
-        lastX = e.clientX;
-        lastY = e.clientY;
-        downX = e.clientX;
-        downY = e.clientY;
-        canvas.style.cursor = ''; // let the .dragging class's grabbing cursor take over
-        canvas.setPointerCapture(e.pointerId);
-        canvas.classList.add('dragging');
-        tooltip.hidden = true;
-    });
-    canvas.addEventListener('pointermove', (e) => {
-        if (!dragging) {
-            // Not rotating — treat this as hovering, and surface which
-            // node (if any) is under the pointer: a tooltip + pointer
-            // cursor, and a real click target (see the pointerup handler).
-            const rect = canvas.getBoundingClientRect();
-            const node = nodeAt(e.clientX - rect.left, e.clientY - rect.top);
-            if (node && node.peer) {
-                canvas.style.cursor = 'pointer';
-                tooltip.hidden = false;
-                tooltip.style.left = `${node.x}px`;
-                tooltip.style.top = `${node.y - node.r}px`;
-                tooltip.textContent = node.peer.pp != null
-                    ? `${node.peer.username} · ${Math.round(node.peer.pp)}pp`
-                    : node.peer.username || '';
-            } else {
-                canvas.style.cursor = '';
-                tooltip.hidden = true;
-            }
-            return;
-        }
-        tooltip.hidden = true;
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
-        const dYaw = reduceMotion ? 0 : dx * 0.012;
-        const dPitch = reduceMotion ? 0 : dy * 0.012;
-        yaw += dYaw;
-        pitch = Math.max(-1.4, Math.min(1.4, pitch + dPitch));
-        yawVelocity = dYaw * 3.5; // seeds momentum from the last drag step's speed
-        pitchVelocity = dPitch * 3.5;
-        lastX = e.clientX;
-        lastY = e.clientY;
-    });
-    function endDrag() { dragging = false; canvas.classList.remove('dragging'); }
-    canvas.addEventListener('pointerup', (e) => {
-        endDrag();
-        // A drag that barely moved reads as a tap/click — open that node's
-        // player page. A real rotate-drag (bigger movement) never triggers
-        // navigation, so spinning the sphere still works as before.
-        if (Math.abs(e.clientX - downX) < 6 && Math.abs(e.clientY - downY) < 6) {
-            const rect = canvas.getBoundingClientRect();
-            const node = nodeAt(e.clientX - rect.left, e.clientY - rect.top);
-            if (node && node.peer && node.peer.user_id != null) {
-                location.href = `player.html?id=${encodeURIComponent(node.peer.user_id)}`;
-            }
-        }
-    });
-    canvas.addEventListener('pointercancel', endDrag);
-    canvas.addEventListener('pointerleave', () => { endDrag(); tooltip.hidden = true; canvas.style.cursor = ''; });
-
-    function drawAvatar(img, x, y, r, alpha) {
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        if (img.complete && img.naturalWidth) {
-            ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
-        } else {
-            ctx.fillStyle = '#2a2a4a';
-            ctx.fillRect(x - r, y - r, r * 2, r * 2);
-        }
-        ctx.restore();
-    }
-
-    let stopped = false;
-    function draw(now) {
-        if (stopped) return;
-        const dt = Math.min(64, now - lastTime);
-        lastTime = now;
-
-        if (!dragging) {
-            // Momentum decays back toward the idle baseline (yaw keeps
-            // auto-spinning; pitch settles back to 0 rather than to
-            // wherever a drag left it, so the sphere doesn't end up stuck
-            // looking at its own pole) rather than to a hard stop.
-            yawVelocity += (IDLE_YAW_SPEED - yawVelocity) * Math.min(1, dt / 900);
-            pitchVelocity += (0 - pitchVelocity) * Math.min(1, dt / 900);
-            pitch += (0 - pitch) * Math.min(1, dt / 4000);
-            yaw += yawVelocity * dt;
-            pitch += pitchVelocity * dt * 0.002;
-        }
-        const cosYaw = Math.cos(yaw), sinYaw = Math.sin(yaw);
-        const cosPitch = Math.cos(pitch), sinPitch = Math.sin(pitch);
-
-        const rect = canvas.getBoundingClientRect();
-        const w = rect.width, h = rect.height;
-        if (w === 0 || h === 0) { requestAnimationFrame(draw); return; }
-        ctx.clearRect(0, 0, w, h);
-
-        const cx = w / 2, cy = h / 2;
-        const R = Math.min(w, h) * 0.4;
-
-        ctx.fillStyle = 'rgba(255,255,255,0.22)';
-        for (const d of dust) {
-            ctx.beginPath();
-            ctx.arc(d.x * w, d.y * h, d.r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Rotate each unit-sphere point by yaw (around Y) then pitch
-        // (around X), scale to R, project orthographically (screen x/y =
-        // rotated x/y, z only drives depth-based size/opacity/order).
-        const projected = nodes.map(n => {
-            const x1 = n.ux * cosYaw - n.uz * sinYaw;
-            const z1 = n.ux * sinYaw + n.uz * cosYaw;
-            const y2 = n.uy * cosPitch - z1 * sinPitch;
-            const z2 = n.uy * sinPitch + z1 * cosPitch;
-            return { img: n.img, peer: n.peer, x: cx + x1 * R, y: cy + y2 * R, z: z2 };
-        });
-        projected.sort((a, b) => a.z - b.z); // far first (painter's algorithm)
-
-        const nodeR = Math.max(8, R * 0.11);
-        for (const p of projected) {
-            const depth = (p.z + 1) / 2; // 0 (far) .. 1 (near)
-            const size = nodeR * (0.55 + 0.55 * depth);
-            p.r = size; // recorded for this frame's hover/click hit-testing
-            const alpha = 0.35 + 0.65 * depth;
-            ctx.globalAlpha = alpha * 0.5;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
-            drawAvatar(p.img, p.x, p.y, size, alpha);
-        }
-        ctx.globalAlpha = 1;
-        lastFrameNodes = projected;
-
-        const centerR = nodeR * 1.7;
-        drawAvatar(centerImg, cx, cy, centerR, 1);
-        ctx.beginPath();
-        ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
-        ctx.strokeStyle = '#fb5a8c';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        requestAnimationFrame(draw);
-    }
-    requestAnimationFrame(draw);
-
-    // If this canvas gets torn out of the DOM (page navigation via the SPA-
-    // style history API isn't used here, but a future re-render of #farm-
-    // helper-main would orphan the old rAF loop otherwise), stop drawing
-    // once it's no longer attached rather than looping forever unseen.
-    const observer = new MutationObserver(() => {
-        if (!document.body.contains(canvas)) { stopped = true; observer.disconnect(); }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    const youRow = container.querySelector('.farm-helper-ladder-row--you');
+    if (youRow) youRow.scrollIntoView({ block: 'center' });
 }
 
 /* ---------- results page: tabs / filters / list / detail panel ---------- */

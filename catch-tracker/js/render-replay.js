@@ -658,6 +658,28 @@ function computeStats(items, mapTime) {
     };
 }
 
+// osu!'s real rank thresholds (ppy/osu CatchScoreProcessor.cs
+// RankFromScore — catch doesn't use the `results` param the base
+// ScoreProcessor signature carries, purely accuracy-based) — X only at
+// EXACTLY 100% accuracy, which `caught/total` reaches exactly since both
+// are integers. Hidden/Flashlight silver-promote X→XH and S→SH only
+// (ModHidden.cs/ModFlashlight.cs AdjustRank, identical in both), same
+// mods this replay is already being played back with.
+function computeLiveRank(accuracy, mods) {
+    let rank;
+    if (accuracy === 1) rank = 'X';
+    else if (accuracy >= 0.98) rank = 'S';
+    else if (accuracy >= 0.94) rank = 'A';
+    else if (accuracy >= 0.90) rank = 'B';
+    else if (accuracy >= 0.85) rank = 'C';
+    else rank = 'D';
+    if (mods.includes('HD') || mods.includes('FL')) {
+        if (rank === 'X') rank = 'XH';
+        else if (rank === 'S') rank = 'SH';
+    }
+    return rank;
+}
+
 /* ---------- live pp (rosu-pp WASM) ----------
    A pp readout that recalculates as the replay plays back, matching what
    replayviewer.com's own "PP Counter (Legacy)" setting shows — confirmed
@@ -1816,7 +1838,7 @@ function theaterHtml(meta, settings) {
                 </div>
                 <div class="replay-top-spacer"></div>
                 <div class="replay-top-mods">
-                    ${meta.rank ? gradeBadge(meta.rank) : ''}
+                    <img class="grade-badge" id="replay-rank-badge" src="assets/grades/${meta.rank && /^(XH|X|SH|S|A|B|C|D|F)$/.test(meta.rank) ? meta.rank : 'D'}.svg" alt="${escapeHtml(meta.rank || '')}"${meta.rank ? '' : ' hidden'}>
                     ${meta.mods.length ? modsTag(meta.mods) : ''}
                 </div>
             </div>
@@ -2075,6 +2097,8 @@ async function run() {
         const hudAcc = document.getElementById('replay-hud-acc');
         const hudCombo = document.getElementById('replay-hud-combo');
         const hudPp = document.getElementById('replay-hud-pp');
+        const rankBadge = document.getElementById('replay-rank-badge');
+        let lastLiveRank = null;
         const hpFill = document.getElementById('replay-hp-fill');
         const statCombo = document.getElementById('replay-stat-combo');
         const statMaxCombo = document.getElementById('replay-stat-maxcombo');
@@ -2131,6 +2155,13 @@ async function run() {
                         hudPp.textContent = fmtPP(pp);
                         hudPp.hidden = false;
                     }
+                }
+                const liveRank = computeLiveRank(stats.accuracy, mods);
+                if (liveRank !== lastLiveRank) {
+                    lastLiveRank = liveRank;
+                    rankBadge.src = `assets/grades/${liveRank}.svg`;
+                    rankBadge.alt = liveRank;
+                    rankBadge.hidden = false;
                 }
                 if (coverageIncomplete) coverageNote.hidden = mapTime <= frameCoverageEnd;
                 // Leaderboard: a live-climbing sliding window, not a static

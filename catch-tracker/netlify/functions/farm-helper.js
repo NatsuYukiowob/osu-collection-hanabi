@@ -38,10 +38,9 @@ const PEER_WINDOW_EACH_SIDE = 50; // ~100 peers total, per the approved plan
 // and the top N by peer popularity (feeds 熱門) — one fetch covers both tabs.
 const MAX_RESULTS_PER_SORT = 50;
 const TOP_PEERS_PER_CANDIDATE = 5;
-// How many peers to hand back for the decorative rotating network graph —
-// deliberately not all ~100 (would be visually cluttered), just enough
-// nodes to read as "a group of people," same rough count mania-tracker's
-// own farm-helper graph shows.
+// How many peers to hand back for the "pp ladder" strip — deliberately not
+// all ~100 (would need scrolling to read), just enough rows for the
+// viewer's own position among them to be legible at a glance.
 const GRAPH_PEER_COUNT = 24;
 // A peer median needs to beat the target's own pp on a map by more than
 // this to count as "可提升" — filters out noise-level differences that
@@ -255,16 +254,16 @@ exports.handler = async (event) => {
             items.push(c);
         }
 
-        // Lean peer list for the decorative rotating network graph — just
-        // enough to draw nodes (avatar + a stable key), not the full
-        // ranking record. Evenly sampled across the window rather than
-        // just the first N, so the graph doesn't skew toward one side of
-        // the pp range on a lightly-populated window.
+        // Lean peer list for the decorative "pp ladder" strip — just enough
+        // to draw rows (avatar + username + pp), not the full ranking
+        // record. Evenly sampled across the window rather than just the
+        // first N, so the ladder doesn't skew toward one side of the pp
+        // range on a lightly-populated window.
         const graphStep = Math.max(1, Math.floor(peerWindow.length / GRAPH_PEER_COUNT));
         const peers = peerWindow
             .filter((_, i) => i % graphStep === 0)
             .slice(0, GRAPH_PEER_COUNT)
-            .map(p => ({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url }));
+            .map(p => ({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url, pp: p.pp || 0 }));
 
         return {
             statusCode: 200,
@@ -276,6 +275,7 @@ exports.handler = async (event) => {
                     peerWindowSize: peerWindow.length,
                     peersCovered: coveragePeers,
                     inRankings: myIndex !== -1,
+                    myPp: myIndex !== -1 ? (sortedRankings[myIndex].pp || 0) : null,
                 },
             }),
         };
