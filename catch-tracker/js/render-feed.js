@@ -95,8 +95,13 @@ function buildGradeFilter() {
     group.innerHTML = GRADE_FILTER_OPTIONS.map(g => {
         const color = g ? (GRADE_COLORS[g] || '#9691b8') : null;
         const style = color ? ` style="--grade-color:${color}"` : '';
-        const label = g ? (g === 'F' ? t('grade_f_fail') : g) : t('filter_any_grade');
-        return `<button type="button" class="pill${g === _grade ? ' active' : ''}" data-grade="${g}"${style}>${escapeHtml(label)}</button>`;
+        // Real grades (XH/X/SH/S/A/B/C/D/F) use the same official rank
+        // icons as everywhere else on the site (gradeBadge(), self-hosted
+        // SVGs) instead of a plain text label; "any grade" has no real
+        // rank to show an icon for, so it stays text.
+        const label = g ? gradeBadge(g) : escapeHtml(t('filter_any_grade'));
+        const title = g === 'F' ? ` title="${escapeHtml(t('grade_f_fail'))}"` : '';
+        return `<button type="button" class="pill${g === _grade ? ' active' : ''}" data-grade="${g}"${style}${title}>${label}</button>`;
     }).join('');
     group.querySelectorAll('.pill').forEach(btn => {
         btn.addEventListener('click', () => {

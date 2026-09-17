@@ -450,6 +450,8 @@ let _fhStarMin = 0;
 let _fhStarMax = FH_STAR_MAX;
 let _fhSelectedId = null;
 let _fhFilterDebounce = null;
+let _fhPage = 0;
+const FH_PAGE_SIZE = 20;
 
 function fhFilteredSorted() {
     const pool = _fhTab === 'popular' ? _fhItems : _fhItems.filter(i => i.category !== 'achieved');
@@ -491,11 +493,16 @@ function renderFarmHelperList() {
     if (!listEl) return;
     if (!_fhItems.length) {
         listEl.innerHTML = `<tr><td colspan="4" class="empty-state">${t('farm_helper_no_data')}</td></tr>`;
+        updateFhPagination(0);
         return;
     }
     const filtered = fhFilteredSorted();
-    listEl.innerHTML = filtered.length
-        ? filtered.map(item => `
+    const maxPage = Math.max(0, Math.ceil(filtered.length / FH_PAGE_SIZE) - 1);
+    if (_fhPage > maxPage) _fhPage = maxPage;
+    const start = _fhPage * FH_PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + FH_PAGE_SIZE);
+    listEl.innerHTML = pageItems.length
+        ? pageItems.map(item => `
             <tr class="farm-helper-row farm-helper-row--${item.category}${String(item.beatmap_id) === String(_fhSelectedId) ? ' active' : ''}" onclick="selectFarmHelperItem(${item.beatmap_id})">
                 <td><span class="farm-helper-cat farm-helper-cat--${item.category}">${categoryLabel(item.category)}</span></td>
                 <td><span class="map-link">${escapeHtml(`${item.artist || ''} - ${item.title || ''} [${item.version || ''}]`)}</span>${item.difficulty_rating != null ? ` <span class="mods-tag">${item.difficulty_rating.toFixed(2)}★</span>` : ''}</td>
@@ -503,6 +510,21 @@ function renderFarmHelperList() {
                 <td>${farmHelperRowMetricHtml(item)}</td>
             </tr>`).join('')
         : `<tr><td colspan="4" class="empty-state">${t('farm_helper_no_results_filtered')}</td></tr>`;
+    updateFhPagination(filtered.length);
+}
+
+// Client-side pagination (mania-tracker/rankings-style fixed bottom bar —
+// see .pagination in style.css) — this list is fetched/filtered entirely
+// client-side (unlike rankings' server paging), so page slicing happens
+// here on the already-filtered array rather than a new API call.
+function updateFhPagination(totalCount) {
+    const pag = document.getElementById('fh-pagination');
+    if (!pag) return;
+    const maxPage = Math.max(0, Math.ceil(totalCount / FH_PAGE_SIZE) - 1);
+    pag.hidden = totalCount <= FH_PAGE_SIZE;
+    document.getElementById('fh-page-label').textContent = t('page_label', { n: _fhPage + 1 });
+    document.getElementById('fh-prev-page').disabled = _fhPage === 0;
+    document.getElementById('fh-next-page').disabled = _fhPage >= maxPage;
 }
 
 function targetBoxHtml(item) {
@@ -654,13 +676,14 @@ function updateFhStarRangeUI(triggerFilter) {
 
     _fhStarMin = minVal;
     _fhStarMax = maxVal;
-    if (triggerFilter) renderFarmHelperList();
+    if (triggerFilter) { _fhPage = 0; renderFarmHelperList(); }
 }
 
 function wireFarmHelperToolbar() {
     document.querySelectorAll('.farm-helper-tabs .pill').forEach(btn => {
         btn.addEventListener('click', () => {
             _fhTab = btn.getAttribute('data-tab');
+            _fhPage = 0;
             document.querySelectorAll('.farm-helper-tabs .pill').forEach(b => b.classList.toggle('active', b === btn));
             const metricHeader = document.getElementById('fh-metric-header');
             if (metricHeader) metricHeader.textContent = _fhTab === 'popular' ? t('farm_helper_popularity_col') : t('farm_helper_gain');
@@ -669,14 +692,21 @@ function wireFarmHelperToolbar() {
     });
     document.getElementById('fh-filter-input').addEventListener('input', (e) => {
         clearTimeout(_fhFilterDebounce);
-        _fhFilterDebounce = setTimeout(() => { _fhQuery = e.target.value; renderFarmHelperList(); }, 200);
+        _fhFilterDebounce = setTimeout(() => { _fhQuery = e.target.value; _fhPage = 0; renderFarmHelperList(); }, 200);
     });
     document.getElementById('fh-sort-select').addEventListener('change', (e) => {
         _fhSort = e.target.value;
+        _fhPage = 0;
         renderFarmHelperList();
     });
     ['fh-star-min', 'fh-star-max'].forEach(id => {
         document.getElementById(id).addEventListener('input', () => updateFhStarRangeUI(true));
+    });
+    document.getElementById('fh-prev-page').addEventListener('click', () => {
+        if (_fhPage > 0) { _fhPage--; renderFarmHelperList(); }
+    });
+    document.getElementById('fh-next-page').addEventListener('click', () => {
+        _fhPage++; renderFarmHelperList();
     });
     updateFhStarRangeUI(false);
 }
@@ -709,6 +739,7 @@ async function loadFarmHelper() {
         _fhStarMin = 0;
         _fhStarMax = FH_STAR_MAX;
         _fhSelectedId = null;
+        _fhPage = 0;
 
         main.innerHTML = `
             <div class="card profile-header${p.cover_url ? ' has-cover' : ''}"${p.cover_url ? ` style="background-image:url('${p.cover_url.replace(/'/g, '%27')}')"` : ''}>
@@ -752,6 +783,11 @@ async function loadFarmHelper() {
                     </div>
                 </div>
                 <div class="farm-helper-panel card" id="farm-helper-panel"></div>
+            </div>
+            <div class="pagination" id="fh-pagination" hidden>
+                <button type="button" id="fh-prev-page">${t('prev')}</button>
+                <span id="fh-page-label"></span>
+                <button type="button" id="fh-next-page">${t('next')}</button>
             </div>
         `;
 

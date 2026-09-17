@@ -2060,23 +2060,31 @@ footer.site-footer {
     display: flex;
     gap: 6px;
     align-items: center;
-    /* Scale the whole group (grade badge + mod hexes + pp chip) up
-       together rather than re-sizing each shared class individually —
-       those classes (.grade-badge, .mod-icon, .mods-tag-group) are used
-       site-wide (rankings, player page, etc.), so overriding their base
-       size here would leak elsewhere; a transform only affects this one
-       instance. transform-origin keeps the group anchored to where it
-       already sits (top-right of the bar) instead of growing off-screen. */
+    /* Scale the whole group (grade badge + mod hexes) up together rather
+       than re-sizing each shared class individually — those classes
+       (.grade-badge, .mod-icon, .mods-tag-group) are used site-wide
+       (rankings, player page, etc.), so overriding their base size here
+       would leak elsewhere; a transform only affects this one instance.
+       transform-origin keeps the group anchored to where it already sits
+       (top-right of the bar) instead of growing off-screen. */
     transform: scale(1.4);
     transform-origin: right center;
 }
-.replay-pp-badge {
-    background: var(--accent);
-    color: var(--accent-fg, #fff);
+/* Top-left of the theater, matching replayviewer.com's own "PP Counter"
+   placement (live-checked against that site) — plain HUD text like
+   .replay-hud-acc/.replay-hud-combo, not a badge/pill, since it recalculates
+   continuously during playback rather than showing one static value. */
+.replay-hud-pp {
+    position: absolute;
+    z-index: 2;
+    top: 16px;
+    left: 24px;
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: 0.8rem;
-    padding: 3px 9px;
-    border-radius: 999px;
+    font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 0 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
 }
 .replay-scrub-full {
     -webkit-appearance: none;

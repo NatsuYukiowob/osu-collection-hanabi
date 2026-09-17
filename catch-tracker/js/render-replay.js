@@ -56,7 +56,7 @@ const FFLATE_URL = 'https://esm.sh/fflate@0.8.2';
 // risk for a pp *number* being silently wrong. The exact files from
 // rosu-pp-js's own "_web" release build are vendored as-is (js/vendor/
 // rosu-pp/, MIT-licensed, https://github.com/MaxOhn/rosu-pp-js).
-const ROSU_PP_URL = 'js/vendor/rosu-pp/rosu_pp_js.js';
+const ROSU_PP_URL = '/js/vendor/rosu-pp/rosu_pp_js.js';
 const PLAYFIELD_X = 512; // osu! catch coordinate space width, in osu!pixels
 
 const AUDIO_URL = beatmapsetId => `https://mirror.hinamizawa.ai/v3/osu/music/audio/${beatmapsetId}`;
@@ -1816,7 +1816,6 @@ function theaterHtml(meta, settings) {
                 </div>
                 <div class="replay-top-spacer"></div>
                 <div class="replay-top-mods">
-                    <span class="replay-pp-badge" id="replay-pp-badge"${meta.pp ? '' : ' hidden'}>${meta.pp ? escapeHtml(fmtPP(Number(meta.pp))) : ''}</span>
                     ${meta.rank ? gradeBadge(meta.rank) : ''}
                     ${meta.mods.length ? modsTag(meta.mods) : ''}
                 </div>
@@ -1827,6 +1826,10 @@ function theaterHtml(meta, settings) {
             <canvas id="replay-canvas" class="replay-canvas-full"></canvas>
             <audio id="replay-audio" preload="auto"></audio>
 
+            <!-- Top-left, matching replayviewer.com's own "PP Counter" placement
+                 (confirmed live against that site before building this) — a plain
+                 recalculating number, not a badge/pill like the static mods group. -->
+            <div class="replay-hud-pp" id="replay-hud-pp"${meta.pp ? '' : ' hidden'}>${meta.pp ? escapeHtml(fmtPP(Number(meta.pp))) : ''}</div>
             <div class="replay-hud-acc" id="replay-hud-acc">100.00%</div>
             <div class="replay-hud-combo" id="replay-hud-combo">0</div>
             <div class="replay-coverage-note" id="replay-coverage-note" hidden>${escapeHtml(t('replay_coverage_incomplete'))}</div>
@@ -2071,7 +2074,7 @@ async function run() {
         const skinStatus = document.getElementById('replay-skin-status');
         const hudAcc = document.getElementById('replay-hud-acc');
         const hudCombo = document.getElementById('replay-hud-combo');
-        const ppBadge = document.getElementById('replay-pp-badge');
+        const hudPp = document.getElementById('replay-hud-pp');
         const hpFill = document.getElementById('replay-hp-fill');
         const statCombo = document.getElementById('replay-stat-combo');
         const statMaxCombo = document.getElementById('replay-stat-maxcombo');
@@ -2125,8 +2128,8 @@ async function run() {
                 if (livePp) {
                     const pp = livePp.ppFor(stats);
                     if (pp != null) {
-                        ppBadge.textContent = fmtPP(pp);
-                        ppBadge.hidden = false;
+                        hudPp.textContent = fmtPP(pp);
+                        hudPp.hidden = false;
                     }
                 }
                 if (coverageIncomplete) coverageNote.hidden = mapTime <= frameCoverageEnd;
