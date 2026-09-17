@@ -1468,7 +1468,7 @@ main:has(.pagination) { padding-bottom: 90px; }
     transition: opacity 150ms ease, background-color 150ms ease, color 150ms ease;
 }
 .map-card:hover .cover-link-btn { opacity: 1; }
-.cover-link-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; text-decoration: none; }
+.cover-link-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); text-decoration: none; }
 .cover-link-btn svg { width: 12px; height: 12px; }
 .preview-btn .icon-play { width: 13px; height: 13px; margin-left: 2px; flex: none; }
 .preview-btn .icon-eq { display: none; align-items: flex-end; justify-content: center; gap: 2px; height: 14px; }
@@ -1688,7 +1688,15 @@ main:has(.pagination) { padding-bottom: 90px; }
     from { transform: translateY(0) rotate(0deg); }
     to { transform: translateY(120vh) rotate(300deg); }
 }
-header.site-header, main, footer.site-footer { position: relative; z-index: 1; }
+main, footer.site-footer { position: relative; z-index: 1; }
+/* header gets its OWN, higher z-index (not tied with main) — a real bug on
+   the replay page: main's top-mods badges use `transform: scale()` (for
+   the grade/pp/mods group), which creates a local stacking context: with
+   header and main previously sharing z-index:1, that tie broke in DOM
+   order (main comes after header), so main's content painted OVER every
+   header dropdown (theme popover, player-search autocomplete) instead of
+   under it. Both still sit comfortably above .banana-rain (z-index:0). */
+header.site-header { position: relative; z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
     .banana-rain { display: none; }
 }
@@ -1774,8 +1782,25 @@ footer.site-footer {
 .page-replay main { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0; max-width: none; width: 100%; margin: 0; min-height: 0; }
 .page-replay .site-footer { display: none; }
 
+/* Wraps the top toolbar (volume/rate/offset/dim — moved outside the
+   bordered theater box per explicit ask, so it no longer overlaps
+   gameplay/cover art) together with `.replay-theater` itself, and carries
+   the shared width formula so both line up edge-to-edge. Fullscreen is
+   requested on THIS element (not just `.replay-theater`) so the toolbar
+   stays reachable while fullscreen — see the fullscreenToggle handler in
+   js/render-replay.js. Reserves a bit more vertical budget than the old
+   140px (now ~210px) in its height-based width term below, to account for
+   the toolbar row's own height that used to cost nothing (it was an
+   absolutely-positioned overlay with zero box-model footprint). */
+.replay-theater-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(100%, 1700px, calc((100vh - 210px) * 16 / 9));
+}
 .replay-theater {
     position: relative;
+    width: 100%;
     /* 16:9, not osu!'s native 4:3 — live-measured replayviewer.com's own
        theater at exactly 16:9 (1610.66x905.99). A 4:3 box crops a typical
        widescreen beatmap cover far more aggressively under
@@ -1787,17 +1812,11 @@ footer.site-footer {
        sub-rect of whatever width/height this box ends up with (the same
        "widescreen support" technique the real game uses — playfield
        stays fixed-proportion, extra width just shows more background),
-       so this box is free to be whatever shape shows the cover best.
-       flex-grow + independent max-width/max-height on this item let the
-       browser resolve BOTH dimensions as "definite" from the box model
-       directly, which means aspect-ratio has nothing left to compute and
-       gets silently ignored the moment width/height caps don't already
-       share its ratio (confirmed live earlier) — sizing only ONE
-       dimension explicitly and deriving the other from aspect-ratio
-       avoids that: width is the smallest of "the available column
-       width", "an absolute cap", or "the available viewport height
-       converted to a width via the ratio". */
-    width: min(100%, 1700px, calc((100vh - 140px) * 16 / 9));
+       so this box is free to be whatever shape shows the cover best. The
+       actual size-capping (viewport width/height limits) now lives on
+       `.replay-theater-wrap` above, since the toolbar needs to share the
+       same width; this element just derives its own height from that
+       shared width via aspect-ratio. */
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #05050c center / cover no-repeat;
@@ -1831,9 +1850,13 @@ footer.site-footer {
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65), 0 0 2px rgba(0, 0, 0, 0.8);
     pointer-events: none;
 }
-.replay-hud-acc { top: 56px; left: 24px; font-size: clamp(1.1rem, 2vw, 1.5rem); }
+/* Right-aligned under the top toolbar's rank/grade badge (now living
+   outside this box, in `.replay-top-bar` above) instead of the theater's
+   top-left corner — per explicit ask, so accuracy reads as "this score's
+   grade, then its accuracy" stacked together. */
+.replay-hud-acc { top: 16px; right: 24px; font-size: clamp(1.1rem, 2vw, 1.5rem); }
 .replay-hud-combo {
-    top: 50px;
+    top: 48px;
     right: 24px;
     font-size: clamp(1.8rem, 4vw, 3rem);
     font-variant-numeric: tabular-nums;
@@ -1964,23 +1987,21 @@ footer.site-footer {
 }
 .replay-bottom-spacer { flex: 1 1 auto; }
 
-/* Top settings strip — always visible, mirrors replayviewer.com's own
-   layout: inline volume/rate/background-dim sliders, mod badges pinned
-   right. Separate from the bottom bar's dark-gradient scrim (this one
-   fades from the top edge instead) so both read clearly over any cover
-   art. */
+/* Top settings strip — always visible, inline volume/rate/offset/
+   background-dim sliders, mod badges pinned right. Lives OUTSIDE
+   `.replay-theater`'s own bordered box (a sibling inside
+   `.replay-theater-wrap`, sitting above it) rather than overlaid on top
+   of the gameplay/cover art, so it's a normal opaque panel instead of a
+   dark-gradient scrim over video. */
 .replay-top-bar {
-    position: absolute;
-    z-index: 3;
-    left: 0;
-    right: 0;
-    top: 0;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 18px;
     padding: 10px 20px;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 }
 .replay-top-group {
     display: flex;
@@ -2051,7 +2072,7 @@ footer.site-footer {
 }
 .replay-pp-badge {
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-fg, #fff);
     font-weight: 700;
     font-size: 0.8rem;
     padding: 3px 9px;
@@ -2096,7 +2117,7 @@ footer.site-footer {
     border-radius: 50%;
     border: none;
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-fg, #fff);
     font-size: 1rem;
     cursor: pointer;
     display: inline-flex;

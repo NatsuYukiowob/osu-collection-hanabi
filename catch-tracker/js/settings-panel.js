@@ -51,6 +51,23 @@ const CT_BG_BASE = {
     '--bg-card-hover': '#17172c',
     '--border': '#23234a',
 };
+// A handful of buttons paint solid `var(--accent)` as their OWN background
+// (not just a soft tint) with a hardcoded white icon/text on top — e.g. the
+// replay page's ▶ play button and pp badge. A light custom accent (a real
+// bug report: "背景顏色是變白色時，有些按鈕是會變全白而看不到該按鈕的功能")
+// then puts white-on-near-white, making the icon unreadable. Rather than
+// pick per-button fallback colours, compute ONE contrasting foreground here
+// (simple relative-luminance threshold — good enough for a UI pick, not a
+// WCAG-precise calculation) and expose it as `--accent-fg` for any of those
+// buttons to use instead of a hardcoded `#fff`.
+function ctContrastingFg(color) {
+    const m = /^#([0-9a-f]{6})$/i.exec(color);
+    if (!m) return '#fff';
+    const n = parseInt(m[1], 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    return luminance > 0.6 ? '#12121c' : '#fff';
+}
 function ctApplyAccent() {
     try {
         const color = localStorage.getItem(CT_ACCENT_KEY);
@@ -58,6 +75,7 @@ function ctApplyAccent() {
         if (color) {
             root.setProperty('--accent', color);
             root.setProperty('--primary', color);
+            root.setProperty('--accent-fg', ctContrastingFg(color));
             root.setProperty('--bg', `color-mix(in srgb, ${color} 12%, ${CT_BG_BASE['--bg']})`);
             root.setProperty('--bg-elevated', `color-mix(in srgb, ${color} 14%, ${CT_BG_BASE['--bg-elevated']})`);
             root.setProperty('--bg-card', `color-mix(in srgb, ${color} 12%, ${CT_BG_BASE['--bg-card']})`);
@@ -68,7 +86,7 @@ function ctApplyAccent() {
 }
 function ctResetAccent() {
     const root = document.documentElement.style;
-    ['--accent', '--primary', '--bg', '--bg-elevated', '--bg-card', '--bg-card-hover', '--border'].forEach(p => root.removeProperty(p));
+    ['--accent', '--primary', '--accent-fg', '--bg', '--bg-elevated', '--bg-card', '--bg-card-hover', '--border'].forEach(p => root.removeProperty(p));
 }
 ctApplyAccent(); // run immediately (not just after injectUI) to minimise flash-of-default-colour
 

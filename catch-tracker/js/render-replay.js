@@ -50,6 +50,13 @@
 const PARSERS_URL = 'https://esm.sh/osu-parsers@4.1.7';
 const CATCH_STABLE_URL = 'https://esm.sh/osu-catch-stable@4.0.1';
 const FFLATE_URL = 'https://esm.sh/fflate@0.8.2';
+// Self-hosted, NOT esm.sh like the imports above — wasm-bindgen's web
+// build resolves its .wasm file relative to its own `import.meta.url`,
+// and esm.sh's URL-rewriting for wasm-backed packages isn't something to
+// risk for a pp *number* being silently wrong. The exact files from
+// rosu-pp-js's own "_web" release build are vendored as-is (js/vendor/
+// rosu-pp/, MIT-licensed, https://github.com/MaxOhn/rosu-pp-js).
+const ROSU_PP_URL = 'js/vendor/rosu-pp/rosu_pp_js.js';
 const PLAYFIELD_X = 512; // osu! catch coordinate space width, in osu!pixels
 
 const AUDIO_URL = beatmapsetId => `https://mirror.hinamizawa.ai/v3/osu/music/audio/${beatmapsetId}`;
@@ -619,6 +626,13 @@ function extractKiaiRanges(beatmap) {
 // fix above got the underlying catch/miss calls themselves right.
 function computeStats(items, mapTime) {
     let combo = 0, maxCombo = 0, caught = 0, miss = 0, notCaught = 0, hp = 100;
+    // rosu-pp's CatchHitResults buckets (fruits/droplets/tinyDroplets/
+    // tinyDropletMisses, plus `miss` above which already matches its own
+    // "misses" field exactly — both only ever count fruit/droplet misses,
+    // never tiny-droplet ones) — verified against a real live score
+    // (Story's 6141982961, HDHR: real 686.117pp vs rosu-pp's 686.42pp,
+    // ~0.04% off, normal calculator-version drift) before wiring this in.
+    let fruits = 0, droplets = 0, tinyDroplets = 0, tinyDropletMisses = 0;
     for (const it of items) {
         if (it.time > mapTime) break;
         if (it.kind === 'banana' || it.unknown) continue;
@@ -633,9 +647,73 @@ function computeStats(items, mapTime) {
             hp = Math.max(0, hp - HP_LOSS);
         }
         if (combo > maxCombo) maxCombo = combo;
+        if (it.kind === 'fruit') { if (it.caught) fruits++; }
+        else if (it.kind === 'droplet') { if (it.caught) droplets++; }
+        else if (it.kind === 'tiny') { if (it.caught) tinyDroplets++; else tinyDropletMisses++; }
     }
     const total = caught + notCaught;
-    return { combo, maxCombo, caught, miss, accuracy: total > 0 ? caught / total : 1, hp };
+    return {
+        combo, maxCombo, caught, miss, accuracy: total > 0 ? caught / total : 1, hp,
+        fruits, droplets, tinyDroplets, tinyDropletMisses,
+    };
+}
+
+/* ---------- live pp (rosu-pp WASM) ----------
+   A pp readout that recalculates as the replay plays back, matching what
+   replayviewer.com's own "PP Counter (Legacy)" setting shows — confirmed
+   (via that site's own network activity while testing this) to be a pure
+   client-side WASM calculation, not anything server- or game-memory-based.
+   Never allowed to break the replay itself: any failure (slow network,
+   an unparseable map) just means the badge stays on whatever static pp
+   the caller passed in (or hidden), same philosophy as the leaderboard
+   fetch below. */
+let rosuModulePromise = null;
+function loadRosuPp() {
+    if (!rosuModulePromise) {
+        rosuModulePromise = import(ROSU_PP_URL).then(async mod => {
+            await mod.default();
+            return mod;
+        });
+    }
+    return rosuModulePromise;
+}
+
+// Parses the beatmap and caches its difficulty attributes ONCE (the
+// expensive step); the returned calculator's ppFor() then only redoes the
+// cheap Performance step per call, and even that is skipped unless the
+// underlying judgement counts actually changed since the last call, since
+// onTick fires every animation frame but hit results only land at
+// discrete moments.
+async function createLivePpCalculator(osuText, mods, clockRate) {
+    try {
+        const rosu = await loadRosuPp();
+        const map = new rosu.Beatmap(osuText);
+        map.convert(rosu.GameMode.Catch);
+        const diffAttrs = new rosu.Difficulty({ mods, clockRate }).calculate(map);
+        map.free();
+        let lastKey = null;
+        let lastPp = null;
+        return {
+            ppFor(stats) {
+                const key = `${stats.fruits}|${stats.droplets}|${stats.tinyDroplets}|${stats.tinyDropletMisses}|${stats.miss}|${stats.maxCombo}`;
+                if (key === lastKey) return lastPp;
+                lastKey = key;
+                const perf = new rosu.Performance({
+                    mods, clockRate,
+                    combo: stats.maxCombo,
+                    misses: stats.miss,
+                    n300: stats.fruits,
+                    n100: stats.droplets,
+                    n50: stats.tinyDroplets,
+                    nKatu: stats.tinyDropletMisses,
+                }).calculate(diffAttrs);
+                lastPp = perf.pp;
+                return lastPp;
+            },
+        };
+    } catch {
+        return null;
+    }
 }
 
 function loadSettings() {
@@ -1000,7 +1078,6 @@ async function loadSkinSprites(file) {
 const DEFAULT_SKINS = [
     { id: 'vanilla', nameKey: 'replay_skin_default_vanilla' },
     { id: 'bubble', nameKey: 'replay_skin_default_bubble', credit: 'BubbleSkin — skins.osuck.net' },
-    { id: 'panko', nameKey: 'replay_skin_default_panko', credit: 'wide_panko (plox base) — prank855, Myuka, icetea, Reapix, Scylla67, ALX13 · skins.osuck.net' },
     { id: 'squares', nameKey: 'replay_skin_default_squares' },
 ];
 // A visitor who's never picked anything (no saved preference, no custom
@@ -1707,11 +1784,7 @@ function theaterHtml(meta, settings) {
     const title = [meta.artist, meta.title].filter(Boolean).join(' - ');
     const dim = 100 - settings.brightness;
     return `
-        <div class="replay-theater" id="replay-theater"${bgUrl ? ` style="background-image:url('${bgUrl.replace(/'/g, '%27')}')"` : ''}>
-            <div class="replay-theater-scrim"></div>
-            <canvas id="replay-canvas" class="replay-canvas-full"></canvas>
-            <audio id="replay-audio" preload="auto"></audio>
-
+        <div class="replay-theater-wrap" id="replay-theater-wrap">
             <div class="replay-top-bar">
                 <div class="replay-top-group">
                     <span class="replay-top-label">🍎 ${escapeHtml(t('replay_settings_music'))}</span>
@@ -1743,11 +1816,16 @@ function theaterHtml(meta, settings) {
                 </div>
                 <div class="replay-top-spacer"></div>
                 <div class="replay-top-mods">
-                    ${meta.pp ? `<span class="replay-pp-badge">${escapeHtml(fmtPP(Number(meta.pp)))}</span>` : ''}
+                    <span class="replay-pp-badge" id="replay-pp-badge"${meta.pp ? '' : ' hidden'}>${meta.pp ? escapeHtml(fmtPP(Number(meta.pp))) : ''}</span>
                     ${meta.rank ? gradeBadge(meta.rank) : ''}
                     ${meta.mods.length ? modsTag(meta.mods) : ''}
                 </div>
             </div>
+
+        <div class="replay-theater" id="replay-theater"${bgUrl ? ` style="background-image:url('${bgUrl.replace(/'/g, '%27')}')"` : ''}>
+            <div class="replay-theater-scrim"></div>
+            <canvas id="replay-canvas" class="replay-canvas-full"></canvas>
+            <audio id="replay-audio" preload="auto"></audio>
 
             <div class="replay-hud-acc" id="replay-hud-acc">100.00%</div>
             <div class="replay-hud-combo" id="replay-hud-combo">0</div>
@@ -1793,6 +1871,7 @@ function theaterHtml(meta, settings) {
             </div>
 
             <div class="replay-settings-drawer" id="replay-settings-drawer" hidden></div>
+        </div>
         </div>
     `;
 }
@@ -1856,6 +1935,13 @@ async function run() {
             fetchBeatmapFile(beatmapId),
             fetchReplayBytes(scoreId),
         ]);
+
+        // Fire-and-forget: the ~830KB rosu-pp wasm starts downloading
+        // alongside the rest of this setup instead of blocking it. `livePp`
+        // stays null (onTick below just skips updating the badge) until
+        // this resolves, and forever if it fails.
+        let livePp = null;
+        createLivePpCalculator(osuText, mods, clockRateForMods(mods)).then(calc => { livePp = calc; });
 
         const { BeatmapDecoder, ScoreDecoder } = await import(PARSERS_URL);
         const catchStable = await import(CATCH_STABLE_URL);
@@ -1962,6 +2048,7 @@ async function run() {
         setStatus(theaterHtml(meta, settings));
         recordRecentlyViewedReplay({ scoreId, beatmapId, userId, ...meta });
         const theater = document.getElementById('replay-theater');
+        const theaterWrap = document.getElementById('replay-theater-wrap');
         // Upgrade from cover.jpg (osu!'s own pre-cropped ~3.6:1 promo
         // banner, shown immediately above via theaterHtml's bgUrl) to the
         // REAL in-game background once beatmap-bg.js has it ready
@@ -1984,6 +2071,7 @@ async function run() {
         const skinStatus = document.getElementById('replay-skin-status');
         const hudAcc = document.getElementById('replay-hud-acc');
         const hudCombo = document.getElementById('replay-hud-combo');
+        const ppBadge = document.getElementById('replay-pp-badge');
         const hpFill = document.getElementById('replay-hp-fill');
         const statCombo = document.getElementById('replay-stat-combo');
         const statMaxCombo = document.getElementById('replay-stat-maxcombo');
@@ -2034,6 +2122,13 @@ async function run() {
                 statMiss.textContent = stats.miss;
                 hudAcc.textContent = `${(stats.accuracy * 100).toFixed(2)}%`;
                 hudCombo.textContent = String(stats.combo).padStart(4, '0');
+                if (livePp) {
+                    const pp = livePp.ppFor(stats);
+                    if (pp != null) {
+                        ppBadge.textContent = fmtPP(pp);
+                        ppBadge.hidden = false;
+                    }
+                }
                 if (coverageIncomplete) coverageNote.hidden = mapTime <= frameCoverageEnd;
                 // Leaderboard: a live-climbing sliding window, not a static
                 // top-50 list — the watched player sits at the bottom and
@@ -2102,8 +2197,12 @@ async function run() {
         fullscreenToggle.addEventListener('click', () => {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
-            } else if (theater.requestFullscreen) {
-                theater.requestFullscreen().catch(() => { /* not fatal — theater already fills most of the viewport without it */ });
+            } else if (theaterWrap.requestFullscreen) {
+                // Fullscreen the WRAPPER, not just the canvas box, so the
+                // top toolbar (volume/rate/offset/dim — now living outside
+                // the bordered .replay-theater) stays reachable while
+                // fullscreen instead of disappearing with it.
+                theaterWrap.requestFullscreen().catch(() => { /* not fatal — theater already fills most of the viewport without it */ });
             }
         });
 
@@ -2224,8 +2323,12 @@ async function run() {
                 try {
                     // No saved preference at all (a genuinely first-time
                     // visitor) starts on INITIAL_DEFAULT_SKIN rather than
-                    // whatever was last picked.
-                    const savedDefault = localStorage.getItem(CT_DEFAULT_SKIN_KEY) || INITIAL_DEFAULT_SKIN;
+                    // whatever was last picked. Also falls back here if the
+                    // saved id no longer matches a real option (e.g. a skin
+                    // that was later removed from DEFAULT_SKINS) instead of
+                    // leaving the <select> on an unmatched, blank value.
+                    let savedDefault = localStorage.getItem(CT_DEFAULT_SKIN_KEY) || INITIAL_DEFAULT_SKIN;
+                    if (!DEFAULT_SKINS.some(s => s.id === savedDefault)) savedDefault = INITIAL_DEFAULT_SKIN;
                     defaultSkinSelect.value = savedDefault;
                     await applyDefaultSkin(savedDefault, false);
                 } catch { /* per-viewer convenience only */ }
