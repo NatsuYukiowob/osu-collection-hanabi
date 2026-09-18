@@ -139,6 +139,22 @@ const LANG_STRINGS = {
         replays_id_not_found: '找不到這筆成績。',
         replays_id_wrong_mode: '這不是 osu!catch 的成績，本站只能播放 catch 回放。',
         replays_id_error: '查詢失敗，請稍後再試。',
+        replays_mode_single: '單一回放',
+        replays_mode_compare: '並排比較',
+        replays_compare_hint: '同時觀看同一張圖譜的兩筆成績。',
+        replays_compare_add_a: '選擇成績 A',
+        replays_compare_add_b: '選擇成績 B',
+        replays_compare_go: '並排觀看',
+        replays_compare_mismatch: '兩筆成績必須是同一張圖譜。',
+        replays_compare_leaderboard_heading: '這張圖譜的排行榜 — 點選一筆成績來比較',
+        replays_compare_recent: '最近比較過',
+
+        replay_compare_h1: '並排比較',
+        replay_compare_not_found: '找不到這兩筆成績。',
+        replay_compare_loading: '回放載入中…',
+        replay_compare_vs: 'VS',
+        replay_compare_play: '播放',
+        replay_compare_pause: '暫停',
         farm_helper_view: '查看刷圖建議',
         farm_helper_title: '刷圖助手',
         farm_helper_category_new: '未打過',
@@ -372,6 +388,22 @@ const LANG_STRINGS = {
         replays_id_not_found: 'Score not found.',
         replays_id_wrong_mode: "That's not an osu!catch score — this site can only play catch replays.",
         replays_id_error: 'Lookup failed, please try again.',
+        replays_mode_single: 'Single replay',
+        replays_mode_compare: 'Side-by-side',
+        replays_compare_hint: 'Watch two scores on the same beatmap at the same time.',
+        replays_compare_add_a: 'Add score A',
+        replays_compare_add_b: 'Add score B',
+        replays_compare_go: 'Compare',
+        replays_compare_mismatch: 'Both scores must be on the same beatmap.',
+        replays_compare_leaderboard_heading: "This beatmap's leaderboard — pick a score to compare",
+        replays_compare_recent: 'Recently compared',
+
+        replay_compare_h1: 'Side-by-side',
+        replay_compare_not_found: "Couldn't find both of these scores.",
+        replay_compare_loading: 'Loading replays…',
+        replay_compare_vs: 'VS',
+        replay_compare_play: 'Play',
+        replay_compare_pause: 'Pause',
         farm_helper_view: 'View farm recommendations',
         farm_helper_title: 'Farm Helper',
         farm_helper_category_new: 'New',
@@ -775,6 +807,29 @@ function avatarWithFlagHtml(avatarUrl, countryCode, avatarClass) {
         <img class="${cls}" src="${escapeHtml(avatarUrl || '')}" alt="">
         ${flag ? `<img class="avatar-flag-badge" src="${flag}" alt="${escapeHtml(countryCode)}" onerror="this.style.display='none';">` : ''}
     </span>`;
+}
+
+/* ---------- side-by-side compare: shared "recently compared" strip ----------
+   Read by the picker (js/render-replays.js, a classic script) and written
+   by the viewer (js/render-replay-compare.js, a module — modules can still
+   read/call plain globals like these, they just don't expose their OWN
+   top-levels as globals) once both sides of a real compare view actually
+   resolve, mirroring how render-replay.js's recordRecentlyViewedReplay()
+   works for the single-replay page. Lives here rather than in either of
+   those files since both need it. */
+const RECENT_COMPARES_KEY = 'ct_recent_compares';
+const RECENT_COMPARES_MAX = 8;
+
+function loadRecentCompares() {
+    try { return JSON.parse(localStorage.getItem(RECENT_COMPARES_KEY)) || []; } catch { return []; }
+}
+
+function recordRecentCompare(entry) {
+    try {
+        const list = loadRecentCompares().filter(r => !(String(r.scoreA) === String(entry.scoreA) && String(r.scoreB) === String(entry.scoreB)));
+        list.unshift(entry);
+        localStorage.setItem(RECENT_COMPARES_KEY, JSON.stringify(list.slice(0, RECENT_COMPARES_MAX)));
+    } catch { /* private mode etc. — recent list just won't persist */ }
 }
 
 /* ---------- audio preview button + floating mini-player ----------

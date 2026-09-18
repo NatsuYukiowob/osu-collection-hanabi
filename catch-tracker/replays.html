@@ -32,35 +32,77 @@
 <main id="replays-main">
     <h1><span data-i18n="replays_h1">Watch Replay</span></h1>
 
-    <div class="replays-lookup-grid">
-        <div class="card replays-lookup-card">
-            <h2 data-i18n="replays_by_player">Search a player</h2>
-            <input type="text" id="replays-player-search" class="replays-search-input" data-i18n-placeholder="replays_search_placeholder" placeholder="Search a player...">
-            <div class="search-results" id="replays-player-results" hidden></div>
+    <div class="replays-mode-tabs pill-group" id="replays-mode-tabs">
+        <button type="button" class="pill active" data-mode="single" data-i18n="replays_mode_single">Single replay</button>
+        <button type="button" class="pill" data-mode="compare" data-i18n="replays_mode_compare">Side-by-side</button>
+    </div>
+
+    <div id="replays-single-tab">
+        <div class="replays-lookup-grid">
+            <div class="card replays-lookup-card">
+                <h2 data-i18n="replays_by_player">Search a player</h2>
+                <input type="text" id="replays-player-search" class="replays-search-input" data-i18n-placeholder="replays_search_placeholder" placeholder="Search a player...">
+                <div class="search-results" id="replays-player-results" hidden></div>
+            </div>
+            <div class="card replays-lookup-card">
+                <h2 data-i18n="replays_by_id">Paste a score</h2>
+                <p class="replays-lookup-hint" data-i18n="replays_by_id_hint">Paste a score ID or an osu! score URL</p>
+                <div class="replays-id-row">
+                    <input type="text" id="replays-id-input" class="replays-search-input" data-i18n-placeholder="replays_id_placeholder" placeholder="e.g. https://osu.ppy.sh/scores/123456">
+                    <button type="button" id="replays-id-go" class="pill" data-i18n="replays_go">Go</button>
+                </div>
+                <p class="replays-id-error" id="replays-id-error" hidden></p>
+            </div>
         </div>
-        <div class="card replays-lookup-card">
+
+        <div id="replays-recent-section" hidden>
+            <h2 data-i18n="replays_recently_viewed">Recently viewed</h2>
+            <div class="replays-recent-strip" id="replays-recent-strip"></div>
+        </div>
+
+        <div id="replays-player-section" hidden>
+            <h2 id="replays-player-heading"></h2>
+            <div class="replays-tabs" id="replays-player-tabs">
+                <button type="button" class="pill active" data-tab="best" data-i18n="best_plays">Best Plays</button>
+                <button type="button" class="pill" data-tab="recent" data-i18n="recent_plays">Recent Plays</button>
+            </div>
+            <div id="replays-player-list"></div>
+        </div>
+    </div>
+
+    <div id="replays-compare-tab" hidden>
+        <p class="replays-lookup-hint" data-i18n="replays_compare_hint">Watch two scores on the same beatmap at the same time.</p>
+
+        <div class="compare-picker-slots">
+            <div class="compare-picker-slot" id="compare-slot-a" data-slot="a">
+                <button type="button" class="compare-slot-add" data-slot-btn="a" data-i18n="replays_compare_add_a">+ Add score A</button>
+            </div>
+            <div class="compare-picker-vs" data-i18n="replay_compare_vs">VS</div>
+            <div class="compare-picker-slot" id="compare-slot-b" data-slot="b">
+                <button type="button" class="compare-slot-add" data-slot-btn="b" data-i18n="replays_compare_add_b">+ Add score B</button>
+            </div>
+        </div>
+        <button type="button" class="pill compare-go-btn" id="compare-go-btn" disabled data-i18n="replays_compare_go">Compare</button>
+        <p class="replays-id-error" id="compare-error" hidden></p>
+
+        <div class="card replays-lookup-card" id="compare-lookup-card">
             <h2 data-i18n="replays_by_id">Paste a score</h2>
             <p class="replays-lookup-hint" data-i18n="replays_by_id_hint">Paste a score ID or an osu! score URL</p>
             <div class="replays-id-row">
-                <input type="text" id="replays-id-input" class="replays-search-input" data-i18n-placeholder="replays_id_placeholder" placeholder="e.g. https://osu.ppy.sh/scores/123456">
-                <button type="button" id="replays-id-go" class="pill" data-i18n="replays_go">Go</button>
+                <input type="text" id="compare-id-input" class="replays-search-input" data-i18n-placeholder="replays_id_placeholder" placeholder="e.g. https://osu.ppy.sh/scores/123456">
+                <button type="button" id="compare-id-go" class="pill" data-i18n="replays_go">Go</button>
             </div>
-            <p class="replays-id-error" id="replays-id-error" hidden></p>
         </div>
-    </div>
 
-    <div id="replays-recent-section" hidden>
-        <h2 data-i18n="replays_recently_viewed">Recently viewed</h2>
-        <div class="replays-recent-strip" id="replays-recent-strip"></div>
-    </div>
-
-    <div id="replays-player-section" hidden>
-        <h2 id="replays-player-heading"></h2>
-        <div class="replays-tabs" id="replays-player-tabs">
-            <button type="button" class="pill active" data-tab="best" data-i18n="best_plays">Best Plays</button>
-            <button type="button" class="pill" data-tab="recent" data-i18n="recent_plays">Recent Plays</button>
+        <div id="compare-leaderboard-section" hidden>
+            <h2 data-i18n="replays_compare_leaderboard_heading">This beatmap's leaderboard — pick a score to compare</h2>
+            <div id="compare-leaderboard-list"></div>
         </div>
-        <div id="replays-player-list"></div>
+
+        <div id="compare-recent-section" hidden>
+            <h2 data-i18n="replays_compare_recent">Recently compared</h2>
+            <div class="replays-recent-strip" id="compare-recent-strip"></div>
+        </div>
     </div>
 </main>
 <footer class="site-footer">

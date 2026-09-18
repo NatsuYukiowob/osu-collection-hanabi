@@ -184,6 +184,220 @@ function wireScoreIdLookup() {
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
 }
 
+/* ---------- mode tabs (single replay vs side-by-side compare) ---------- */
+
+function wireModeTabs() {
+    document.getElementById('replays-mode-tabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('.pill');
+        if (!btn) return;
+        const mode = btn.getAttribute('data-mode');
+        document.querySelectorAll('#replays-mode-tabs .pill').forEach(b => b.classList.toggle('active', b === btn));
+        document.getElementById('replays-single-tab').hidden = mode !== 'single';
+        document.getElementById('replays-compare-tab').hidden = mode !== 'compare';
+    });
+}
+
+/* ---------- side-by-side compare picker ----------
+   Mirrors mania-tracker.com's own "並排對比" tab (live-explored, per
+   request): two slots for the SAME beatmap's scores, filled either by
+   pasting a score id/link or — once slot A picks a beatmap — by clicking a
+   row straight out of that beatmap's own leaderboard (reuses
+   beatmap-leaderboard.js, already built for the single replay page's
+   live-climbing leaderboard panel). Both paths resolve through
+   score-lookup.js so every slot ends up with the same full metadata
+   (mods/rank/pp/accuracy/has_replay) regardless of how it was picked. */
+
+let _compareSlots = { a: null, b: null };
+let _activeCompareSlot = 'a';
+
+function compareSlotFilledHtml(entry, slot) {
+    const cover = entry.beatmapset_id ? coverArtUrlCard(entry.beatmapset_id) : '';
+    return `
+        <div class="compare-slot-filled"${cover ? ` style="background-image:url('${cover.replace(/'/g, '%27')}')"` : ''}>
+            <button type="button" class="compare-slot-remove" data-slot="${slot}" aria-label="${escapeHtml(t('remove'))}">✕</button>
+            ${avatarWithFlagHtml(entry.avatar_url, entry.country_code)}
+            <div class="compare-slot-body">
+                <div class="compare-slot-name">${escapeHtml(entry.username || '')}</div>
+                <div class="compare-slot-stats">
+                    ${gradeBadge(entry.rank)}${modsTag(entry.mods)}
+                    ${entry.accuracy != null ? `<span>${fmtAccuracy(entry.accuracy)}</span>` : ''}
+                    ${entry.pp != null ? `<span>${fmtPP(entry.pp)}</span>` : ''}
+                </div>
+                <div class="compare-slot-map">${escapeHtml(`${entry.artist || ''} - ${entry.title || ''} [${entry.version || ''}]`)}</div>
+            </div>
+        </div>`;
+}
+
+function renderCompareSlot(slot) {
+    const el = document.getElementById(`compare-slot-${slot}`);
+    const entry = _compareSlots[slot];
+    el.innerHTML = entry
+        ? compareSlotFilledHtml(entry, slot)
+        : `<button type="button" class="compare-slot-add" data-slot-btn="${slot}">+ ${escapeHtml(t(slot === 'a' ? 'replays_compare_add_a' : 'replays_compare_add_b'))}</button>`;
+    el.classList.toggle('filled', !!entry);
+}
+
+function updateCompareGoButton() {
+    document.getElementById('compare-go-btn').disabled = !(_compareSlots.a && _compareSlots.b);
+}
+
+function showCompareError(msg) {
+    const el = document.getElementById('compare-error');
+    if (!msg) { el.hidden = true; return; }
+    el.textContent = msg;
+    el.hidden = false;
+}
+
+async function loadCompareLeaderboard(beatmapId) {
+    const section = document.getElementById('compare-leaderboard-section');
+    const list = document.getElementById('compare-leaderboard-list');
+    try {
+        const data = await apiGet('beatmap-leaderboard', { beatmap_id: beatmapId });
+        const scores = data.scores || [];
+        list.innerHTML = scores.map(s => `
+            <button type="button" class="replays-score-row compare-leaderboard-row" data-score-id="${s.score_id}">
+                ${avatarWithFlagHtml(s.avatar_url, null)}
+                <span class="compare-lb-name">${escapeHtml(s.username || '')}</span>
+                ${gradeBadge(s.rank)}
+                <span>${fmtAccuracy(s.accuracy)}</span>
+                <span>${(s.total_score || 0).toLocaleString()}</span>
+            </button>`).join('');
+        section.hidden = !scores.length;
+    } catch {
+        section.hidden = true;
+    }
+}
+
+async function resolveScoreForCompare(scoreId) {
+    const res = await fetch(`${API_BASE}/score-lookup?score_id=${encodeURIComponent(scoreId)}`);
+    const data = await res.json();
+    if (!res.ok) {
+        const key = data.error === 'not_found' ? 'replays_id_not_found'
+            : data.error === 'wrong_mode' ? 'replays_id_wrong_mode' : 'replays_id_error';
+        throw new Error(t(key));
+    }
+    if (!data.has_replay) throw new Error(t('replays_none_watchable'));
+    return data;
+}
+
+// Returns whether the slot was actually set — callers use this to decide
+// whether to clear the paste input / auto-advance to the other slot.
+async function setCompareSlot(slot, entry) {
+    const other = slot === 'a' ? _compareSlots.b : _compareSlots.a;
+    if (other && String(other.beatmap_id) !== String(entry.beatmap_id)) {
+        showCompareError(t('replays_compare_mismatch'));
+        return false;
+    }
+    showCompareError(null);
+    _compareSlots[slot] = entry;
+    renderCompareSlot(slot);
+    updateCompareGoButton();
+    if (slot === 'a') loadCompareLeaderboard(entry.beatmap_id);
+    return true;
+}
+
+function clearCompareSlot(slot) {
+    _compareSlots[slot] = null;
+    renderCompareSlot(slot);
+    if (slot === 'a') {
+        document.getElementById('compare-leaderboard-section').hidden = true;
+        // Clearing A also invalidates any beatmap-match guarantee for B —
+        // simplest correct behaviour is to drop B too rather than leave a
+        // stale pairing the now-gone leaderboard no longer reflects.
+        _compareSlots.b = null;
+        renderCompareSlot('b');
+    }
+    updateCompareGoButton();
+}
+
+function compareRecentCardHtml(r) {
+    const cover = r.beatmapsetId ? coverArtUrlCard(r.beatmapsetId) : '';
+    const params = new URLSearchParams({ score_a: r.scoreA, score_b: r.scoreB });
+    return `
+        <a class="replays-recent-card" href="replay-compare.html?${params.toString()}"${cover ? ` style="background-image:url('${cover.replace(/'/g, '%27')}')"` : ''}>
+            <div class="replays-recent-card-body">
+                <div class="replays-recent-card-title">${escapeHtml(r.title || '')}</div>
+                <div class="replays-recent-card-sub">${escapeHtml(r.usernameA || '')} vs ${escapeHtml(r.usernameB || '')}</div>
+            </div>
+        </a>`;
+}
+
+function renderCompareRecent() {
+    const section = document.getElementById('compare-recent-section');
+    const strip = document.getElementById('compare-recent-strip');
+    const items = loadRecentCompares();
+    if (!items.length) { section.hidden = true; return; }
+    strip.innerHTML = items.map(compareRecentCardHtml).join('');
+    section.hidden = false;
+}
+
+function wireComparePicker() {
+    renderCompareSlot('a');
+    renderCompareSlot('b');
+    renderCompareRecent();
+
+    document.getElementById('replays-compare-tab').addEventListener('click', async (e) => {
+        const addBtn = e.target.closest('[data-slot-btn]');
+        if (addBtn) {
+            _activeCompareSlot = addBtn.getAttribute('data-slot-btn');
+            document.getElementById('compare-id-input').focus();
+            return;
+        }
+        const removeBtn = e.target.closest('.compare-slot-remove');
+        if (removeBtn) {
+            clearCompareSlot(removeBtn.getAttribute('data-slot'));
+            return;
+        }
+        const lbRow = e.target.closest('.compare-leaderboard-row');
+        if (lbRow) {
+            lbRow.disabled = true;
+            try {
+                const entry = await resolveScoreForCompare(lbRow.getAttribute('data-score-id'));
+                await setCompareSlot('b', entry);
+            } catch (err) {
+                showCompareError(err.message);
+            } finally {
+                lbRow.disabled = false;
+            }
+        }
+    });
+
+    const idInput = document.getElementById('compare-id-input');
+    const idGo = document.getElementById('compare-id-go');
+    async function go() {
+        const scoreId = extractScoreId(idInput.value);
+        if (!scoreId) { showCompareError(t('replays_id_invalid')); return; }
+        idGo.disabled = true;
+        try {
+            const entry = await resolveScoreForCompare(scoreId);
+            const targetSlot = _activeCompareSlot;
+            const ok = await setCompareSlot(targetSlot, entry);
+            if (ok) {
+                idInput.value = '';
+                // Auto-advance to the other slot if it's still empty, so
+                // pasting two links back to back "just works" without
+                // re-clicking a slot's own + button in between.
+                const otherSlot = targetSlot === 'a' ? 'b' : 'a';
+                if (!_compareSlots[otherSlot]) _activeCompareSlot = otherSlot;
+            }
+        } catch (err) {
+            showCompareError(err.message);
+        } finally {
+            idGo.disabled = false;
+        }
+    }
+    idGo.addEventListener('click', go);
+    idInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+
+    document.getElementById('compare-go-btn').addEventListener('click', () => {
+        if (!_compareSlots.a || !_compareSlots.b) return;
+        const params = new URLSearchParams({ score_a: _compareSlots.a.score_id, score_b: _compareSlots.b.score_id });
+        location.href = `replay-compare.html?${params.toString()}`;
+    });
+}
+
 wirePlayerSearch();
 wireScoreIdLookup();
 renderRecentReplays();
+wireModeTabs();
+wireComparePicker();

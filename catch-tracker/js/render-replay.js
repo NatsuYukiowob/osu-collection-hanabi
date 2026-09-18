@@ -112,10 +112,15 @@ function setStatus(html) {
 }
 
 function loginGateHtml() {
+    // Inside a compare-mode iframe, an un-targeted OAuth redirect would
+    // navigate the iframe itself off-site instead of the actual page —
+    // break out to the top window so the login flow (and its eventual
+    // redirect back) lands on the real compare page, not a stranded iframe.
+    const embed = new URLSearchParams(location.search).get('embed') === 'compare';
     return `
         <div class="card" style="max-width:480px;margin:60px auto;text-align:center;padding:32px">
             <p style="margin-top:0">${escapeHtml(t('replay_login_prompt'))}</p>
-            <a class="ct-login-btn" href="${ctLoginUrl()}" style="display:inline-flex">${escapeHtml(t('login_with_osu'))}</a>
+            <a class="ct-login-btn" href="${ctLoginUrl()}"${embed ? ' target="_top"' : ''} style="display:inline-flex">${escapeHtml(t('login_with_osu'))}</a>
         </div>
     `;
 }
@@ -1933,6 +1938,18 @@ async function run() {
     const beatmapsetId = params.get('beatmapset_id');
     const userId = params.get('user_id');
     const mods = (params.get('mods') || '').split(',').filter(Boolean);
+    // Side-by-side compare mode (replay-compare.html): this exact page
+    // loaded inside one of the compare page's two iframes. Reuses the
+    // WHOLE normal pipeline below completely unmodified (parsing, judging,
+    // skin/hyperdash/plate-stack rendering) — only its own per-instance
+    // chrome (top settings bar, bottom transport, leaderboard) is hidden via
+    // the ct-replay-embed body class below (see style.css), replaced by the
+    // compare page's single shared transport, and a small postMessage
+    // bridge (added further down, next to the existing control wiring)
+    // lets that parent drive play/pause/seek/rate and read live stats
+    // instead of this page's own now-hidden controls.
+    const embed = params.get('embed') === 'compare';
+    if (embed) document.body.classList.add('ct-replay-embed');
     const meta = {
         title: params.get('title') || '',
         artist: params.get('artist') || '',
@@ -2071,7 +2088,10 @@ async function run() {
 
         const settings = loadSettings();
         setStatus(theaterHtml(meta, settings));
-        recordRecentlyViewedReplay({ scoreId, beatmapId, userId, ...meta });
+        // Compare mode has its own "recently compared" concept on the
+        // parent page — an iframe load shouldn't also pollute the regular
+        // single-view "recently viewed" strip on replays.html.
+        if (!embed) recordRecentlyViewedReplay({ scoreId, beatmapId, userId, ...meta });
         const theater = document.getElementById('replay-theater');
         const theaterWrap = document.getElementById('replay-theater-wrap');
         // Upgrade from cover.jpg (osu!'s own pre-cropped ~3.6:1 promo
@@ -2112,7 +2132,13 @@ async function run() {
         const coverageNote = document.getElementById('replay-coverage-note');
 
         audioEl.volume = settings.volume / 100;
-        if (beatmapsetId) {
+        // Two iframes on the same compare page would otherwise both play
+        // the SAME song's full audio at once (and, whenever the two scores
+        // carry different DT/HT mods, at two different clock rates) —
+        // audibly doubled/phasing. Compare mode runs silent instead; each
+        // side's ReplayPlayer already no-ops all audio-sync logic cleanly
+        // when constructed with `audio: null` (see its constructor/tick()).
+        if (!embed && beatmapsetId) {
             audioEl.src = AUDIO_URL(beatmapsetId);
             audioEl.load();
         }
@@ -2135,7 +2161,7 @@ async function run() {
             hiddenMod: mods.includes('HD'),
             hyperdashWindows,
             kiaiRanges,
-            audio: beatmapsetId ? audioEl : null,
+            audio: (!embed && beatmapsetId) ? audioEl : null,
             onTick: (mapTime, minTime, maxTime, playing, stats) => {
                 const pct = maxTime > minTime ? ((mapTime - minTime) / (maxTime - minTime)) * 1000 : 0;
                 scrub.value = String(pct);
@@ -2164,6 +2190,20 @@ async function run() {
                     rankBadge.hidden = false;
                 }
                 if (coverageIncomplete) coverageNote.hidden = mapTime <= frameCoverageEnd;
+                // Compare mode: this page's own scrub/HUD text above just
+                // updated as normal (harmless — hidden via the
+                // ct-replay-embed CSS class), but the parent compare page
+                // has no other way to see this side's live progress/stats,
+                // since it drives everything through the postMessage bridge
+                // below instead of this page's own (now-hidden) controls.
+                if (embed) {
+                    window.parent.postMessage({
+                        ctCompare: true, type: 'tick', playing,
+                        frac: maxTime > minTime ? (mapTime - minTime) / (maxTime - minTime) : 0,
+                        stats: { accuracy: stats.accuracy, combo: stats.combo, maxCombo: stats.maxCombo, caught: stats.caught, miss: stats.miss, hp: stats.hp },
+                        pp: livePp ? livePp.ppFor(stats) : null,
+                    }, location.origin);
+                }
                 // Leaderboard: a live-climbing sliding window, not a static
                 // top-50 list — the watched player sits at the bottom and
                 // rises past a real name the moment their own live score
@@ -2434,7 +2474,31 @@ async function run() {
         // Leaderboard panel — the map's real top scores, rendered as a
         // sliding window that climbs live as the watched score rises (see
         // onTick above), rather than a static top-50 dump. Best-effort/
-        // decorative: never blocks setup.
+        // decorative: never blocks setup. Skipped in compare mode — its
+        // aside is hidden by ct-replay-embed anyway, and skipping the fetch
+        // saves a beatmap-leaderboard.js call per side on every compare load.
+        if (embed) {
+            // Compare page control bridge: the parent drives this iframe's
+            // playback entirely through postMessage instead of this page's
+            // own (CSS-hidden) play/scrub/rate controls, reusing the exact
+            // same ReplayPlayer methods those controls call normally.
+            window.addEventListener('message', (e) => {
+                if (e.source !== window.parent || e.origin !== location.origin) return;
+                const msg = e.data;
+                if (!msg || msg.ctCompare !== true) return;
+                if (msg.type === 'play') { if (!player.playing) player.play(); }
+                else if (msg.type === 'pause') { if (player.playing) player.pause(); }
+                else if (msg.type === 'seek') { player.seek(player.minTime + msg.frac * (player.maxTime - player.minTime)); }
+                else if (msg.type === 'rate') { player.setSpeed(msg.rate); }
+            });
+            window.parent.postMessage({
+                ctCompare: true, type: 'ready',
+                durationMs: player.maxTime - player.minTime,
+                meta: { username: meta.username, rank: meta.rank, mods: meta.mods, pp: meta.pp },
+            }, location.origin);
+            player.start();
+            return;
+        }
         fetchLeaderboard(beatmapId).then(rows => {
             const selfRow = userId ? rows.find(r => String(r.user_id) === String(userId)) : null;
             playerRowMeta = selfRow || {
