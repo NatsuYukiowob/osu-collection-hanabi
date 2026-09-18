@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catch Tracker — Watch Replay</title>
+<title>Catch Tracker — Discord Servers</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="page-replay">
+<body>
 <header class="site-header">
     <a class="site-header-title" href="index.html">
         <svg class="site-header-title-icon" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6"><circle cx="50" cy="50" r="41"/><circle cx="50" cy="38" r="7" fill="currentColor" stroke="none"/><circle cx="38" cy="60" r="5.5" fill="currentColor" stroke="none"/><circle cx="62" cy="60" r="5.5" fill="currentColor" stroke="none"/></svg>
@@ -27,7 +27,7 @@
         <a href="farm-helper.html" data-i18n="nav_farm_helper">Farm Helper</a>
         <a href="replays.html" data-i18n="nav_replays">Replays</a>
         <a href="goals.html" data-i18n="nav_goals">Goals</a>
-        <a href="discord.html" data-i18n="nav_discord">Discord</a>
+        <a href="discord.html" class="active" data-i18n="nav_discord">Discord</a>
     </nav>
     <button class="lang-toggle" id="lang-toggle" type="button">EN</button>
     <a class="ct-login-btn" id="ct-login-btn" href="/.netlify/functions/osu-replay-login" data-i18n="login_with_osu">Login with osu!</a>
@@ -39,13 +39,28 @@
     <span class="ct-login-msg" id="ct-login-msg" hidden></span>
     </div>
 </header>
-<main class="wide" id="replay-main">
-    <p class="coverage-note" data-i18n="loading">Loading…</p>
+<main class="wide">
+    <h1><span data-i18n="h1_discord">Discord Servers</span></h1>
+    <p class="coverage-note" id="coverage-note" data-i18n="loading">Loading…</p>
+
+    <button type="button" class="pill" id="toggle-submit" style="margin-bottom:16px" data-i18n="discord_submit_toggle">Submit your server</button>
+    <div id="submit-form-wrap" hidden></div>
+
+    <div class="filters">
+        <input type="text" id="discord-search" class="search-input" style="width:260px" data-i18n-placeholder="discord_search_placeholder" placeholder="Search servers or tags…">
+    </div>
+    <div class="community-grid" id="discord-grid"></div>
 </main>
-<footer class="site-footer" data-i18n="footer_main">Catch Tracker — a companion site for osu-collection-hanabi.</footer>
+<footer class="site-footer">
+    <span data-i18n="footer_main">Catch Tracker — a companion site for osu-collection-hanabi. Data via the official osu! API.</span>
+    <span class="footer-links">
+        <a href="https://github.com/hanabirn/osu-collection-hanabi/commits/main/catch-tracker" target="_blank" rel="noopener noreferrer" data-i18n="footer_changelog">Changelog</a>
+        <a href="https://github.com/hanabirn/osu-collection-hanabi/issues/new" target="_blank" rel="noopener noreferrer" data-i18n="footer_feedback">Feedback</a>
+    </span>
+</footer>
 <script src="js/common.js"></script>
 <script src="js/settings-panel.js"></script>
 <script src="js/api.js"></script>
-<script type="module" src="js/render-replay.js"></script>
+<script src="js/render-discord.js"></script>
 </body>
 </html>

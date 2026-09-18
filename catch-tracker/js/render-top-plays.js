@@ -99,7 +99,7 @@ async function loadTopPlays() {
             ? items.map(s => `
                 <tr>
                     <td>${avatarWithFlagHtml(s.avatar_url, s.country_code)} ${playerLink(s.user_id, s.username)}</td>
-                    <td>${mapLink(s.beatmap_id, `${s.artist || ''} - ${s.title || ''} [${s.version || ''}]`)}</td>
+                    ${mapBannerCell(s.beatmapset_id, mapLink(s.beatmap_id, `${s.artist || ''} - ${s.title || ''} [${s.version || ''}]`))}
                     <td>${modsTag(s.mods)}</td>
                     <td>${gradeBadge(s.rank)}${fcTag(s.is_fc)}</td>
                     <td>${fmtAccuracy(s.accuracy)}</td>

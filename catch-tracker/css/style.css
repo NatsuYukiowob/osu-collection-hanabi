@@ -64,26 +64,44 @@ header.site-header {
     top: 0;
     z-index: 10;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 24px;
+    gap: 10px;
     padding: 14px 20px;
     background: rgba(10, 10, 22, 0.85);
     border-bottom: 1px solid var(--border);
     backdrop-filter: none;
-    flex-wrap: wrap;
 }
 
-header.site-header .brand {
+/* Two-row layout: a big centered title on top, nav + tools centered below
+   (was one row, brand hard-left / tools hard-right via margin-left:auto
+   on .search-wrap — per request, moved to a two-row centered layout with
+   the title enlarged and carrying the catch-mode glyph, same icon used by
+   the home hero and the Maps page's own title). */
+.site-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1.15rem;
+    font-weight: 700;
+    font-size: 2.1rem;
     color: var(--text);
     letter-spacing: 0.02em;
 }
-header.site-header .brand span { color: var(--accent); }
+.site-header-title:hover { color: var(--text); text-decoration: none; }
+.site-header-title span { color: var(--accent); }
+.site-header-title-icon { width: 34px; height: 34px; color: var(--accent); flex: none; }
 
-header.site-header nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.site-header-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+}
+
+header.site-header nav { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
 header.site-header nav a {
     color: var(--text-dim);
     font-size: 0.88rem;
@@ -97,7 +115,7 @@ header.site-header nav a.active { color: var(--accent); background: var(--accent
 
 /* ---------- header player search ---------- */
 
-.search-wrap { position: relative; margin-left: auto; }
+.search-wrap { position: relative; }
 .search-input {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -266,6 +284,38 @@ main h2 { font-size: 1.05rem; color: var(--text); margin-top: 28px; }
     box-shadow: 0 0 6px var(--success);
 }
 
+/* ---------- Discord server directory ---------- */
+
+.community-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.community-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.community-card-head { display: flex; align-items: center; gap: 10px; }
+.community-card-icon {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    object-fit: cover; background: var(--bg-elevated);
+}
+.community-card-icon--placeholder { display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+.community-card-name { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.community-card-join { flex: none; font-size: 0.78rem; padding: 6px 12px; }
+.community-card-desc { font-size: 0.85rem; color: var(--text-dim); margin: 0; line-height: 1.5; }
+.community-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; }
+.community-card-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.community-card-tag { font-size: 0.72rem; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+.community-card-meta { font-size: 0.74rem; color: var(--text-faint); flex: none; white-space: nowrap; }
+.community-card-remove {
+    align-self: flex-start;
+    background: none; border: none; color: var(--text-faint);
+    font-size: 0.76rem; cursor: pointer; padding: 2px 0;
+}
+.community-card-remove:hover { color: var(--danger); }
+
 /* ---------- goal tracking ---------- */
 
 .goal-create-form {
@@ -315,16 +365,6 @@ main h2 { font-size: 1.05rem; color: var(--text); margin-top: 28px; }
 main.home { max-width: 1100px; }
 
 .home-hero { text-align: center; padding: 8px 0 34px; }
-.home-hero-title {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 2.3rem;
-    font-weight: 700;
-}
-.home-hero-icon { width: 38px; height: 38px; color: var(--accent); flex: none; }
-.home-hero-accent { color: var(--accent); }
 .home-hero-tagline { color: var(--text-dim); font-size: 0.95rem; margin: 8px 0 0; }
 
 .home-grid {
@@ -384,8 +424,6 @@ main.home { max-width: 1100px; }
     .home-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-    .home-hero-title { font-size: 1.7rem; }
-    .home-hero-icon { width: 30px; height: 30px; }
     .home-recent-text { white-space: normal; }
     .home-recent-row { align-items: flex-start; }
 }
@@ -954,6 +992,36 @@ tr[data-score-id] { cursor: pointer; }
    sits, for legibility) to the raw image on the right, matching the
    left-opaque/right-transparent technique .profile-header.has-cover
    already uses for the player-page banner. */
+/* Generic version of .farm-helper-map-cell below (cover-art banner fading
+   into the row) for any other table whose map column benefits from it —
+   currently the live feed. Kept as its own class rather than reusing
+   .farm-helper-map-cell so Farm Helper's own new/improve row-state
+   gradient variants stay scoped to Farm Helper. */
+.map-banner-cell {
+    position: relative;
+    padding: 0;
+    min-width: 260px;
+    background-size: cover;
+    background-position: center;
+}
+.map-banner-cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 65%, transparent) 40%, transparent 85%);
+    pointer-events: none;
+}
+.map-banner-cell-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 11px 14px;
+    min-height: 20px;
+}
+.map-banner-cell-inner .map-link { text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); }
+
 .farm-helper-map-cell {
     position: relative;
     padding: 0;
@@ -2017,9 +2085,11 @@ footer.site-footer {
 @media (max-width: 640px) {
     main { padding: 20px 14px 48px; }
     header.site-header { padding: 12px 14px; gap: 12px; }
+    .site-header-title { font-size: 1.6rem; }
+    .site-header-title-icon { width: 26px; height: 26px; }
     .filters { width: 100%; }
     .filters select, .filters label { flex: 1 1 auto; }
-    .search-wrap { order: 3; width: 100%; margin-left: 0; }
+    .search-wrap { order: 3; width: 100%; }
     .search-input { width: 100%; }
     .search-input:focus { width: 100%; }
 }

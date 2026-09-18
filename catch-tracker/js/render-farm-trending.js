@@ -17,7 +17,7 @@ function playersStackHtml(players, total) {
 function farmRow(m) {
     const diffLabel = m.difficulty_rating != null ? ` <span class="rank-num">★${m.difficulty_rating.toFixed(2)}</span>` : '';
     return `<tr>
-        <td>${mapLink(m.beatmap_id, `${m.artist || ''} - ${m.title || ''} [${m.version || ''}]`)}${diffLabel}</td>
+        ${mapBannerCell(m.beatmapset_id, mapLink(m.beatmap_id, `${m.artist || ''} - ${m.title || ''} [${m.version || ''}]`) + diffLabel)}
         <td>${m.playCount}</td>
         <td>${m.avgPp != null ? fmtPP(m.avgPp) : '—'}</td>
         <td>${m.maxPp != null ? fmtPP(m.maxPp) : '—'}</td>

@@ -102,4 +102,12 @@ function getGoalsStore() {
     return store('catch-tracker-goals');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore, getGoalsStore };
+// Community-submitted Discord server directory (communities.js) —
+// mania-tracker.com's own "Discord 服務器" tab, scoped to catch. Single
+// key `index` -> array of {id, name, inviteUrl, description, tags,
+// iconUrl, submittedById, submittedByName, createdAt}.
+function getCommunitiesStore() {
+    return store('catch-tracker-communities');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore, getGoalsStore, getCommunitiesStore };

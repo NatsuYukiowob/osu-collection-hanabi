@@ -17,7 +17,7 @@ function escapeHtml(str) {
 
 const LANG_STRINGS = {
     zh: {
-        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_top_plays: '最佳成績', nav_farm_trending: '刷分熱門', nav_goals: '目標',
+        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_top_plays: '最佳成績', nav_farm_trending: '刷分熱門', nav_goals: '目標', nav_discord: 'Discord',
         loading: '載入中…',
         title_rankings: 'Catch Tracker — osu!catch 全球排名',
         title_feed: 'Catch Tracker — 即時動態',
@@ -237,6 +237,27 @@ const LANG_STRINGS = {
         goals_invalid_target: '請輸入有效的PP數字。',
         goals_save_failed: '儲存失敗，請再試一次。',
         goals_load_failed: '目標載入失敗。',
+        h1_discord: 'Discord 伺服器',
+        discord_submit_toggle: '發布你的伺服器',
+        discord_search_placeholder: '搜尋伺服器或標籤…',
+        discord_empty: '還沒有任何伺服器 — 當第一個發布的人吧！',
+        discord_coverage: '共 {n} 個社群 Discord 伺服器',
+        discord_failed: '載入失敗。',
+        discord_join: '加入',
+        discord_submitted_by: '發布者：{name}',
+        discord_remove: '下架',
+        discord_login_prompt: '請先登入 osu! 帳號才能發布伺服器。',
+        discord_name_placeholder: '伺服器名稱',
+        discord_invite_placeholder: 'https://discord.gg/...',
+        discord_icon_placeholder: '圖示圖片網址（選填）',
+        discord_desc_placeholder: '簡短描述（選填）',
+        discord_tags_placeholder: '標籤，用逗號分隔（選填）',
+        discord_submit: '發布',
+        discord_missing_name: '請輸入伺服器名稱。',
+        discord_missing_invite: '請輸入邀請連結。',
+        discord_submitting: '發布中…',
+        discord_submit_success: '發布成功！',
+        discord_submit_failed: '發布失敗，請確認邀請連結格式是否正確（discord.gg 或 discord.com/invite）。',
         stat_joined: '註冊於 {date}',
         stat_playtime: '遊玩時長 {h} 小時',
         grade_tally: '評級累計',
@@ -298,7 +319,7 @@ const LANG_STRINGS = {
         failed_skins: '皮膚列表載入失敗。',
     },
     en: {
-        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_top_plays: 'Top Plays', nav_farm_trending: 'Trending Farm', nav_goals: 'Goals',
+        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_top_plays: 'Top Plays', nav_farm_trending: 'Trending Farm', nav_goals: 'Goals', nav_discord: 'Discord',
         loading: 'Loading…',
         title_rankings: 'Catch Tracker — Global osu!catch Rankings',
         title_feed: 'Catch Tracker — Live Feed',
@@ -518,6 +539,27 @@ const LANG_STRINGS = {
         goals_invalid_target: 'Enter a valid pp number.',
         goals_save_failed: 'Failed to save, please try again.',
         goals_load_failed: 'Failed to load goals.',
+        h1_discord: 'Discord Servers',
+        discord_submit_toggle: 'Submit your server',
+        discord_search_placeholder: 'Search servers or tags…',
+        discord_empty: 'No servers yet — be the first to submit one!',
+        discord_coverage: '{n} community Discord servers',
+        discord_failed: 'Failed to load.',
+        discord_join: 'Join',
+        discord_submitted_by: 'Submitted by {name}',
+        discord_remove: 'Remove',
+        discord_login_prompt: 'Login with your osu! account to submit a server.',
+        discord_name_placeholder: 'Server name',
+        discord_invite_placeholder: 'https://discord.gg/...',
+        discord_icon_placeholder: 'Icon image URL (optional)',
+        discord_desc_placeholder: 'Short description (optional)',
+        discord_tags_placeholder: 'Tags, comma-separated (optional)',
+        discord_submit: 'Submit',
+        discord_missing_name: 'Enter a server name.',
+        discord_missing_invite: 'Enter an invite link.',
+        discord_submitting: 'Submitting…',
+        discord_submit_success: 'Submitted!',
+        discord_submit_failed: 'Failed to submit — check the invite link is a discord.gg or discord.com/invite URL.',
         stat_joined: 'Joined {date}',
         stat_playtime: '{h}h play time',
         grade_tally: 'Grade Tally',
@@ -808,6 +850,19 @@ function playerLink(userId, username) {
 
 function mapLink(beatmapId, label) {
     return `<a class="map-link" href="map.html?id=${encodeURIComponent(beatmapId)}">${escapeHtml(label)}</a>`;
+}
+
+// A table's map-column <td> with the beatmap's own cover art fading in as
+// a banner behind the cell content (see .map-banner-cell in style.css —
+// same treatment Farm Helper's recommendation table already used, per
+// request extended to the live feed/top plays/trending farm tables).
+// innerHtml is usually a mapLink() call, wrapped here rather than by each
+// caller since the background/gradient/padding all live on this one
+// shared markup shape.
+function mapBannerCell(beatmapsetId, innerHtml) {
+    const cover = coverArtUrlCard(beatmapsetId);
+    const style = cover ? ` style="background-image:url('${cover.replace(/'/g, '%27')}')"` : '';
+    return `<td class="map-banner-cell"${style}><div class="map-banner-cell-inner">${innerHtml}</div></td>`;
 }
 
 // Shared "看回放" entry point for any score row (player best/recent plays,
