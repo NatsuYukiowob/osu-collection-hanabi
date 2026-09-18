@@ -49,9 +49,17 @@ exports.handler = async (event) => {
             );
         }
         items = [...items].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        // No Cache-Control: this list is re-fetched right after the
+        // viewer's own submit/remove (render-discord.js), and the browser
+        // would otherwise serve its own cached copy of the pre-mutation
+        // response for up to max-age seconds — confirmed live this
+        // session (server-side state was correct immediately, the UI
+        // just kept showing the stale cached list). skins-list.js has the
+        // exact same submit-then-reload pattern and the same latent bug;
+        // see its own fix, done alongside this one.
         return {
             statusCode: 200,
-            headers: { ...headers, 'Cache-Control': 'public, max-age=60' },
+            headers,
             body: JSON.stringify({ items, total: items.length }),
         };
     }

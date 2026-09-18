@@ -49,9 +49,14 @@ exports.handler = async (event) => {
         const total = items.length;
         const pageItems = items.slice(page * pageSize, (page + 1) * pageSize);
 
+        // No Cache-Control: render-skins.js reloads this list right after
+        // a successful upload, and a cached response here made the
+        // viewer's own new skin invisible to them until the cache expired
+        // — a real, pre-existing bug caught while fixing the identical
+        // pattern in communities.js (see that file's own note).
         return {
             statusCode: 200,
-            headers: { ...headers, 'Cache-Control': 'public, max-age=60' },
+            headers,
             body: JSON.stringify({ items: pageItems, total, page, pageSize }),
         };
     } catch (err) {
