@@ -2204,10 +2204,17 @@ async function run() {
                 // since it drives everything through the postMessage bridge
                 // below instead of this page's own (now-hidden) controls.
                 if (embed) {
+                    // Same live-interpolated-score formula as the leaderboard
+                    // panel's own "you" row above (realTotalScore scaled by
+                    // how far through the map's catchable objects this tick
+                    // is) — the actual SCORE number, not yet covered by any
+                    // of the accuracy/combo/pp stats already in the panel.
+                    const liveScore = (realTotalScore && finalCatchableCount > 0)
+                        ? Math.round(realTotalScore * stats.caught / finalCatchableCount) : 0;
                     window.parent.postMessage({
                         ctCompare: true, type: 'tick', playing,
                         frac: maxTime > minTime ? (mapTime - minTime) / (maxTime - minTime) : 0,
-                        stats: { accuracy: stats.accuracy, combo: stats.combo, maxCombo: stats.maxCombo, caught: stats.caught, miss: stats.miss, hp: stats.hp },
+                        stats: { accuracy: stats.accuracy, combo: stats.combo, maxCombo: stats.maxCombo, caught: stats.caught, miss: stats.miss, hp: stats.hp, score: liveScore },
                         pp: livePp ? livePp.ppFor(stats) : null,
                     }, location.origin);
                 }

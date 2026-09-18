@@ -71,6 +71,7 @@ function renderStatsPanel(stateA, stateB) {
     const num = v => v != null ? String(v) : '—';
     const pp = v => v != null ? fmtPP(v) : '—';
     const hp = v => v != null ? `${Math.round(v)}%` : '—';
+    const score = v => v != null ? v.toLocaleString() : '—';
     // "已判定" mirrors mania's own row of the same name (see the comparison
     // panel this whole layout is modeled on) — the closest catch has to a
     // timing-judgement breakdown is purely positional (caught vs missed),
@@ -78,6 +79,7 @@ function renderStatsPanel(stateA, stateB) {
     // total" rather than a MAX/300/...-style bucket count.
     const judged = (s, total) => (s && total) ? `${s.caught + s.miss}/${total}` : '—';
     panel.innerHTML = [
+        statsRowHtml('replay_stat_score', statsA && statsA.score, statsB && statsB.score, score),
         statsRowHtml('replay_stat_accuracy', statsA && statsA.accuracy, statsB && statsB.accuracy, pct),
         statsRowHtml('replay_stat_combo', statsA && statsA.combo, statsB && statsB.combo, num),
         statsRowHtml('replay_stat_maxcombo', statsA && statsA.maxCombo, statsB && statsB.maxCombo, num),
