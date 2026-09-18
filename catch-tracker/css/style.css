@@ -1974,16 +1974,47 @@ footer.site-footer {
 
 .compare-vs-bar {
     display: flex; align-items: center; gap: 16px; background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 12px 16px; margin-bottom: 14px;
+    border-radius: var(--radius) var(--radius) 0 0; padding: 12px 16px; margin-bottom: 0;
 }
 .compare-side-header { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; }
 .compare-side-header--b { flex-direction: row-reverse; text-align: right; }
 .compare-side-identity { min-width: 0; }
 .compare-side-name { font-weight: 700; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .compare-side-when { font-size: 0.74rem; color: var(--text-faint); }
-.compare-vs-center { flex: 0 0 auto; text-align: center; padding: 0 10px; max-width: 34%; }
-.compare-vs-map { font-weight: 700; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.compare-vs-version { font-size: 0.76rem; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compare-vs-center { flex: 0 0 auto; text-align: center; padding: 0 14px; max-width: 42%; }
+.compare-vs-map { font-weight: 800; font-size: 1.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compare-vs-version { font-size: 0.95rem; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+/* Tug-of-war score bar, directly under the map name — modeled on a real
+   osu! tournament broadcast overlay (user-supplied reference) rather than
+   mania-tracker's own canvas version of this (couldn't pin down its exact
+   mechanics live — fully minified bundle, no surviving identifiers, and
+   pixel-watching it gave inconsistent readings). Each side's own colour
+   fills toward the OTHER side in proportion to its live share of the
+   combined score (updateLeadBar()) — an even split sits at 50/50, and it
+   visibly pulls toward whoever's ahead as the gap grows, same idea as a
+   real tug-of-war rope marker. */
+.compare-lead-bar {
+    display: flex; height: 8px; overflow: hidden;
+    background: var(--bg-card); border: 1px solid var(--border); border-top: none; border-bottom: none;
+}
+.compare-lead-bar-a, .compare-lead-bar-b { transition: width 300ms ease; }
+.compare-lead-bar-a { background: var(--accent); border-right: 2px solid var(--bg); }
+.compare-lead-bar-b { background: #38bdf8; }
+
+/* The live score numbers this whole tug-of-war display is really about —
+   directly under the bar (not buried in the side stats panel anymore),
+   left value under the A-coloured end, right value under the B-coloured
+   end, reusing the exact same leader/trailer HTML scoreLeadTrailParts()
+   builds for either spot. */
+.compare-lead-scores {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    background: var(--bg-card); border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius); padding: 8px 16px 10px; margin-bottom: 14px;
+}
+.compare-lead-score-a, .compare-lead-score-b { font-family: var(--font-display); }
+.compare-lead-score-a { color: var(--accent); }
+.compare-lead-score-b { color: #38bdf8; }
 
 .compare-panes { display: flex; align-items: flex-start; justify-content: center; gap: 12px; }
 /* flex:1 1 0 alone would let each pane grow to fill an unbounded share of
@@ -2015,25 +2046,18 @@ footer.site-footer {
 .compare-stat-b { text-align: left; }
 .compare-stat-label { font-size: 0.66rem; color: var(--text-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 
-/* The actual score number is the headline stat, not just one more row —
-   mania-tracker.com's own comparison panel (live-measured for reference,
-   mid-playback) sets it apart with its own border AND an asymmetric
-   leader/trailer style (see scoreRowHtml() in render-replay-compare.js):
-   whoever's ahead gets the big bold zero-padded counter, whoever's behind
-   gets a smaller dim comma-formatted number plus a "-N" gap indicator. */
-.compare-stat-row--score { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
-.compare-stat-row--score .compare-stat-label { font-size: 0.7rem; }
-.compare-score-lead { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
-.compare-score-trail { font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-faint); }
-.compare-score-delta { font-size: 0.58rem; font-weight: 600; color: var(--danger); margin: 0 3px; white-space: nowrap; }
-/* Grid items don't shrink below their content's intrinsic width by
-   default — a big trailing number + delta together could otherwise force
-   this whole row (and the fixed-width card around it) wider than
-   intended instead of just eliding. min-width:0 lets the track actually
-   respect the 1fr split; the ellipsis is a last-resort safety net for
-   whatever rare extreme-gap case still doesn't fit even at the sizes above. */
-.compare-stat-row--score .compare-stat-a,
-.compare-stat-row--score .compare-stat-b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The score's own leader/trailer text (compare-lead-score-a/b below) — an
+   asymmetric style, not a bigger/bolder version of the same thing on both
+   sides: whoever's ahead gets a big bold zero-padded tournament-broadcast
+   counter at full opacity, whoever's behind gets a smaller comma-grouped
+   number faded via opacity. Colour itself stays tied to SIDE (A=accent,
+   B=blue, matching the lead-bar's own two colours below), not to who's
+   leading — only size/weight/opacity change dynamically, so a real user
+   report ("兩個顏色黏在一起分不清楚") about a same-hued delta number
+   blending into the trailing score can't recur now that there's no delta
+   number at all (dropped per direct feedback — plain score either way). */
+.compare-score-lead { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; opacity: 1; }
+.compare-score-trail { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; opacity: 0.5; }
 
 /* Reuses .replay-top-bar/.replay-top-group/etc verbatim (single-replay
    page's own music/effects/offset/dim row) — this page just supplies the

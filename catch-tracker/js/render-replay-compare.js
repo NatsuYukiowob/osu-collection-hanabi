@@ -63,36 +63,44 @@ function statsRowHtml(labelKey, a, b, fmt, extraClass) {
         </div>`;
 }
 
-// Live-verified against mania-tracker.com's own comparison panel (what
-// this whole thing is modeled on) mid-playback — NOT just a bigger/bolder
-// version of the other rows, and NOT symmetric: whichever side is
-// currently AHEAD gets a bold, accent-coloured, zero-padded tournament-
-// broadcast-style counter ("00196776"); the side behind gets a plain,
-// dim, comma-grouped number ("196,622") with a small "-N" gap indicator
-// next to it (outer side, away from the centre label) showing how far
-// behind. Re-evaluated every tick as the scores change, so the styling
-// can flip sides mid-playback. 9-digit padding (not mania's 8) comfortably
-// fits catch's own legacy scoring range — a real top HDHR play easily
-// reaches ~280,000,000+, confirmed live off this exact beatmap's own
-// leaderboard.
-function scoreRowHtml(scoreA, scoreB) {
-    if (scoreA == null && scoreB == null) {
-        return statsRowHtml('replay_stat_score', null, null, () => '—', 'compare-stat-row--score');
-    }
+// Live-verified against mania-tracker.com's own comparison panel (an
+// earlier version of this lived there) mid-playback — NOT just a bigger/
+// bolder version of the other stat rows, and NOT symmetric: whichever
+// side is currently AHEAD gets a bold, accent-coloured, zero-padded
+// tournament-broadcast-style counter ("00196776"); the side behind gets a
+// plain, dim, comma-grouped number ("196,622") with a small "-N" gap
+// indicator next to it (outer side) showing how far behind. Re-evaluated
+// every tick as the scores change, so the styling can flip sides mid-
+// playback. 9-digit padding (not mania's 8) comfortably fits catch's own
+// legacy scoring range — a real top HDHR play easily reaches
+// ~280,000,000+, confirmed live off this exact beatmap's own leaderboard.
+// Now lives directly under the tug-of-war lead bar (see updateLeadBar())
+// instead of the side stats panel, matching the real osu! tournament
+// broadcast overlay this whole score display is modeled on — the panel
+// only carries accuracy/combo/etc now, not the headline score itself.
+// No "-N" gap indicator (an earlier version had one) — real user feedback
+// after seeing it live: it visually ran together with the trailing number
+// (both landed in a similar reddish hue with nothing separating them) and
+// wasn't wanted anyway, just the plain score on both sides either way.
+function scoreLeadTrailParts(scoreA, scoreB) {
     const a = scoreA || 0, b = scoreB || 0;
     const aLeads = a > b, bLeads = b > a;
-    const delta = Math.abs(a - b).toLocaleString();
     const lead = v => `<span class="compare-score-lead">${String(v).padStart(9, '0')}</span>`;
     const trail = v => `<span class="compare-score-trail">${v.toLocaleString()}</span>`;
-    const gap = `<span class="compare-score-delta">-${delta}</span>`;
-    const aHtml = aLeads ? lead(a) : `${bLeads ? gap : ''}${trail(a)}`;
-    const bHtml = bLeads ? lead(b) : `${trail(b)}${aLeads ? gap : ''}`;
-    return `
-        <div class="compare-stat-row compare-stat-row--score">
-            <strong class="compare-stat-a">${aHtml}</strong>
-            <span class="compare-stat-label">${escapeHtml(t('replay_stat_score'))}</span>
-            <strong class="compare-stat-b">${bHtml}</strong>
-        </div>`;
+    return {
+        aHtml: aLeads ? lead(a) : trail(a),
+        bHtml: bLeads ? lead(b) : trail(b),
+    };
+}
+
+function updateLeadScores(scoreA, scoreB) {
+    const elA = document.getElementById('compare-lead-score-a');
+    const elB = document.getElementById('compare-lead-score-b');
+    if (!elA || !elB) return;
+    if (scoreA == null && scoreB == null) { elA.innerHTML = '—'; elB.innerHTML = '—'; return; }
+    const { aHtml, bHtml } = scoreLeadTrailParts(scoreA, scoreB);
+    elA.innerHTML = aHtml;
+    elB.innerHTML = bHtml;
 }
 
 function renderStatsPanel(stateA, stateB) {
@@ -110,7 +118,6 @@ function renderStatsPanel(stateA, stateB) {
     // total" rather than a MAX/300/...-style bucket count.
     const judged = (s, total) => (s && total) ? `${s.caught + s.miss}/${total}` : '—';
     panel.innerHTML = [
-        scoreRowHtml(statsA && statsA.score, statsB && statsB.score),
         statsRowHtml('replay_stat_accuracy', statsA && statsA.accuracy, statsB && statsB.accuracy, pct),
         statsRowHtml('replay_stat_combo', statsA && statsA.combo, statsB && statsB.combo, num),
         statsRowHtml('replay_stat_maxcombo', statsA && statsA.maxCombo, statsB && statsB.maxCombo, num),
@@ -264,6 +271,25 @@ function updateTransportProgress() {
     timeEl.textContent = `${fmtCompareClock((primary.frac || 0) * primary.durationMs)} / ${fmtCompareClock(primary.durationMs)}`;
 }
 
+// Real osu! tournament broadcast overlay reference (user-supplied
+// screenshot) rather than mania-tracker's own canvas bar (couldn't
+// pin down its exact mechanics — its bundle is fully minified with no
+// surviving identifiers to check against, and live pixel-watching it
+// gave contradictory readings across two sessions): a split bar directly
+// under the map name, each side's own colour filling toward the other in
+// proportion to its live share of the combined score — a real tug-of-war,
+// not just a static 50/50 divider with colour on top.
+function updateLeadBar(scoreA, scoreB) {
+    const barA = document.getElementById('compare-lead-bar-a');
+    const barB = document.getElementById('compare-lead-bar-b');
+    if (!barA || !barB) return;
+    const a = scoreA || 0, b = scoreB || 0;
+    const total = a + b;
+    const pctA = total > 0 ? (a / total) * 100 : 50;
+    barA.style.width = `${pctA}%`;
+    barB.style.width = `${100 - pctA}%`;
+}
+
 function updatePlayButton() {
     const btn = document.getElementById('compare-play-btn');
     if (btn) btn.textContent = _playing ? '⏸' : '▶';
@@ -295,6 +321,8 @@ function onCompareMessage(e) {
         state.stats = e.data.stats;
         state.pp = e.data.pp;
         renderStatsPanel(_stateA, _stateB);
+        updateLeadBar(_stateA.stats && _stateA.stats.score, _stateB.stats && _stateB.stats.score);
+        updateLeadScores(_stateA.stats && _stateA.stats.score, _stateB.stats && _stateB.stats.score);
         updateTransportProgress();
     }
 }
@@ -347,6 +375,14 @@ function renderCompareLayout(entryA, entryB) {
                     <div class="compare-vs-version">[${escapeHtml(entryA.version || '')}]</div>
                 </div>
                 ${sideHeaderHtml(entryB, 'b')}
+            </div>
+            <div class="compare-lead-bar" id="compare-lead-bar">
+                <div class="compare-lead-bar-a" id="compare-lead-bar-a" style="width:50%"></div>
+                <div class="compare-lead-bar-b" id="compare-lead-bar-b" style="width:50%"></div>
+            </div>
+            <div class="compare-lead-scores">
+                <strong class="compare-lead-score-a" id="compare-lead-score-a">—</strong>
+                <strong class="compare-lead-score-b" id="compare-lead-score-b">—</strong>
             </div>
             <div class="compare-panes">
                 <div class="compare-pane"><iframe id="compare-iframe-a" class="compare-iframe" src="${iframeSrcFor(entryA, 'a')}"></iframe></div>
