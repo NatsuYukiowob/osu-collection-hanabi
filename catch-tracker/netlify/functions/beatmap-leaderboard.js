@@ -70,6 +70,7 @@ exports.handler = async (event) => {
             max_combo: s.max_combo ?? 0,
             accuracy: s.accuracy ?? null,
             rank: s.rank || null,
+            mods: Array.isArray(s.mods) ? s.mods.map(m => (typeof m === 'string' ? m : m.acronym)) : [],
         }));
 
         const data = { beatmap_id: beatmapId, scores };

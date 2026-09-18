@@ -617,6 +617,7 @@ html.ct-custom-cursor, html.ct-custom-cursor * {
 .compare-go-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 button.compare-leaderboard-row { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.compare-leaderboard-row--disabled { opacity: 0.4; cursor: not-allowed; }
 .compare-lb-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 @media (max-width: 700px) { .compare-picker-slots { flex-direction: column; } .compare-picker-vs { align-self: center; } }
 

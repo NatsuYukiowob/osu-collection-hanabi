@@ -18,6 +18,20 @@ function errorHtml(msg) {
     return `<p class="coverage-note">${escapeHtml(msg)}</p>`;
 }
 
+// Mirrors the same helper in render-replays.js (a separate module, so
+// duplicated rather than shared for one small function) — see its own
+// comment for why this only checks the AR/clock-rate-affecting mods
+// (HR/EZ, DT-or-NC/HT) rather than the full mod set.
+function relevantModsKey(mods) {
+    const set = new Set((mods || []).map(m => m.toUpperCase()));
+    const ar = set.has('HR') ? 'HR' : set.has('EZ') ? 'EZ' : '';
+    const clock = (set.has('DT') || set.has('NC')) ? 'DT' : set.has('HT') ? 'HT' : '';
+    return `${ar}|${clock}`;
+}
+function sameFallSpeedMods(a, b) {
+    return relevantModsKey(a) === relevantModsKey(b);
+}
+
 function loginGateHtml() {
     return `
         <div class="card" style="max-width:480px;margin:60px auto;text-align:center;padding:32px">
@@ -547,6 +561,13 @@ async function run() {
     }
     if (String(entryA.beatmap_id) !== String(entryB.beatmap_id)) {
         main.innerHTML = errorHtml(t('replays_compare_mismatch'));
+        return;
+    }
+    // Guards a direct/shared URL the same way the picker on replays.html
+    // already guards its own two slots — different AR/clock-rate mods
+    // change how fast objects visibly fall on each side.
+    if (!sameFallSpeedMods(entryA.mods, entryB.mods)) {
+        main.innerHTML = errorHtml(t('replays_compare_mods_mismatch'));
         return;
     }
 

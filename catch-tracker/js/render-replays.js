@@ -210,6 +210,25 @@ function wireModeTabs() {
 let _compareSlots = { a: null, b: null };
 let _activeCompareSlot = 'a';
 
+// Only mods that change how fast objects visibly fall need to match
+// between the two sides — HD/FL/SD/etc are irrelevant to that, so this is
+// deliberately NOT a full mod-set-equality check (confirmed with the
+// user: HD doesn't need to match HD). Two axes affect fall speed: AR
+// itself (HR ×1.4, EZ ×0.5 — mutually exclusive in real osu!) and clock
+// rate (DT/NC — same rate, NC is just DT with different audio — vs HT;
+// also mutually exclusive with each other). Matching both axes' present-
+// or-absent mod is what actually keeps the two sides' fall animation
+// speed consistent.
+function relevantModsKey(mods) {
+    const set = new Set((mods || []).map(m => m.toUpperCase()));
+    const ar = set.has('HR') ? 'HR' : set.has('EZ') ? 'EZ' : '';
+    const clock = (set.has('DT') || set.has('NC')) ? 'DT' : set.has('HT') ? 'HT' : '';
+    return `${ar}|${clock}`;
+}
+function sameFallSpeedMods(a, b) {
+    return relevantModsKey(a) === relevantModsKey(b);
+}
+
 function compareSlotFilledHtml(entry, slot) {
     const cover = entry.beatmapset_id ? coverArtUrlCard(entry.beatmapset_id) : '';
     return `
@@ -254,14 +273,24 @@ async function loadCompareLeaderboard(beatmapId) {
     try {
         const data = await apiGet('beatmap-leaderboard', { beatmap_id: beatmapId });
         const scores = data.scores || [];
-        list.innerHTML = scores.map(s => `
-            <button type="button" class="replays-score-row compare-leaderboard-row" data-score-id="${s.score_id}">
+        // Slot A's mods are locked in by the time this list is shown (it's
+        // loaded right after slot A fills) — grey out any row that
+        // couldn't be picked anyway per the same-mods rule enforced in
+        // setCompareSlot(), instead of only surfacing that as an error
+        // after a wasted click.
+        const requiredMods = _compareSlots.a && _compareSlots.a.mods;
+        list.innerHTML = scores.map(s => {
+            const mismatched = requiredMods && !sameFallSpeedMods(requiredMods, s.mods);
+            return `
+            <button type="button" class="replays-score-row compare-leaderboard-row${mismatched ? ' compare-leaderboard-row--disabled' : ''}" data-score-id="${s.score_id}"${mismatched ? ' disabled title="' + escapeHtml(t('replays_compare_mods_mismatch')) + '"' : ''}>
                 ${avatarWithFlagHtml(s.avatar_url, null)}
                 <span class="compare-lb-name">${escapeHtml(s.username || '')}</span>
                 ${gradeBadge(s.rank)}
+                ${modsTag(s.mods)}
                 <span>${fmtAccuracy(s.accuracy)}</span>
                 <span>${(s.total_score || 0).toLocaleString()}</span>
-            </button>`).join('');
+            </button>`;
+        }).join('');
         section.hidden = !scores.length;
     } catch {
         section.hidden = true;
@@ -286,6 +315,15 @@ async function setCompareSlot(slot, entry) {
     const other = slot === 'a' ? _compareSlots.b : _compareSlots.a;
     if (other && String(other.beatmap_id) !== String(entry.beatmap_id)) {
         showCompareError(t('replays_compare_mismatch'));
+        return false;
+    }
+    // Different AR/clock-rate mods (HR/EZ, DT-or-NC/HT) change how fast
+    // objects visibly fall on each side — not a sync bug, but confusing
+    // enough live-reported ("為什麼一邊比較快") that the picker now
+    // requires those specific mods to match instead of just explaining it.
+    // Other mods (HD, FL, SD, ...) are irrelevant here and don't need to.
+    if (other && !sameFallSpeedMods(other.mods, entry.mods)) {
+        showCompareError(t('replays_compare_mods_mismatch'));
         return false;
     }
     showCompareError(null);
