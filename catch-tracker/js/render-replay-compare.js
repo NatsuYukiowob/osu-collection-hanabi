@@ -143,6 +143,16 @@ function renderStatsPanel(stateA, stateB) {
    per-session nudge there too), so it isn't part of this saved object. */
 const CT_SETTINGS_KEY = 'ct_replay_settings';
 const CT_DEFAULT_SETTINGS = { blur: 26, brightness: 50, popups: true, bananaRain: false, volume: 70, effectsVolume: 70 };
+// Same list as render-replay.js's own DEFAULT_SKINS (id + i18n key must
+// match exactly — 'id' is sent straight through to that file's own
+// applyDefaultSkin(id, persist) on each side, see the 'skinDefault'
+// postMessage case). Duplicated rather than imported for the same reason
+// the settings constants above are — that file's a separate module script.
+const COMPARE_DEFAULT_SKINS = [
+    { id: 'vanilla', nameKey: 'replay_skin_default_vanilla' },
+    { id: 'bubble', nameKey: 'replay_skin_default_bubble' },
+    { id: 'squares', nameKey: 'replay_skin_default_squares' },
+];
 
 function loadCompareSettings() {
     try {
@@ -179,6 +189,16 @@ function compareSettingsBarHtml(settings) {
                 <span class="replay-top-label">🍑 ${escapeHtml(t('replay_settings_dim'))}</span>
                 <input type="range" id="compare-set-dim" class="replay-top-slider" min="0" max="90" step="5" value="${dim}">
                 <span class="replay-top-value" id="compare-dim-value">${dim}%</span>
+            </div>
+            <div class="replay-top-group">
+                <select id="compare-default-skin" class="replay-skin-select" title="${escapeHtml(t('replay_default_skin'))}">
+                    <option value="" hidden>${escapeHtml(t('replay_skin_custom_option'))}</option>
+                    ${COMPARE_DEFAULT_SKINS.map(s => `<option value="${s.id}">${escapeHtml(t(s.nameKey))}</option>`).join('')}
+                </select>
+                <label class="replay-icon-btn" for="compare-skin-input">${escapeHtml(t('replay_use_skin'))}</label>
+                <input type="file" id="compare-skin-input" accept=".osk" hidden>
+                <button type="button" id="compare-skin-clear" class="replay-icon-btn" hidden>${escapeHtml(t('replay_clear_skin'))}</button>
+                <span id="compare-skin-status" class="replay-skin-status"></span>
             </div>
         </div>`;
 }
@@ -224,6 +244,62 @@ function wireCompareSettings(settings) {
         postToBoth({ type: 'dim', value: dim });
         saveCompareSettings(settings);
     });
+
+    wireCompareSkin();
+}
+
+// Same skin on BOTH sides (not a per-side picker) — the point of picking a
+// skin while comparing two plays is watching them with your own preferred
+// look, not giving each side a different one. Reuses render-replay.js's
+// own applyDefaultSkin()/skin-upload handling on each side via postMessage
+// (see its 'skinDefault'/'skinCustom'/'skinClear' cases) rather than
+// duplicating any decode logic here — this is purely the picker UI.
+function wireCompareSkin() {
+    const select = document.getElementById('compare-default-skin');
+    const input = document.getElementById('compare-skin-input');
+    const clearBtn = document.getElementById('compare-skin-clear');
+    const status = document.getElementById('compare-skin-status');
+
+    // Reflect the viewer's already-saved default-skin preference (same
+    // localStorage key render-replay.js itself reads on load) as this
+    // control's own starting value, so it doesn't silently disagree with
+    // what's actually showing on load.
+    try {
+        const saved = localStorage.getItem('ct_default_skin');
+        if (saved && COMPARE_DEFAULT_SKINS.some(s => s.id === saved)) select.value = saved;
+    } catch { /* per-viewer convenience only */ }
+
+    select.addEventListener('change', () => {
+        const msg = { type: 'skinDefault', id: select.value };
+        _liveSkinMsg = msg;
+        postToBoth(msg);
+        clearBtn.hidden = true;
+        status.textContent = '';
+    });
+    input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        status.textContent = t('replay_skin_loading');
+        try {
+            const bytes = await file.arrayBuffer();
+            const msg = { type: 'skinCustom', bytes, name: file.name };
+            _liveSkinMsg = msg;
+            postToBoth(msg);
+            select.value = '';
+            clearBtn.hidden = false;
+        } catch {
+            status.textContent = t('replay_skin_invalid');
+            return;
+        }
+        status.textContent = '';
+    });
+    clearBtn.addEventListener('click', () => {
+        _liveSkinMsg = { type: 'skinClear' };
+        postToBoth(_liveSkinMsg);
+        input.value = '';
+        status.textContent = '';
+        clearBtn.hidden = true;
+    });
 }
 
 /* ---------- transport + postMessage bridge ---------- */
@@ -240,6 +316,11 @@ let _scrubDragging = false;
 // same reasoning as the play-catch-up in onCompareMessage's 'ready' case.
 let _liveSettings = null;
 let _offsetMs = 0;
+// Whatever skin message was sent LAST (built-in id or a custom upload's
+// bytes) — replayed on a late 'ready' the same way settings/offset are,
+// so a side that finishes loading after the viewer already picked a skin
+// doesn't stay stuck on its own default.
+let _liveSkinMsg = null;
 
 function postToBoth(msg) {
     const payload = { ctCompare: true, ...msg };
@@ -316,6 +397,7 @@ function onCompareMessage(e) {
             e.source.postMessage({ ctCompare: true, type: 'dim', value: 100 - _liveSettings.brightness }, location.origin);
         }
         if (_offsetMs) e.source.postMessage({ ctCompare: true, type: 'offset', value: _offsetMs }, location.origin);
+        if (_liveSkinMsg) e.source.postMessage({ ctCompare: true, ..._liveSkinMsg }, location.origin);
     } else if (e.data.type === 'tick') {
         state.frac = e.data.frac;
         state.stats = e.data.stats;

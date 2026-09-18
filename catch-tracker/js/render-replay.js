@@ -2515,6 +2515,25 @@ async function run() {
                 // independently on EVERY side — not tied to embedAudio.
                 else if (msg.type === 'effectsVolume') { player.effectsVolume = msg.value / 100; }
                 else if (msg.type === 'dim') { applyBackgroundSettings(scrim, { blur: settings.blur, brightness: 100 - msg.value }); }
+                // Skin controls: reuse the exact same handlers the (now
+                // hidden) skin picker UI already calls, rather than
+                // duplicating any decode/apply logic here. A built-in pick
+                // just calls the same function the dropdown's own change
+                // listener calls; a custom upload replays the same trick
+                // used to feed a synthetic skin into that file input
+                // during dev/testing — wrap the received bytes in a File,
+                // hand it to the input via DataTransfer, fire 'change'.
+                else if (msg.type === 'skinDefault') { defaultSkinSelect.value = msg.id; applyDefaultSkin(msg.id, true); }
+                else if (msg.type === 'skinCustom') {
+                    try {
+                        const file = new File([msg.bytes], msg.name || 'skin.osk');
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        skinInput.files = dt.files;
+                        skinInput.dispatchEvent(new Event('change'));
+                    } catch { /* ignore */ }
+                }
+                else if (msg.type === 'skinClear') { skinClearBtn.click(); }
             });
             window.parent.postMessage({
                 ctCompare: true, type: 'ready',
