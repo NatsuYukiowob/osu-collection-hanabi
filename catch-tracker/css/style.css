@@ -1997,8 +1997,16 @@ footer.site-footer {
     aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #05050c;
 }
 .compare-iframe { width: 100%; height: 100%; border: none; display: block; }
+/* 190px (this column's earlier width, from the pane-enlargement pass)
+   measured too narrow once the score row got its own prominent lead/trail
+   treatment below — a bare 9-digit zero-padded lead number alone needs
+   ~112px at 1.3rem, more than the ~64px a fair 1fr half-share of 190px
+   works out to (verified live: forcing that width, both a 9-digit lead
+   AND a comma-grouped trail+delta combo actually overflowed their own
+   grid track). 260px is the narrowest width that measured clean at the
+   lead font-size below. */
 .compare-stats {
-    flex: 0 0 190px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 10px;
+    flex: 0 0 260px; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 10px;
     padding: 16px 10px;
 }
 .compare-stat-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; font-size: 0.86rem; }
@@ -2008,14 +2016,24 @@ footer.site-footer {
 .compare-stat-label { font-size: 0.66rem; color: var(--text-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 
 /* The actual score number is the headline stat, not just one more row —
-   mania-tracker.com's own comparison panel (live-measured for reference)
-   sets it noticeably larger/bolder than everything below it, with its own
-   border to visually separate it from the rest. Matched here rather than
-   just adding it at the same size as accuracy/combo/etc. */
+   mania-tracker.com's own comparison panel (live-measured for reference,
+   mid-playback) sets it apart with its own border AND an asymmetric
+   leader/trailer style (see scoreRowHtml() in render-replay-compare.js):
+   whoever's ahead gets the big bold zero-padded counter, whoever's behind
+   gets a smaller dim comma-formatted number plus a "-N" gap indicator. */
 .compare-stat-row--score { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
-.compare-stat-row--score .compare-stat-a,
-.compare-stat-row--score .compare-stat-b { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .compare-stat-row--score .compare-stat-label { font-size: 0.7rem; }
+.compare-score-lead { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+.compare-score-trail { font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-faint); }
+.compare-score-delta { font-size: 0.58rem; font-weight: 600; color: var(--danger); margin: 0 3px; white-space: nowrap; }
+/* Grid items don't shrink below their content's intrinsic width by
+   default — a big trailing number + delta together could otherwise force
+   this whole row (and the fixed-width card around it) wider than
+   intended instead of just eliding. min-width:0 lets the track actually
+   respect the 1fr split; the ellipsis is a last-resort safety net for
+   whatever rare extreme-gap case still doesn't fit even at the sizes above. */
+.compare-stat-row--score .compare-stat-a,
+.compare-stat-row--score .compare-stat-b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Reuses .replay-top-bar/.replay-top-group/etc verbatim (single-replay
    page's own music/effects/offset/dim row) — this page just supplies the

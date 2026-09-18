@@ -63,6 +63,38 @@ function statsRowHtml(labelKey, a, b, fmt, extraClass) {
         </div>`;
 }
 
+// Live-verified against mania-tracker.com's own comparison panel (what
+// this whole thing is modeled on) mid-playback — NOT just a bigger/bolder
+// version of the other rows, and NOT symmetric: whichever side is
+// currently AHEAD gets a bold, accent-coloured, zero-padded tournament-
+// broadcast-style counter ("00196776"); the side behind gets a plain,
+// dim, comma-grouped number ("196,622") with a small "-N" gap indicator
+// next to it (outer side, away from the centre label) showing how far
+// behind. Re-evaluated every tick as the scores change, so the styling
+// can flip sides mid-playback. 9-digit padding (not mania's 8) comfortably
+// fits catch's own legacy scoring range — a real top HDHR play easily
+// reaches ~280,000,000+, confirmed live off this exact beatmap's own
+// leaderboard.
+function scoreRowHtml(scoreA, scoreB) {
+    if (scoreA == null && scoreB == null) {
+        return statsRowHtml('replay_stat_score', null, null, () => '—', 'compare-stat-row--score');
+    }
+    const a = scoreA || 0, b = scoreB || 0;
+    const aLeads = a > b, bLeads = b > a;
+    const delta = Math.abs(a - b).toLocaleString();
+    const lead = v => `<span class="compare-score-lead">${String(v).padStart(9, '0')}</span>`;
+    const trail = v => `<span class="compare-score-trail">${v.toLocaleString()}</span>`;
+    const gap = `<span class="compare-score-delta">-${delta}</span>`;
+    const aHtml = aLeads ? lead(a) : `${bLeads ? gap : ''}${trail(a)}`;
+    const bHtml = bLeads ? lead(b) : `${trail(b)}${aLeads ? gap : ''}`;
+    return `
+        <div class="compare-stat-row compare-stat-row--score">
+            <strong class="compare-stat-a">${aHtml}</strong>
+            <span class="compare-stat-label">${escapeHtml(t('replay_stat_score'))}</span>
+            <strong class="compare-stat-b">${bHtml}</strong>
+        </div>`;
+}
+
 function renderStatsPanel(stateA, stateB) {
     const panel = document.getElementById('compare-stats-panel');
     if (!panel) return;
@@ -71,13 +103,6 @@ function renderStatsPanel(stateA, stateB) {
     const num = v => v != null ? String(v) : '—';
     const pp = v => v != null ? fmtPP(v) : '—';
     const hp = v => v != null ? `${Math.round(v)}%` : '—';
-    // mania-tracker's own score row (what this is modeled on) isn't just
-    // bigger text — it's a tournament-broadcast-style fixed-width, zero-
-    // padded digit counter ("00000000"), not a comma-grouped number. 9
-    // digits comfortably fits catch's legacy scoring range (a real top
-    // HDHR play easily reaches ~280,000,000+ — confirmed live off this
-    // exact beatmap's own leaderboard).
-    const score = v => v != null ? String(v).padStart(9, '0') : '—';
     // "已判定" mirrors mania's own row of the same name (see the comparison
     // panel this whole layout is modeled on) — the closest catch has to a
     // timing-judgement breakdown is purely positional (caught vs missed),
@@ -85,7 +110,7 @@ function renderStatsPanel(stateA, stateB) {
     // total" rather than a MAX/300/...-style bucket count.
     const judged = (s, total) => (s && total) ? `${s.caught + s.miss}/${total}` : '—';
     panel.innerHTML = [
-        statsRowHtml('replay_stat_score', statsA && statsA.score, statsB && statsB.score, score, 'compare-stat-row--score'),
+        scoreRowHtml(statsA && statsA.score, statsB && statsB.score),
         statsRowHtml('replay_stat_accuracy', statsA && statsA.accuracy, statsB && statsB.accuracy, pct),
         statsRowHtml('replay_stat_combo', statsA && statsA.combo, statsB && statsB.combo, num),
         statsRowHtml('replay_stat_maxcombo', statsA && statsA.maxCombo, statsB && statsB.maxCombo, num),
