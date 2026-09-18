@@ -63,19 +63,29 @@ function statsRowHtml(labelKey, a, b, fmt) {
         </div>`;
 }
 
-function renderStatsPanel(statsA, statsB, ppA, ppB) {
+function renderStatsPanel(stateA, stateB) {
     const panel = document.getElementById('compare-stats-panel');
     if (!panel) return;
+    const statsA = stateA && stateA.stats, statsB = stateB && stateB.stats;
     const pct = v => v != null ? `${(v * 100).toFixed(2)}%` : '—';
     const num = v => v != null ? String(v) : '—';
     const pp = v => v != null ? fmtPP(v) : '—';
+    const hp = v => v != null ? `${Math.round(v)}%` : '—';
+    // "已判定" mirrors mania's own row of the same name (see the comparison
+    // panel this whole layout is modeled on) — the closest catch has to a
+    // timing-judgement breakdown is purely positional (caught vs missed),
+    // so this is "how far into the map's catchable objects, out of the
+    // total" rather than a MAX/300/...-style bucket count.
+    const judged = (s, total) => (s && total) ? `${s.caught + s.miss}/${total}` : '—';
     panel.innerHTML = [
         statsRowHtml('replay_stat_accuracy', statsA && statsA.accuracy, statsB && statsB.accuracy, pct),
         statsRowHtml('replay_stat_combo', statsA && statsA.combo, statsB && statsB.combo, num),
         statsRowHtml('replay_stat_maxcombo', statsA && statsA.maxCombo, statsB && statsB.maxCombo, num),
         statsRowHtml('replay_stat_caught', statsA && statsA.caught, statsB && statsB.caught, num),
         statsRowHtml('replay_stat_miss', statsA && statsA.miss, statsB && statsB.miss, num),
-        statsRowHtml('th_pp', ppA, ppB, pp),
+        statsRowHtml('replay_stat_hp', statsA && statsA.hp, statsB && statsB.hp, hp),
+        statsRowHtml('replay_stat_judged', judged(statsA, stateA && stateA.total), judged(statsB, stateB && stateB.total), v => v),
+        statsRowHtml('th_pp', stateA && stateA.pp, stateB && stateB.pp, pp),
     ].join('');
 }
 
@@ -179,8 +189,8 @@ function wireCompareSettings(settings) {
 /* ---------- transport + postMessage bridge ---------- */
 
 let _iframeA = null, _iframeB = null;
-let _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null };
-let _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null };
+let _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
+let _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
 let _playing = false;
 let _scrubDragging = false;
 // Current music/effects/offset/dim values, set once wireCompareSettings()
@@ -235,6 +245,7 @@ function onCompareMessage(e) {
     if (e.data.type === 'ready') {
         state.ready = true;
         state.durationMs = e.data.durationMs || 0;
+        state.total = e.data.totalCatchable || 0;
         // A play click that landed before this side finished loading was
         // silently dropped (nothing was listening for it yet) — catch this
         // side up to the transport's actual state now that it can hear us,
@@ -250,7 +261,7 @@ function onCompareMessage(e) {
         state.frac = e.data.frac;
         state.stats = e.data.stats;
         state.pp = e.data.pp;
-        renderStatsPanel(_stateA.stats, _stateB.stats, _stateA.pp, _stateB.pp);
+        renderStatsPanel(_stateA, _stateB);
         updateTransportProgress();
     }
 }
@@ -277,7 +288,16 @@ function wireCompareTransport() {
     });
     document.getElementById('compare-fullscreen-btn').addEventListener('click', () => {
         if (document.fullscreenElement) { document.exitFullscreen(); return; }
-        const el = document.querySelector('.compare-panes');
+        // Fullscreen the WHOLE control cluster (identity bar + both panes +
+        // settings row + transport), not just .compare-panes alone — a
+        // real screenshot after the first live test showed fullscreening
+        // only the panes leaves everything else (including the ENTIRE
+        // transport — no way to pause/seek/exit short of Esc) outside the
+        // fullscreened subtree and simply gone, with a large dead black
+        // area below since the panes don't grow to fill the new viewport
+        // either. Same fix the single-replay page already applies to its
+        // own top toolbar, via .replay-theater-wrap.
+        const el = document.getElementById('compare-fullscreen-wrap');
         if (el && el.requestFullscreen) el.requestFullscreen().catch(() => { /* not fatal */ });
     });
 }
@@ -286,37 +306,39 @@ function renderCompareLayout(entryA, entryB) {
     const main = document.getElementById('compare-main');
     const settings = loadCompareSettings();
     main.innerHTML = `
-        <div class="compare-vs-bar">
-            ${sideHeaderHtml(entryA, 'a')}
-            <div class="compare-vs-center">
-                <div class="compare-vs-map">${escapeHtml(`${entryA.artist || ''} - ${entryA.title || ''}`)}</div>
-                <div class="compare-vs-version">[${escapeHtml(entryA.version || '')}]</div>
+        <div class="compare-fullscreen-wrap" id="compare-fullscreen-wrap">
+            <div class="compare-vs-bar">
+                ${sideHeaderHtml(entryA, 'a')}
+                <div class="compare-vs-center">
+                    <div class="compare-vs-map">${escapeHtml(`${entryA.artist || ''} - ${entryA.title || ''}`)}</div>
+                    <div class="compare-vs-version">[${escapeHtml(entryA.version || '')}]</div>
+                </div>
+                ${sideHeaderHtml(entryB, 'b')}
             </div>
-            ${sideHeaderHtml(entryB, 'b')}
-        </div>
-        <div class="compare-panes">
-            <div class="compare-pane"><iframe id="compare-iframe-a" class="compare-iframe" src="${iframeSrcFor(entryA, 'a')}"></iframe></div>
-            <div class="compare-stats card" id="compare-stats-panel"></div>
-            <div class="compare-pane"><iframe id="compare-iframe-b" class="compare-iframe" src="${iframeSrcFor(entryB, 'b')}"></iframe></div>
-        </div>
-        ${compareSettingsBarHtml(settings)}
-        <div class="compare-transport">
-            <button type="button" class="compare-play-btn" id="compare-play-btn">▶</button>
-            <input type="range" id="compare-scrub" class="replay-scrub-full" min="0" max="1000" value="0">
-            <span class="compare-time" id="compare-time">0:00 / 0:00</span>
-            <div class="compare-rate-group" id="compare-rate-group">
-                ${[0.5, 0.75, 1, 1.5, 2].map(r => `<button type="button" class="compare-rate-btn${r === 1 ? ' active' : ''}" data-rate="${r}">${r}x</button>`).join('')}
+            <div class="compare-panes">
+                <div class="compare-pane"><iframe id="compare-iframe-a" class="compare-iframe" src="${iframeSrcFor(entryA, 'a')}"></iframe></div>
+                <div class="compare-stats card" id="compare-stats-panel"></div>
+                <div class="compare-pane"><iframe id="compare-iframe-b" class="compare-iframe" src="${iframeSrcFor(entryB, 'b')}"></iframe></div>
             </div>
-            <button type="button" class="compare-fullscreen-btn" id="compare-fullscreen-btn" title="Fullscreen">⤢</button>
+            ${compareSettingsBarHtml(settings)}
+            <div class="compare-transport">
+                <button type="button" class="compare-play-btn" id="compare-play-btn">▶</button>
+                <input type="range" id="compare-scrub" class="replay-scrub-full" min="0" max="1000" value="0">
+                <span class="compare-time" id="compare-time">0:00 / 0:00</span>
+                <div class="compare-rate-group" id="compare-rate-group">
+                    ${[0.5, 0.75, 1, 1.5, 2].map(r => `<button type="button" class="compare-rate-btn${r === 1 ? ' active' : ''}" data-rate="${r}">${r}x</button>`).join('')}
+                </div>
+                <button type="button" class="compare-fullscreen-btn" id="compare-fullscreen-btn" title="Fullscreen">⤢</button>
+            </div>
         </div>
     `;
 
     _iframeA = document.getElementById('compare-iframe-a');
     _iframeB = document.getElementById('compare-iframe-b');
-    _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null };
-    _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null };
+    _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
+    _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
     _playing = false;
-    renderStatsPanel(null, null, null, null);
+    renderStatsPanel(null, null);
     updatePlayButton();
     wireCompareTransport();
     wireCompareSettings(settings);

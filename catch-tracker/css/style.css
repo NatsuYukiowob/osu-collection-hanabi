@@ -1955,6 +1955,23 @@ footer.site-footer {
    same "fills the window" result without needing to guess a fixed number. */
 .compare-page #compare-main { max-width: none; }
 
+/* Fullscreen target for the whole control cluster (vs-bar + both panes +
+   settings row + transport) — see the button handler's own comment for why
+   fullscreening just .compare-panes left the transport (and everything
+   else) unreachable and a dead black area below the panes. A plain block
+   in normal flow; :fullscreen below is the only state that actually
+   changes anything. */
+.compare-fullscreen-wrap:fullscreen {
+    background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: 12px; padding: 16px; height: 100%;
+}
+.compare-fullscreen-wrap:fullscreen .compare-panes { width: 100%; justify-content: center; }
+/* Same two-tier idea as .compare-pane's own default max-width (see its
+   comment) — recomputed because fullscreen replaces the ~302px of site
+   header/page-padding chrome with just this wrap's own vs-bar/settings-
+   bar/transport/padding instead (measured ~230px total). */
+.compare-fullscreen-wrap:fullscreen .compare-pane { max-width: calc((100vh - 230px) * 16 / 9); }
+
 .compare-vs-bar {
     display: flex; align-items: center; gap: 16px; background: var(--bg-card); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 12px 16px; margin-bottom: 14px;

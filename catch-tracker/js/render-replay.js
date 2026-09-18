@@ -2512,6 +2512,7 @@ async function run() {
             window.parent.postMessage({
                 ctCompare: true, type: 'ready',
                 durationMs: player.maxTime - player.minTime,
+                totalCatchable: finalCatchableCount,
                 meta: { username: meta.username, rank: meta.rank, mods: meta.mods, pp: meta.pp },
             }, location.origin);
             player.start();
