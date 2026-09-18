@@ -280,13 +280,21 @@ function renderFarmHelperList() {
     const start = _fhPage * FH_PAGE_SIZE;
     const pageItems = filtered.slice(start, start + FH_PAGE_SIZE);
     listEl.innerHTML = pageItems.length
-        ? pageItems.map(item => `
+        ? pageItems.map(item => {
+            const cover = coverArtUrlCard(item.beatmapset_id);
+            return `
             <tr class="farm-helper-row farm-helper-row--${item.category}${String(item.beatmap_id) === String(_fhSelectedId) ? ' active' : ''}" onclick="selectFarmHelperItem(${item.beatmap_id})">
                 <td><span class="farm-helper-cat farm-helper-cat--${item.category}">${categoryLabel(item.category)}</span></td>
-                <td><span class="map-link">${escapeHtml(`${item.artist || ''} - ${item.title || ''} [${item.version || ''}]`)}</span>${item.difficulty_rating != null ? ` <span class="mods-tag">${item.difficulty_rating.toFixed(2)}★</span>` : ''}</td>
+                <td class="farm-helper-map-cell">
+                    <div class="farm-helper-map-name-row">
+                        <span class="map-link">${escapeHtml(`${item.artist || ''} - ${item.title || ''} [${item.version || ''}]`)}</span>${item.difficulty_rating != null ? ` <span class="mods-tag">${item.difficulty_rating.toFixed(2)}★</span>` : ''}
+                    </div>
+                    ${cover ? `<img class="farm-helper-map-cover" src="${escapeHtml(cover)}" alt="" loading="lazy">` : ''}
+                </td>
                 <td>${farmHelperRowRefHtml(item)}</td>
                 <td>${farmHelperRowMetricHtml(item)}</td>
-            </tr>`).join('')
+            </tr>`;
+        }).join('')
         : `<tr><td colspan="4" class="empty-state">${t('farm_helper_no_results_filtered')}</td></tr>`;
     updateFhPagination(filtered.length);
 }

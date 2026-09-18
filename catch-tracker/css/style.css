@@ -778,6 +778,19 @@ tr[data-score-id] { cursor: pointer; }
 .farm-helper-row--improve td:first-child { border-left: 3px solid var(--success); }
 .farm-helper-row--achieved td:first-child { border-left: 3px solid var(--text-faint); }
 
+.farm-helper-map-cell { white-space: normal; vertical-align: top; padding-top: 10px; padding-bottom: 10px; }
+.farm-helper-map-name-row { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.farm-helper-map-cover {
+    display: block;
+    width: 180px;
+    max-width: 100%;
+    aspect-ratio: 2.8 / 1;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-top: 6px;
+    background: var(--bg-elevated);
+}
+
 .farm-helper-coverage-badge {
     display: inline-block;
     font-family: var(--font-display);
