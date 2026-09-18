@@ -82,7 +82,38 @@ twice in a row with no real new scores in between should report
   `netlify/functions/_catch-constants.js`) — this validates or invalidates
   the `perRun`/cadence choices there.
 
-## 5. Link back from the main site
+## 5. Discord bot (optional)
+
+Catch Tracker has its own Discord bot (`/pp` `/recent` `/top` `/replay`
+`/link` `/unlink`) — same HTTP-interactions architecture as the main site's
+bot, no persistent host needed. Designed as the first of a bot meant to
+later grow into one shared bot across future taiko/standard trackers too,
+so it's worth registering under a dedicated Discord Application (e.g.
+"osu Tracker") rather than reusing the main site's own bot.
+
+1. In the [Discord Developer Portal](https://discord.com/developers/applications),
+   create a new Application, add a Bot to it.
+2. Set **Interactions Endpoint URL** to `https://<this-site>.netlify.app/discord`
+   (Discord verifies this URL immediately — it must already be deployed
+   with `DISCORD_PUBLIC_KEY` set below before you can save it).
+3. Add these env vars on this Netlify site:
+
+   | Variable | Value |
+   |---|---|
+   | `DISCORD_PUBLIC_KEY` | Application → General Information → Public Key |
+
+4. Register the slash commands (also needs `DISCORD_APP_ID` /
+   `DISCORD_BOT_TOKEN` — from the same page / Bot tab — but only as local
+   env for this one-off script, not on Netlify):
+
+   ```
+   DISCORD_APP_ID=... DISCORD_BOT_TOKEN=... npm run discord:register
+   ```
+
+5. Invite the bot to a server (OAuth2 URL Generator → scope `applications.commands`)
+   and try `/pp username:<any osu! name>`.
+
+## 6. Link back from the main site
 
 Once the URL is live, add it to the main site's `js/resources-data.js`
 `OSU_RESOURCES` array (see that file's own comment for the pattern) and add

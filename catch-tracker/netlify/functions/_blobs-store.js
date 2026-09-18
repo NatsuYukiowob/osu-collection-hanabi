@@ -110,4 +110,13 @@ function getCommunitiesStore() {
     return store('catch-tracker-communities');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore, getGoalsStore, getCommunitiesStore };
+// Discord bot per-user state (discord-interactions.js) — `link:{discordId}`
+// -> { osuUserId, osuUsername, linkedAt }, one key per user who's run
+// /link. Separate store (not reusing getAuthStore, which holds *this
+// site's own* login tokens) since a Discord-linked account never goes
+// through this site's own osu! OAuth login at all.
+function getDiscordBotStore() {
+    return store('catch-tracker-discord-bot');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore, getGoalsStore, getCommunitiesStore, getDiscordBotStore };

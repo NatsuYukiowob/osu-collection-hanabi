@@ -2,8 +2,11 @@
   "name": "osu-catch-tracker",
   "version": "0.1.0",
   "private": true,
-  "description": "osu!catch (fruits) live score tracker for Taiwan players — rankings, a live score feed, player profiles and per-map stats, modeled on mania-tracker.com. Standalone Netlify site, sibling to the main osu-collection-hanabi site; see SETUP.md. Plain static frontend, no build step — actual function dependencies live in netlify/functions/package.json (installed by @netlify/plugin-functions-install-core, same as the main site).",
+  "description": "osu!catch (fruits) live score tracker for players worldwide — rankings, a live score feed, player profiles and per-map stats, modeled on mania-tracker.com. Standalone Netlify site, sibling to the main osu-collection-hanabi site; see SETUP.md. Plain static frontend, no build step — actual function dependencies live in netlify/functions/package.json (installed by @netlify/plugin-functions-install-core, same as the main site).",
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "discord:register": "node scripts/register-discord-commands.mjs"
   }
 }

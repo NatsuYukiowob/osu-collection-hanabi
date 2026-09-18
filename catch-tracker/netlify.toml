@@ -10,6 +10,14 @@
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
 
+# The Discord bot's Interactions Endpoint URL — set this exact path (this
+# site's own domain + /discord) in the Discord developer portal. Same
+# pattern as the main site's own netlify.toml redirect.
+[[redirects]]
+  from = "/discord"
+  to = "/.netlify/functions/discord-interactions"
+  status = 200
+
 # Rankings sweep: refresh global catch pp-rankings + discover newly-ranked
 # players — see netlify/functions/_rankings-crawl-core.js. pp-rankings
 # move slowly, so hourly is plenty; this also doubles as player discovery
