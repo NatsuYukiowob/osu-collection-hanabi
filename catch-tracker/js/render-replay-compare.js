@@ -305,8 +305,8 @@ function wireCompareSkin() {
 /* ---------- transport + postMessage bridge ---------- */
 
 let _iframeA = null, _iframeB = null;
-let _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
-let _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
+let _stateA = { ready: false, frac: 0, playing: false, durationMs: 0, stats: null, pp: null, total: 0 };
+let _stateB = { ready: false, frac: 0, playing: false, durationMs: 0, stats: null, pp: null, total: 0 };
 let _playing = false;
 let _scrubDragging = false;
 // Current music/effects/offset/dim values, set once wireCompareSettings()
@@ -335,13 +335,15 @@ function fmtCompareClock(ms) {
 }
 
 // Side A drives the visible scrub/time readout. Both sides are driven by
-// the exact same play/pause/seek/rate commands, so in practice they track
-// each other closely; they can only drift apart at all when the two
-// scores carry different DT/HT-family mods, and there's no single
-// "correct" shared clock in that case anyway — seeks are sent as a
-// FRACTION of each side's own duration (not a raw ms) specifically so a
-// scrub still lands both sides at the same relative point in the map even
-// then. See render-replay.js's embed message handler for the other half.
+// the exact same play/pause/seek/rate commands, but that alone isn't
+// enough to keep them frame-locked over a full song — B has no audio of
+// its own to anchor to (see below), so it free-runs on raw rAF deltas and
+// drifts from A regardless of mods (live-reported: "兩邊的replay有延遲").
+// The periodic 'resync' loop further down corrects for that. Seeks (and
+// resyncs) are sent as a FRACTION of each side's own duration, not a raw
+// ms, so mismatched durations from different DT/HT-family mods still land
+// both sides at the same relative point in the map. See render-replay.js's
+// embed message handler for the other half.
 function updateTransportProgress() {
     const primary = _stateA.ready ? _stateA : _stateB;
     if (!primary.ready) return;
@@ -400,6 +402,7 @@ function onCompareMessage(e) {
         if (_liveSkinMsg) e.source.postMessage({ ctCompare: true, ..._liveSkinMsg }, location.origin);
     } else if (e.data.type === 'tick') {
         state.frac = e.data.frac;
+        state.playing = e.data.playing;
         state.stats = e.data.stats;
         state.pp = e.data.pp;
         renderStatsPanel(_stateA, _stateB);
@@ -486,8 +489,8 @@ function renderCompareLayout(entryA, entryB) {
 
     _iframeA = document.getElementById('compare-iframe-a');
     _iframeB = document.getElementById('compare-iframe-b');
-    _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
-    _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null, total: 0 };
+    _stateA = { ready: false, frac: 0, playing: false, durationMs: 0, stats: null, pp: null, total: 0 };
+    _stateB = { ready: false, frac: 0, playing: false, durationMs: 0, stats: null, pp: null, total: 0 };
     _playing = false;
     renderStatsPanel(null, null);
     updatePlayButton();
@@ -496,6 +499,19 @@ function renderCompareLayout(entryA, entryB) {
 }
 
 window.addEventListener('message', onCompareMessage);
+
+// Side B has no audio of its own to stay locked to (see the top-of-file
+// comment on why only side A plays music) — its mapTime free-runs on raw
+// rAF deltas and drifts from A's audio-anchored clock over a full song
+// (live-reported: "兩邊的replay有延遲"). Periodically nudge it back using
+// A's real position from the 'tick' messages both sides already send every
+// frame — throttled to a few times a second (not every tick) since each
+// correction is itself blended in gradually by resyncTo(), not a snap.
+setInterval(() => {
+    if (!_stateA.ready || !_stateB.ready || !_stateA.playing || !_stateB.playing) return;
+    if (!_iframeB || !_iframeB.contentWindow) return;
+    _iframeB.contentWindow.postMessage({ ctCompare: true, type: 'resync', frac: _stateA.frac }, location.origin);
+}, 1500);
 
 async function run() {
     const main = document.getElementById('compare-main');

@@ -1771,6 +1771,22 @@ class ReplayPlayer {
         this.speed = speed;
         if (this.audioReady) this.audio.playbackRate = this.speed * this.clockRate;
     }
+    // Compare mode's silent (no-audio) side only: unlike the audio-anchored
+    // side, which re-syncs to its own <audio> element every single tick (see
+    // tick() above), this side's mapTime free-runs purely on rAF wall-clock
+    // deltas with nothing pulling it back — any per-frame jank from running
+    // two heavy canvas renderers in separate iframes accumulates as
+    // permanent drift over a full song instead of averaging out. The parent
+    // compare page periodically sends the audio-anchored side's real
+    // position here as a correction. Blended (not snapped) so a several-
+    // hundred-ms correction doesn't read as a visible jump — resync calls
+    // are infrequent (parent throttles them), so a larger per-call blend
+    // than the audio case's per-frame one is fine.
+    resyncTo(frac) {
+        if (!this.playing) return;
+        const target = this.minTime + frac * (this.maxTime - this.minTime);
+        this.mapTime += (target - this.mapTime) * 0.5;
+    }
 }
 
 /* ---------- theater layout ---------- */
@@ -2503,6 +2519,7 @@ async function run() {
                 if (msg.type === 'play') { if (!player.playing) player.play(); }
                 else if (msg.type === 'pause') { if (player.playing) player.pause(); }
                 else if (msg.type === 'seek') { player.seek(player.minTime + msg.frac * (player.maxTime - player.minTime)); }
+                else if (msg.type === 'resync') { player.resyncTo(msg.frac); }
                 else if (msg.type === 'rate') { player.setSpeed(msg.rate); }
                 // Music volume/offset only do anything on the side that
                 // actually has audio (embedAudio — see above); harmless
