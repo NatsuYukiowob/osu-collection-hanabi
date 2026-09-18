@@ -54,9 +54,9 @@ function sideHeaderHtml(entry, side) {
         </div>`;
 }
 
-function statsRowHtml(labelKey, a, b, fmt) {
+function statsRowHtml(labelKey, a, b, fmt, extraClass) {
     return `
-        <div class="compare-stat-row">
+        <div class="compare-stat-row${extraClass ? ` ${extraClass}` : ''}">
             <strong class="compare-stat-a">${fmt(a)}</strong>
             <span class="compare-stat-label">${escapeHtml(t(labelKey))}</span>
             <strong class="compare-stat-b">${fmt(b)}</strong>
@@ -71,7 +71,13 @@ function renderStatsPanel(stateA, stateB) {
     const num = v => v != null ? String(v) : '—';
     const pp = v => v != null ? fmtPP(v) : '—';
     const hp = v => v != null ? `${Math.round(v)}%` : '—';
-    const score = v => v != null ? v.toLocaleString() : '—';
+    // mania-tracker's own score row (what this is modeled on) isn't just
+    // bigger text — it's a tournament-broadcast-style fixed-width, zero-
+    // padded digit counter ("00000000"), not a comma-grouped number. 9
+    // digits comfortably fits catch's legacy scoring range (a real top
+    // HDHR play easily reaches ~280,000,000+ — confirmed live off this
+    // exact beatmap's own leaderboard).
+    const score = v => v != null ? String(v).padStart(9, '0') : '—';
     // "已判定" mirrors mania's own row of the same name (see the comparison
     // panel this whole layout is modeled on) — the closest catch has to a
     // timing-judgement breakdown is purely positional (caught vs missed),
@@ -79,7 +85,7 @@ function renderStatsPanel(stateA, stateB) {
     // total" rather than a MAX/300/...-style bucket count.
     const judged = (s, total) => (s && total) ? `${s.caught + s.miss}/${total}` : '—';
     panel.innerHTML = [
-        statsRowHtml('replay_stat_score', statsA && statsA.score, statsB && statsB.score, score),
+        statsRowHtml('replay_stat_score', statsA && statsA.score, statsB && statsB.score, score, 'compare-stat-row--score'),
         statsRowHtml('replay_stat_accuracy', statsA && statsA.accuracy, statsB && statsB.accuracy, pct),
         statsRowHtml('replay_stat_combo', statsA && statsA.combo, statsB && statsB.combo, num),
         statsRowHtml('replay_stat_maxcombo', statsA && statsA.maxCombo, statsB && statsB.maxCombo, num),

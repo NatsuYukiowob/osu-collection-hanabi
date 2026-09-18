@@ -2007,6 +2007,16 @@ footer.site-footer {
 .compare-stat-b { text-align: left; }
 .compare-stat-label { font-size: 0.66rem; color: var(--text-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 
+/* The actual score number is the headline stat, not just one more row —
+   mania-tracker.com's own comparison panel (live-measured for reference)
+   sets it noticeably larger/bolder than everything below it, with its own
+   border to visually separate it from the rest. Matched here rather than
+   just adding it at the same size as accuracy/combo/etc. */
+.compare-stat-row--score { padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.compare-stat-row--score .compare-stat-a,
+.compare-stat-row--score .compare-stat-b { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.compare-stat-row--score .compare-stat-label { font-size: 0.7rem; }
+
 /* Reuses .replay-top-bar/.replay-top-group/etc verbatim (single-replay
    page's own music/effects/offset/dim row) — this page just supplies the
    surrounding margin those classes don't carry on their own. */
