@@ -285,11 +285,10 @@ function renderFarmHelperList() {
             return `
             <tr class="farm-helper-row farm-helper-row--${item.category}${String(item.beatmap_id) === String(_fhSelectedId) ? ' active' : ''}" onclick="selectFarmHelperItem(${item.beatmap_id})">
                 <td><span class="farm-helper-cat farm-helper-cat--${item.category}">${categoryLabel(item.category)}</span></td>
-                <td class="farm-helper-map-cell">
+                <td class="farm-helper-map-cell"${cover ? ` style="background-image:url('${cover.replace(/'/g, '%27')}')"` : ''}>
                     <div class="farm-helper-map-name-row">
                         <span class="map-link">${escapeHtml(`${item.artist || ''} - ${item.title || ''} [${item.version || ''}]`)}</span>${item.difficulty_rating != null ? ` <span class="mods-tag">${item.difficulty_rating.toFixed(2)}★</span>` : ''}
                     </div>
-                    ${cover ? `<img class="farm-helper-map-cover" src="${escapeHtml(cover)}" alt="" loading="lazy">` : ''}
                 </td>
                 <td>${farmHelperRowRefHtml(item)}</td>
                 <td>${farmHelperRowMetricHtml(item)}</td>

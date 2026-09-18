@@ -778,18 +778,39 @@ tr[data-score-id] { cursor: pointer; }
 .farm-helper-row--improve td:first-child { border-left: 3px solid var(--success); }
 .farm-helper-row--achieved td:first-child { border-left: 3px solid var(--text-faint); }
 
-.farm-helper-map-cell { white-space: normal; vertical-align: top; padding-top: 10px; padding-bottom: 10px; }
-.farm-helper-map-name-row { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-.farm-helper-map-cover {
-    display: block;
-    width: 180px;
-    max-width: 100%;
-    aspect-ratio: 2.8 / 1;
-    object-fit: cover;
-    border-radius: 6px;
-    margin-top: 6px;
-    background: var(--bg-elevated);
+/* Map-name cell's own cover art stretched to fill the whole cell as a
+   background (not a small boxed thumbnail) — the ::before gradient fades
+   from the row's own background colour on the left (where the title text
+   sits, for legibility) to the raw image on the right, matching the
+   left-opaque/right-transparent technique .profile-header.has-cover
+   already uses for the player-page banner. */
+.farm-helper-map-cell {
+    position: relative;
+    padding: 0;
+    min-width: 260px;
+    background-size: cover;
+    background-position: center;
 }
+.farm-helper-map-cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--bg-card) 0%, color-mix(in srgb, var(--bg-card) 65%, transparent) 40%, transparent 85%);
+    pointer-events: none;
+}
+.farm-helper-row--new .farm-helper-map-cell::before { background: linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 96%, var(--accent) 4%) 0%, color-mix(in srgb, var(--bg-card) 63%, var(--accent) 2%) 40%, transparent 85%); }
+.farm-helper-row--improve .farm-helper-map-cell::before { background: linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 96%, var(--success) 4%) 0%, color-mix(in srgb, var(--bg-card) 63%, var(--success) 2%) 40%, transparent 85%); }
+.farm-helper-map-name-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    padding: 15px 14px;
+    min-height: 34px;
+}
+.farm-helper-map-name-row .map-link { text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); }
 
 .farm-helper-coverage-badge {
     display: inline-block;

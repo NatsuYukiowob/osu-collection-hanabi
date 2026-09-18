@@ -68,14 +68,43 @@ function ctContrastingFg(color) {
     const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
     return luminance > 0.6 ? '#12121c' : '#fff';
 }
+// `--accent`/`--primary` aren't just a button fill — ~50 rules across
+// style.css also paint TEXT, icons, and borders directly in this colour
+// (active tabs, links, badges, etc.) against the site's own near-black
+// background. A dark custom pick (the <input type="color"> allows any hex,
+// swatches above are all pre-vetted bright) then goes dark-text-on-dark-bg
+// and reads as fully invisible — a real bug report. Nudge the colour toward
+// white in steps, preserving its hue, until it clears a legible luminance
+// floor against the dark UI; only used to derive what actually gets applied
+// below, never mutates the raw pick shown back in the swatch/`<input>`.
+function ctReadableAccent(color) {
+    const m = /^#([0-9a-f]{6})$/i.exec(color);
+    if (!m) return color;
+    const n = parseInt(m[1], 16);
+    let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const luminanceOf = (r, g, b) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    let guard = 0;
+    while (luminanceOf(r, g, b) < 0.32 && guard++ < 12) {
+        r += (255 - r) * 0.15;
+        g += (255 - g) * 0.15;
+        b += (255 - b) * 0.15;
+    }
+    const clamp = (x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0');
+    return `#${clamp(r)}${clamp(g)}${clamp(b)}`;
+}
 function ctApplyAccent() {
     try {
         const color = localStorage.getItem(CT_ACCENT_KEY);
         const root = document.documentElement.style;
         if (color) {
-            root.setProperty('--accent', color);
-            root.setProperty('--primary', color);
-            root.setProperty('--accent-fg', ctContrastingFg(color));
+            const readable = ctReadableAccent(color);
+            root.setProperty('--accent', readable);
+            root.setProperty('--primary', readable);
+            root.setProperty('--accent-fg', ctContrastingFg(readable));
+            // Background tints stay keyed off the RAW pick (mixed at only
+            // 12-20% into an already-dark base, so a dark hue's own darkness
+            // never hurts legibility here — only the text/icon colour above
+            // needed the floor).
             root.setProperty('--bg', `color-mix(in srgb, ${color} 12%, ${CT_BG_BASE['--bg']})`);
             root.setProperty('--bg-elevated', `color-mix(in srgb, ${color} 14%, ${CT_BG_BASE['--bg-elevated']})`);
             root.setProperty('--bg-card', `color-mix(in srgb, ${color} 12%, ${CT_BG_BASE['--bg-card']})`);
