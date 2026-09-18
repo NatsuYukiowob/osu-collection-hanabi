@@ -2135,10 +2135,17 @@ async function run() {
         // Two iframes on the same compare page would otherwise both play
         // the SAME song's full audio at once (and, whenever the two scores
         // carry different DT/HT mods, at two different clock rates) —
-        // audibly doubled/phasing. Compare mode runs silent instead; each
-        // side's ReplayPlayer already no-ops all audio-sync logic cleanly
-        // when constructed with `audio: null` (see its constructor/tick()).
-        if (!embed && beatmapsetId) {
+        // audibly doubled/phasing. The compare page only asks ONE side
+        // (?audio=1, its "primary"/left pick) to actually play music; the
+        // other stays silent — still gets its own hit-sound effects either
+        // way (playHitSound() is a self-contained Web Audio synth, not tied
+        // to this <audio> element at all), just no second overlapping copy
+        // of the song. A real user report after the first live test: no
+        // audio at all read as a bug ("只有聽到音效而已，卻沒有音樂"), so
+        // silence-on-both was too conservative — this keeps a real music
+        // track while still avoiding the double-audio/drift case.
+        const embedAudio = params.get('audio') === '1';
+        if ((!embed || embedAudio) && beatmapsetId) {
             audioEl.src = AUDIO_URL(beatmapsetId);
             audioEl.load();
         }
@@ -2161,7 +2168,7 @@ async function run() {
             hiddenMod: mods.includes('HD'),
             hyperdashWindows,
             kiaiRanges,
-            audio: (!embed && beatmapsetId) ? audioEl : null,
+            audio: ((!embed || embedAudio) && beatmapsetId) ? audioEl : null,
             onTick: (mapTime, minTime, maxTime, playing, stats) => {
                 const pct = maxTime > minTime ? ((mapTime - minTime) / (maxTime - minTime)) * 1000 : 0;
                 scrub.value = String(pct);
@@ -2490,6 +2497,17 @@ async function run() {
                 else if (msg.type === 'pause') { if (player.playing) player.pause(); }
                 else if (msg.type === 'seek') { player.seek(player.minTime + msg.frac * (player.maxTime - player.minTime)); }
                 else if (msg.type === 'rate') { player.setSpeed(msg.rate); }
+                // Music volume/offset only do anything on the side that
+                // actually has audio (embedAudio — see above); harmless
+                // no-ops on the silent side since audioEl.volume just sits
+                // unused and setOffset()'s own audioReady guard already
+                // no-ops cleanly with no audio element driving it.
+                else if (msg.type === 'volume') { audioEl.volume = msg.value / 100; }
+                else if (msg.type === 'offset') { player.setOffset(msg.value); }
+                // Effects (hit-sound sfx) and background dim apply
+                // independently on EVERY side — not tied to embedAudio.
+                else if (msg.type === 'effectsVolume') { player.effectsVolume = msg.value / 100; }
+                else if (msg.type === 'dim') { applyBackgroundSettings(scrim, { blur: settings.blur, brightness: 100 - msg.value }); }
             });
             window.parent.postMessage({
                 ctCompare: true, type: 'ready',

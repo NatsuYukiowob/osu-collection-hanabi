@@ -27,13 +27,16 @@ function loginGateHtml() {
     `;
 }
 
-function iframeSrcFor(entry) {
+// Only the primary (A) side is asked to actually play its music — see
+// render-replay.js's own comment on `embedAudio` for why both sides
+// playing at once is worse than just one.
+function iframeSrcFor(entry, side) {
     const params = new URLSearchParams({
         score_id: entry.score_id, beatmap_id: entry.beatmap_id, beatmapset_id: entry.beatmapset_id || '',
         user_id: entry.user_id || '', username: entry.username || '', title: entry.title || '',
         artist: entry.artist || '', version: entry.version || '', rank: entry.rank || '',
         mods: (entry.mods || []).join(','), pp: entry.pp != null ? Math.round(entry.pp) : '',
-        embed: 'compare',
+        embed: 'compare', audio: side === 'a' ? '1' : '0',
     });
     return `replay.html?${params.toString()}`;
 }
@@ -76,6 +79,103 @@ function renderStatsPanel(statsA, statsB, ppA, ppB) {
     ].join('');
 }
 
+/* ---------- shared music/effects/offset/dim settings ----------
+   Same localStorage key + defaults as render-replay.js's own DEFAULT_
+   SETTINGS/loadSettings() (single-view page) — read directly here rather
+   than imported (that file's a separate `type="module"` script, its own
+   top-levels aren't exposed as globals) so a viewer's saved preference
+   carries over as the sliders' initial value either way, and an
+   adjustment made HERE is broadcast live to both iframes via postToBoth()
+   below AND persisted back to that same key (this page's music/effects/
+   dim controls are one more place that reads/writes the same site-wide
+   preference, not a separate compare-only setting). Offset is the one
+   exception — the single-view page never persists it either (purely a
+   per-session nudge there too), so it isn't part of this saved object. */
+const CT_SETTINGS_KEY = 'ct_replay_settings';
+const CT_DEFAULT_SETTINGS = { blur: 26, brightness: 50, popups: true, bananaRain: false, volume: 70, effectsVolume: 70 };
+
+function loadCompareSettings() {
+    try {
+        const raw = localStorage.getItem(CT_SETTINGS_KEY);
+        return raw ? { ...CT_DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...CT_DEFAULT_SETTINGS };
+    } catch { return { ...CT_DEFAULT_SETTINGS }; }
+}
+function saveCompareSettings(s) {
+    try { localStorage.setItem(CT_SETTINGS_KEY, JSON.stringify(s)); } catch { /* per-viewer convenience only */ }
+}
+
+function compareSettingsBarHtml(settings) {
+    const dim = 100 - settings.brightness;
+    return `
+        <div class="replay-top-bar compare-settings-bar">
+            <div class="replay-top-group">
+                <span class="replay-top-label">🍎 ${escapeHtml(t('replay_settings_music'))}</span>
+                <input type="range" id="compare-set-volume" class="replay-top-slider" min="0" max="100" step="5" value="${settings.volume}">
+                <span class="replay-top-value" id="compare-volume-value">${settings.volume}%</span>
+            </div>
+            <div class="replay-top-group">
+                <span class="replay-top-label">🍊 ${escapeHtml(t('replay_settings_effects'))}</span>
+                <input type="range" id="compare-set-effects" class="replay-top-slider" min="0" max="100" step="5" value="${settings.effectsVolume}">
+                <span class="replay-top-value" id="compare-effects-value">${settings.effectsVolume}%</span>
+            </div>
+            <div class="replay-top-group">
+                <span class="replay-top-label">🍐 ${escapeHtml(t('replay_settings_offset'))}</span>
+                <button type="button" id="compare-offset-minus" class="replay-top-step">−</button>
+                <span class="replay-top-value" id="compare-offset-value">+0 ms</span>
+                <button type="button" id="compare-offset-plus" class="replay-top-step">+</button>
+                <button type="button" id="compare-offset-reset" class="replay-top-reset" title="${escapeHtml(t('replay_reset_offset'))}">↺</button>
+            </div>
+            <div class="replay-top-group">
+                <span class="replay-top-label">🍑 ${escapeHtml(t('replay_settings_dim'))}</span>
+                <input type="range" id="compare-set-dim" class="replay-top-slider" min="0" max="90" step="5" value="${dim}">
+                <span class="replay-top-value" id="compare-dim-value">${dim}%</span>
+            </div>
+        </div>`;
+}
+
+function wireCompareSettings(settings) {
+    _liveSettings = settings;
+    _offsetMs = 0;
+    const volumeInput = document.getElementById('compare-set-volume');
+    const volumeValue = document.getElementById('compare-volume-value');
+    volumeInput.addEventListener('input', () => {
+        settings.volume = Number(volumeInput.value);
+        volumeValue.textContent = `${settings.volume}%`;
+        postToBoth({ type: 'volume', value: settings.volume });
+        saveCompareSettings(settings);
+    });
+
+    const effectsInput = document.getElementById('compare-set-effects');
+    const effectsValue = document.getElementById('compare-effects-value');
+    effectsInput.addEventListener('input', () => {
+        settings.effectsVolume = Number(effectsInput.value);
+        effectsValue.textContent = `${settings.effectsVolume}%`;
+        postToBoth({ type: 'effectsVolume', value: settings.effectsVolume });
+        saveCompareSettings(settings);
+    });
+
+    const OFFSET_STEP_MS = 5;
+    const offsetValue = document.getElementById('compare-offset-value');
+    const applyOffset = (ms) => {
+        _offsetMs = ms;
+        offsetValue.textContent = `${ms >= 0 ? '+' : ''}${ms} ms`;
+        postToBoth({ type: 'offset', value: _offsetMs });
+    };
+    document.getElementById('compare-offset-minus').addEventListener('click', () => applyOffset(_offsetMs - OFFSET_STEP_MS));
+    document.getElementById('compare-offset-plus').addEventListener('click', () => applyOffset(_offsetMs + OFFSET_STEP_MS));
+    document.getElementById('compare-offset-reset').addEventListener('click', () => applyOffset(0));
+
+    const dimInput = document.getElementById('compare-set-dim');
+    const dimValue = document.getElementById('compare-dim-value');
+    dimInput.addEventListener('input', () => {
+        const dim = Number(dimInput.value);
+        dimValue.textContent = `${dim}%`;
+        settings.brightness = 100 - dim;
+        postToBoth({ type: 'dim', value: dim });
+        saveCompareSettings(settings);
+    });
+}
+
 /* ---------- transport + postMessage bridge ---------- */
 
 let _iframeA = null, _iframeB = null;
@@ -83,6 +183,13 @@ let _stateA = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null };
 let _stateB = { ready: false, frac: 0, durationMs: 0, stats: null, pp: null };
 let _playing = false;
 let _scrubDragging = false;
+// Current music/effects/offset/dim values, set once wireCompareSettings()
+// runs — read back on a late 'ready' below so a side that finishes
+// loading AFTER the viewer already moved a slider doesn't start out of
+// sync with what every OTHER side (and the sliders themselves) show,
+// same reasoning as the play-catch-up in onCompareMessage's 'ready' case.
+let _liveSettings = null;
+let _offsetMs = 0;
 
 function postToBoth(msg) {
     const payload = { ctCompare: true, ...msg };
@@ -133,6 +240,12 @@ function onCompareMessage(e) {
         // side up to the transport's actual state now that it can hear us,
         // instead of leaving it paused while the shared play button shows ⏸.
         if (_playing) e.source.postMessage({ ctCompare: true, type: 'play' }, location.origin);
+        if (_liveSettings) {
+            e.source.postMessage({ ctCompare: true, type: 'volume', value: _liveSettings.volume }, location.origin);
+            e.source.postMessage({ ctCompare: true, type: 'effectsVolume', value: _liveSettings.effectsVolume }, location.origin);
+            e.source.postMessage({ ctCompare: true, type: 'dim', value: 100 - _liveSettings.brightness }, location.origin);
+        }
+        if (_offsetMs) e.source.postMessage({ ctCompare: true, type: 'offset', value: _offsetMs }, location.origin);
     } else if (e.data.type === 'tick') {
         state.frac = e.data.frac;
         state.stats = e.data.stats;
@@ -171,6 +284,7 @@ function wireCompareTransport() {
 
 function renderCompareLayout(entryA, entryB) {
     const main = document.getElementById('compare-main');
+    const settings = loadCompareSettings();
     main.innerHTML = `
         <div class="compare-vs-bar">
             ${sideHeaderHtml(entryA, 'a')}
@@ -181,10 +295,11 @@ function renderCompareLayout(entryA, entryB) {
             ${sideHeaderHtml(entryB, 'b')}
         </div>
         <div class="compare-panes">
-            <div class="compare-pane"><iframe id="compare-iframe-a" class="compare-iframe" src="${iframeSrcFor(entryA)}"></iframe></div>
+            <div class="compare-pane"><iframe id="compare-iframe-a" class="compare-iframe" src="${iframeSrcFor(entryA, 'a')}"></iframe></div>
             <div class="compare-stats card" id="compare-stats-panel"></div>
-            <div class="compare-pane"><iframe id="compare-iframe-b" class="compare-iframe" src="${iframeSrcFor(entryB)}"></iframe></div>
+            <div class="compare-pane"><iframe id="compare-iframe-b" class="compare-iframe" src="${iframeSrcFor(entryB, 'b')}"></iframe></div>
         </div>
+        ${compareSettingsBarHtml(settings)}
         <div class="compare-transport">
             <button type="button" class="compare-play-btn" id="compare-play-btn">▶</button>
             <input type="range" id="compare-scrub" class="replay-scrub-full" min="0" max="1000" value="0">
@@ -204,6 +319,7 @@ function renderCompareLayout(entryA, entryB) {
     renderStatsPanel(null, null, null, null);
     updatePlayButton();
     wireCompareTransport();
+    wireCompareSettings(settings);
 }
 
 window.addEventListener('message', onCompareMessage);
