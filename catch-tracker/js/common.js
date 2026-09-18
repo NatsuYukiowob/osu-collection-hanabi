@@ -17,7 +17,7 @@ function escapeHtml(str) {
 
 const LANG_STRINGS = {
     zh: {
-        nav_rankings: '排行榜', nav_feed: '即時動態',
+        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態',
         loading: '載入中…',
         title_rankings: 'Catch Tracker — osu!catch 全球排名',
         title_feed: 'Catch Tracker — 即時動態',
@@ -210,6 +210,10 @@ const LANG_STRINGS = {
         search_placeholder: '搜尋玩家…',
         search_no_results: '沒有符合的玩家',
         highlight_best_plays: '近期最佳成績',
+        home_tagline: '追蹤台灣 osu!catch 玩家的排名、即時成績與回放。',
+        home_top_players: '頂尖玩家',
+        home_recent_scores: '最近成績',
+        home_played: '遊玩了',
         stat_joined: '註冊於 {date}',
         stat_playtime: '遊玩時長 {h} 小時',
         grade_tally: '評級累計',
@@ -268,7 +272,7 @@ const LANG_STRINGS = {
         failed_skins: '皮膚列表載入失敗。',
     },
     en: {
-        nav_rankings: 'Rankings', nav_feed: 'Live Feed',
+        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed',
         loading: 'Loading…',
         title_rankings: 'Catch Tracker — Global osu!catch Rankings',
         title_feed: 'Catch Tracker — Live Feed',
@@ -461,6 +465,10 @@ const LANG_STRINGS = {
         search_placeholder: 'Search players…',
         search_no_results: 'No matching players',
         highlight_best_plays: 'Recent Best Plays',
+        home_tagline: 'Tracking Taiwan’s osu!catch players — rankings, live scores, and replays.',
+        home_top_players: 'Top Players',
+        home_recent_scores: 'Recent Scores',
+        home_played: 'played',
         stat_joined: 'Joined {date}',
         stat_playtime: '{h}h play time',
         grade_tally: 'Grade Tally',
