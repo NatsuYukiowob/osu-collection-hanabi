@@ -95,4 +95,11 @@ function getBeatmapBackgroundStore() {
     return store('catch-tracker-beatmap-bg');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore };
+// Personal goal tracking (goals.js) — `goals:{user_id}` -> array of
+// {id, type, target, achieved, achievedAt, createdAt}. Scoped to just the
+// "reach a total pp target" type for now (see goals.js).
+function getGoalsStore() {
+    return store('catch-tracker-goals');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getSkinsStore, getPeerStore, getAuthStore, getFarmHelperStore, getReplayCacheStore, getBeatmapBackgroundStore, getGoalsStore };

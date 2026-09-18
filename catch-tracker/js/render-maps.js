@@ -43,6 +43,9 @@ function mapCard(set) {
     const playCount = set.play_count != null
         ? `<span class="map-card-playcount"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>${set.play_count.toLocaleString()}</span>`
         : '';
+    const favCount = set.favourite_count != null
+        ? `<span class="map-card-playcount"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.6-10-9.2C-.3 7.9 2 4 5.8 4 8 4 10 5.2 12 7.6 14 5.2 16 4 18.2 4 22 4 24.3 7.9 22 11.8 19 16.4 12 21 12 21z"/></svg>${set.favourite_count.toLocaleString()}</span>`
+        : '';
 
     return `<div class="map-card" onclick="location.href='map.html?id=${encodeURIComponent(target)}'">
         <div class="map-card-cover"${style}>
@@ -56,7 +59,7 @@ ${statusBadge(set.status)}
             <div class="map-title">${escapeHtml(set.title || '')}</div>
             <div class="map-artist">${escapeHtml(set.artist || '')}</div>
             <div class="diff-icon-row">${diffRow}<span class="diff-count-label">${set.diffs.length}${escapeHtml(t('diff_count_suffix'))}</span></div>
-            <div class="map-meta">${set.bpm != null ? Math.round(set.bpm) + ' BPM · ' : ''}${fmtLength(set.total_length)}${playCount ? ' · ' + playCount : ''}</div>
+            <div class="map-meta">${set.bpm != null ? Math.round(set.bpm) + ' BPM · ' : ''}${fmtLength(set.total_length)}${playCount ? ' · ' + playCount : ''}${favCount ? ' · ' + favCount : ''}</div>
         </div>
     </div>`;
 }

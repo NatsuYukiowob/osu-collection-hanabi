@@ -266,6 +266,49 @@ main h2 { font-size: 1.05rem; color: var(--text); margin-top: 28px; }
     box-shadow: 0 0 6px var(--success);
 }
 
+/* ---------- goal tracking ---------- */
+
+.goal-create-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+.goal-create-label { font-size: 0.88rem; color: var(--text-dim); margin-right: 4px; }
+
+.goal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 12px;
+}
+.goal-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.goal-card-title { font-family: var(--font-display); font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 10px; }
+.goal-target { color: var(--accent); }
+.goal-achieved-badge { display: inline-flex; align-items: center; gap: 4px; color: var(--success); font-weight: 700; font-size: 0.82rem; }
+.goal-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: var(--radius-sm);
+    transition: color 150ms ease, background-color 150ms ease;
+}
+.goal-remove-btn:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.goal-progress-track { position: relative; height: 10px; border-radius: 999px; background: var(--bg-elevated); border: 1px solid var(--border); overflow: hidden; }
+.goal-progress-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 300ms ease; }
+.goal-progress-fill--achieved { background: var(--success); }
+.goal-card-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.78rem; color: var(--text-dim); }
+
 /* ---------- home page (mania-tracker-style landing, teasing into
    rankings.html/feed.html rather than showing the full table itself) ---------- */
 

@@ -51,6 +51,7 @@ function toRecord(set, b, status) {
         cs: b.cs, ar: b.ar, od: b.accuracy, hp: b.drain,
         difficulty_rating: b.difficulty_rating ?? null,
         play_count: b.playcount ?? null,
+        favourite_count: set.favourite_count ?? null,
         status,
         ranked_date: set.ranked_date || null,
         updatedAt: new Date().toISOString(),

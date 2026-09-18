@@ -31,6 +31,11 @@ function groupIntoSets(maps) {
                 ranked_date: r.ranked_date,
                 bpm: r.bpm,
                 total_length: r.total_length,
+                // Set-level (same across every diff of a set, unlike
+                // play_count which is captured per-diff and summed below),
+                // so just take it from whichever record creates this
+                // set's entry — no need to touch it again per diff.
+                favourite_count: r.favourite_count,
                 diffs: [],
             };
             bySet.set(r.beatmapset_id, set);
@@ -81,6 +86,7 @@ const SORTERS = {
     length_desc: (a, b) => (b.total_length || 0) - (a.total_length || 0),
     newest: (a, b) => new Date(b.ranked_date || 0) - new Date(a.ranked_date || 0),
     playcount_desc: (a, b) => (b.play_count || 0) - (a.play_count || 0),
+    favourites_desc: (a, b) => (b.favourite_count || 0) - (a.favourite_count || 0),
 };
 
 exports.handler = async (event) => {
