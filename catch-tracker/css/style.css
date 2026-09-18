@@ -1171,6 +1171,12 @@ tr[data-score-id] { cursor: pointer; }
         #6563de 67%, #18158e 77%, #000000 100%);
     filter: brightness(0.5) saturate(0.55);
 }
+/* BPM/length sliders reuse the star-range component (same layout, thumb,
+   fill) but shouldn't show the star-rating colour gradient — that scale
+   means nothing for BPM/length, so this swaps the track for a plain
+   neutral bar instead of duplicating the whole ~80-line component. */
+.star-range--plain .star-range-track::before { background: var(--border-strong); filter: none; }
+.star-range--plain .star-range-icon { color: var(--text-dim); }
 .star-range-fill {
     position: absolute;
     top: 50%;
@@ -1696,6 +1702,9 @@ main:has(.pagination) { padding-bottom: 90px; }
 .map-card:hover .cover-link-btn { opacity: 1; }
 .cover-link-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-fg, #fff); text-decoration: none; }
 .cover-link-btn svg { width: 12px; height: 12px; }
+.cover-link-btn--left { right: auto; left: 8px; }
+.map-card-playcount { display: inline-flex; align-items: center; gap: 3px; }
+.map-card-playcount svg { width: 10px; height: 10px; flex: none; }
 .preview-btn .icon-play { width: 13px; height: 13px; margin-left: 2px; flex: none; }
 .preview-btn .icon-eq { display: none; align-items: flex-end; justify-content: center; gap: 2px; height: 14px; }
 .preview-btn.playing .icon-play { display: none; }

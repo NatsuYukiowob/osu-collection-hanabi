@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catch Tracker — osu!catch Rankings</title>
+<title>Catch Tracker — Top Plays</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -14,9 +14,9 @@
     <div class="brand">Catch <span>Tracker</span></div>
     <nav>
         <a href="index.html" data-i18n="nav_home">Home</a>
-        <a href="rankings.html" class="active" data-i18n="nav_rankings">Rankings</a>
+        <a href="rankings.html" data-i18n="nav_rankings">Rankings</a>
         <a href="feed.html" data-i18n="nav_feed">Live Feed</a>
-        <a href="top-plays.html" data-i18n="nav_top_plays">Top Plays</a>
+        <a href="top-plays.html" class="active" data-i18n="nav_top_plays">Top Plays</a>
         <a href="maps.html" data-i18n="nav_maps">Maps</a>
         <a href="skins.html" data-i18n="nav_skins">Skins</a>
         <a href="farm-helper.html" data-i18n="nav_farm_helper">Farm Helper</a>
@@ -31,10 +31,16 @@
     </div>
     <span class="ct-login-msg" id="ct-login-msg" hidden></span>
 </header>
-<main>
-    <h1><span data-i18n="h1_rankings">osu!catch Rankings</span></h1>
+<main class="wide">
+    <h1><span data-i18n="h1_top_plays">Top Plays</span></h1>
     <p class="coverage-note" id="coverage-note" data-i18n="loading">Loading…</p>
     <div class="filters">
+        <div class="pill-group" id="filter-range-group">
+            <button type="button" class="pill" data-hours="24" data-i18n="filter_range_24h">24h</button>
+            <button type="button" class="pill" data-hours="72" data-i18n="filter_range_3d">3d</button>
+            <button type="button" class="pill active" data-hours="168" data-i18n="filter_range_7d">7d</button>
+            <button type="button" class="pill" data-hours="720" data-i18n="filter_range_30d">30d</button>
+        </div>
         <div class="flag-select" id="filter-country-combo">
             <button type="button" class="flag-select-btn" id="filter-country-btn" aria-haspopup="listbox" aria-expanded="false">
                 <img class="flag-select-flag" id="filter-country-flag" alt="" hidden>
@@ -44,13 +50,12 @@
             <div class="flag-select-panel" id="filter-country-panel" role="listbox" hidden></div>
         </div>
     </div>
-
     <div class="table-wrap">
     <table>
         <thead>
-            <tr><th data-i18n="th_rank">#</th><th data-i18n="th_player">Player</th><th data-i18n="th_delta_global">Global Δ</th><th data-i18n="th_delta_country">Country Δ</th><th data-i18n="th_accuracy">Accuracy</th><th data-i18n="th_playcount">Play Count</th><th data-i18n="th_pp">pp</th><th class="rankings-th-grade rankings-th-grade--ss" data-i18n="th_ss">SS</th><th class="rankings-th-grade rankings-th-grade--s" data-i18n="th_s">S</th><th class="rankings-th-grade rankings-th-grade--a" data-i18n="th_a">A</th></tr>
+            <tr><th data-i18n="th_player">Player</th><th data-i18n="th_map">Map</th><th data-i18n="th_mods">Mods</th><th data-i18n="th_grade">Grade</th><th data-i18n="th_acc">Acc</th><th data-i18n="th_pp">pp</th><th data-i18n="th_when">When</th><th></th></tr>
         </thead>
-        <tbody id="rankings-body"></tbody>
+        <tbody id="feed-body"></tbody>
     </table>
     </div>
     <div class="pagination">
@@ -69,6 +74,6 @@
 <script src="js/common.js"></script>
 <script src="js/settings-panel.js"></script>
 <script src="js/api.js"></script>
-<script src="js/render-rankings.js"></script>
+<script src="js/render-top-plays.js"></script>
 </body>
 </html>

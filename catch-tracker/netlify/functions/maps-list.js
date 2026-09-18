@@ -39,6 +39,7 @@ function groupIntoSets(maps) {
             beatmap_id: r.beatmap_id,
             version: r.version,
             difficulty_rating: r.difficulty_rating,
+            play_count: r.play_count,
             cs: r.cs, ar: r.ar, od: r.od, hp: r.hp,
         });
     }
@@ -47,6 +48,16 @@ function groupIntoSets(maps) {
         set.diffs.sort((a, b) => (a.difficulty_rating || 0) - (b.difficulty_rating || 0));
         set.star_min = set.diffs.length ? set.diffs[0].difficulty_rating : null;
         set.star_max = set.diffs.length ? set.diffs[set.diffs.length - 1].difficulty_rating : null;
+        // Sum across diffs, matching the osu! API's own Beatmapset.play_count
+        // (the aggregate across all of a set's difficulties) — captured
+        // per-DIFFICULTY in _maps-crawl-core.js instead of duplicating the
+        // set-level total on every record, so a future per-diff play-count
+        // display has the data too. null (not 0) for a set where the
+        // crawler hasn't backfilled play_count on any diff yet, so the
+        // frontend can tell "not counted" apart from "genuinely zero".
+        set.play_count = set.diffs.some(d => d.play_count != null)
+            ? set.diffs.reduce((sum, d) => sum + (d.play_count || 0), 0)
+            : null;
         // Representative id for "click the card body" — the middle
         // difficulty reads as more typical of the set than the hardest.
         set.primary_beatmap_id = set.diffs[Math.floor((set.diffs.length - 1) / 2)]?.beatmap_id ?? null;
@@ -69,6 +80,7 @@ const SORTERS = {
     bpm_desc: (a, b) => (b.bpm || 0) - (a.bpm || 0),
     length_desc: (a, b) => (b.total_length || 0) - (a.total_length || 0),
     newest: (a, b) => new Date(b.ranked_date || 0) - new Date(a.ranked_date || 0),
+    playcount_desc: (a, b) => (b.play_count || 0) - (a.play_count || 0),
 };
 
 exports.handler = async (event) => {
@@ -114,6 +126,20 @@ exports.handler = async (event) => {
         if (bpmMax !== null) items = items.filter(r => (r.bpm || 0) <= bpmMax);
         if (lengthMin !== null) items = items.filter(r => (r.total_length || 0) >= lengthMin);
         if (lengthMax !== null) items = items.filter(r => (r.total_length || 0) <= lengthMax);
+
+        // Random-pick mode ("隨機" button): honours every filter above but
+        // ignores sort/pagination — ties the pick to the SAME filtered
+        // pool the viewer is currently looking at, not the whole catalog,
+        // matching what "隨機" implies when a search/status/star filter is
+        // already active.
+        if (qs.random === '1') {
+            const pick = items.length ? items[Math.floor(Math.random() * items.length)] : null;
+            return {
+                statusCode: 200,
+                headers: { ...headers, 'Cache-Control': 'no-store' },
+                body: JSON.stringify({ item: pick }),
+            };
+        }
 
         items = [...items].sort(SORTERS[sortKey]);
         const total = items.length;

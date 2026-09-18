@@ -1,6 +1,7 @@
 let _page = 0;
 let _q = '';
 let _mineOnly = false;
+let _hasPreviewOnly = false;
 let _searchDebounce = null;
 
 const MAX_OSK_BYTES = 3 * 1024 * 1024;
@@ -36,6 +37,7 @@ async function loadSkins() {
             page: _page, limit: 16,
             q: _q || undefined,
             uploader: (_mineOnly && loggedInUser) ? loggedInUser.username : undefined,
+            hasPreview: _hasPreviewOnly ? '1' : undefined,
             sort: document.getElementById('skins-sort').value,
         });
 
@@ -74,6 +76,13 @@ if (loggedInUser) {
 mineBtn.addEventListener('click', () => {
     _mineOnly = !_mineOnly;
     mineBtn.classList.toggle('active', _mineOnly);
+    _page = 0;
+    loadSkins();
+});
+
+document.getElementById('filter-has-preview').addEventListener('click', (e) => {
+    _hasPreviewOnly = !_hasPreviewOnly;
+    e.currentTarget.classList.toggle('active', _hasPreviewOnly);
     _page = 0;
     loadSkins();
 });
