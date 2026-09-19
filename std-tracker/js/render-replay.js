@@ -65,34 +65,15 @@ async function fetchReplayBytes(scoreId) {
 }
 
 /* ---------- real osu! difficulty-derived geometry ----------
-   Hit-circle radius and approach-rate timing share the exact same
-   underlying formulas across every osu! ruleset (LegacyRulesetExtensions.
-   CalculateScaleFromCircleSize + IBeatmapDifficultyInfo.DifficultyRange in
-   the real ppy/osu source) — catch-tracker's own catcherScaleFor()/
-   fruitRadius()/timePreemptForAR() in its render-replay.js already port
-   these for its catcher/fruit; reused here verbatim for std's own hit
-   circles, just under standard-mode names. */
-const OBJECT_RADIUS = 64;
-function scaleFromCS(cs) {
-    return (1 - 0.7 * ((cs ?? 5) - 5) / 5) / 2;
-}
-function circleRadius(cs) {
-    return OBJECT_RADIUS * scaleFromCS(cs);
-}
-function difficultyRange(difficulty, min, mid, max) {
-    if (difficulty > 5) return mid + (max - mid) * (difficulty - 5) / 5;
-    if (difficulty < 5) return mid + (mid - min) * (difficulty - 5) / 5;
-    return mid;
-}
-function preemptForAR(ar) {
-    return difficultyRange(ar ?? 5, 1800, 1200, 450);
-}
-// Approximation, not yet the exact ppy/osu TimeFadeIn curve — good enough
-// for this step's own goal (prove the parsing/timing pipeline), revisit
-// alongside the real judgement work in a later step if the feel is off.
-function fadeInForPreempt(preempt) {
-    return preempt * 0.4;
-}
+   osu-standard-stable's own decoded hit objects already carry the real,
+   library-computed `radius` (from CS, LegacyRulesetExtensions.
+   CalculateScaleFromCircleSize), `timePreempt`, and `timeFadeIn` (from
+   AR, IBeatmapDifficultyInfo.DifficultyRange) — confirmed live this
+   session by dumping a real decoded hit object's own fields, rather than
+   hand-rolling the formulas ourselves the way catch-tracker's own
+   render-replay.js had to (osu-catch-stable doesn't expose these the
+   same way). No mod adjustment applied yet (that's step 7) — these are
+   the base/unmodified values straight off the beatmap. */
 
 /* ---------- combo colour (ported verbatim from catch-tracker's own
    computeComboColourMap — same beatmap-order combo-index walk, works
@@ -129,7 +110,10 @@ function objectKind(h, classes) {
     return 'circle';
 }
 function objectPos(h) {
-    const p = h.stackedPosition || h.position || { x: PLAYFIELD_W / 2, y: PLAYFIELD_H / 2 };
+    // `startPosition` is the real field name on osu-standard-stable's
+    // decoded hit objects (confirmed live — `position`/`stackedPosition`
+    // are both undefined on it, unlike osu-catch-stable's own objects).
+    const p = h.startPosition || { x: PLAYFIELD_W / 2, y: PLAYFIELD_H / 2 };
     return { x: p.x, y: p.y };
 }
 
@@ -336,11 +320,6 @@ async function run() {
         const ruleset = new StandardRuleset();
         const parsedBeatmap = new BeatmapDecoder().decodeFromString(osuText);
         const standardBeatmap = ruleset.applyToBeatmap(parsedBeatmap);
-        const cs = (standardBeatmap.difficulty && standardBeatmap.difficulty.circleSize) ?? 5;
-        const ar = (standardBeatmap.difficulty && standardBeatmap.difficulty.approachRate) ?? 5;
-        const radius = circleRadius(cs);
-        const preempt = preemptForAR(ar);
-        const fadeIn = fadeInForPreempt(preempt);
 
         const comboColours = (standardBeatmap.colors && standardBeatmap.colors.comboColors) || [];
         const { colourOf, numberOf } = computeComboColourMap(standardBeatmap.hitObjects, comboColours);
@@ -349,13 +328,15 @@ async function run() {
             const pos = objectPos(h);
             const kind = objectKind(h, classes);
             const startTime = h.startTime;
+            const preempt = h.timePreempt;
+            const fadeIn = h.timeFadeIn;
             return {
                 kind, x: pos.x, y: pos.y, startTime,
                 spawnTime: startTime - preempt,
                 // Placeholder visual-hide window — real per-object judgement
                 // (and its exact hit-window-based fade) lands in step 4.
                 hideTime: startTime + 250,
-                preempt, fadeIn, radius,
+                preempt, fadeIn, radius: h.radius,
                 color: colourOf.get(h),
                 number: numberOf.get(h),
             };
@@ -403,7 +384,10 @@ async function run() {
             player.seek(minTime + frac * (maxTime - minTime));
         });
 
-        player.draw();
+        // seek() to the already-current mapTime just to fire draw()+onTick()
+        // once up front — otherwise the time display sits on theaterHtml()'s
+        // static "0:00 / 0:00" placeholder until the first real play/scrub.
+        player.seek(player.mapTime);
     } catch (err) {
         setStatus(errorHtml(err.message || String(err)));
     }
