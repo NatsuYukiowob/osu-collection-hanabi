@@ -18,7 +18,8 @@ function escapeHtml(str) {
 const LANG_STRINGS = {
     zh: {
         nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_goals: '目標', nav_discord: 'Discord',
-        nav_top_plays: '最佳成績', nav_farm_trending: '刷分熱門',
+        nav_top_plays: '最佳成績', nav_farm_trending: '刷分熱門', nav_farm_helper: '刷圖助手',
+        remove: '移除', th_category: '分類',
         loading: '載入中…',
         title_rankings: 'Std Tracker — osu! 全球排名',
         title_feed: 'Std Tracker — 即時動態',
@@ -162,10 +163,57 @@ const LANG_STRINGS = {
         filter_min_avg_pp: '最低平均PP',
         th_avg_pp: '平均PP', th_max_pp: '最高PP', th_recent_players: '最近遊玩者',
         coverage_farm_trending: '共 {maps} 張圖有近期活動 — 上次更新 {time}',
+
+        farm_helper_view: '查看刷圖建議',
+        farm_helper_title: '刷圖助手',
+        farm_helper_category_new: '未打過',
+        farm_helper_category_improve: '可提升',
+        farm_helper_ref: '參考成績',
+        farm_helper_gain: '預估 PP',
+        farm_helper_coverage: '同儕資料涵蓋 {n}/{total} 位鄰近玩家',
+        farm_helper_not_ranked: '這位玩家尚未在追蹤的排行榜中，無法計算同儕比較。',
+        farm_helper_disclaimer: '推薦依據是附近排名玩家的真實成績，不是難度試算；同儕資料仍在陸續建立中，涵蓋越完整、推薦越準確。只比對雙方的最佳 100 筆成績，可能遺漏你打過但分數不夠高的圖。',
+        farm_helper_no_data: '目前還沒有推薦——可能同儕資料還在建立中，或你已經超前附近的玩家了。',
+        farm_helper_no_id: '未提供玩家 ID。',
+        farm_helper_failed: '刷圖助手載入失敗。',
+        farm_helper_landing_title: '值得刷的圖譜',
+        farm_helper_my_own: '查看我（{username}）的刷圖建議 →',
+        farm_helper_landing_for: '為',
+        farm_helper_ladder_title: '附近玩家的 pp 排行',
+        farm_helper_recent: '最近查看',
+        farm_helper_explainer_title: '依據附近 pp 玩家的成績，推薦：',
+        farm_helper_desc_new: '附近玩家很熱門，你還沒打過的圖',
+        farm_helper_desc_improve: '你有成績，但附近玩家的分數更高',
+        farm_helper_category_achieved: '已達成',
+        farm_helper_desc_achieved: '附近玩家也在打，你已經達到水準',
+        farm_helper_tab_foryou: '為你推薦',
+        farm_helper_tab_popular: '熱門',
+        farm_helper_sort_gain: '排序：pp 提升',
+        farm_helper_sort_popularity: '排序：熱門程度',
+        farm_helper_popularity_col: '熱門度',
+        farm_helper_filter_placeholder: '篩選圖譜…',
+        farm_helper_peer_count: '{n} 位同儕在打',
+        farm_helper_coverage_suffix: '涵蓋',
+        farm_helper_panel_title: '你在跟誰比較',
+        farm_helper_panel_sample: '樣本：附近 {n} 位玩家（已涵蓋 {covered} 位）',
+        farm_helper_panel_hint: '點選左側的圖譜，查看詳細分析',
+        farm_helper_target_median: '同儕目標 {pp}pp',
+        farm_helper_target_yours: '你的成績 {pp}pp',
+        farm_helper_target_progress: '{pct}% 的鄰近玩家已打過這張',
+        farm_helper_too_hard: '太難了',
+        farm_helper_too_hard_desc: '超出你的水平，會從推薦中隱藏，直到你打出成績',
+        farm_helper_too_easy: '太簡單',
+        farm_helper_too_easy_desc: '低於你的水平，目標分會定得更高',
+        farm_helper_who_competing: '誰在爭這張',
+        farm_helper_full_analysis: '完整分析 →',
+        farm_helper_no_results_filtered: '沒有符合篩選條件的圖譜',
+        farm_helper_feedback_saved: '已更新推薦偏好',
+        farm_helper_feedback_failed: '更新失敗，請再試一次',
     },
     en: {
         nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_goals: 'Goals', nav_discord: 'Discord',
-        nav_top_plays: 'Top Plays', nav_farm_trending: 'Trending Farm',
+        nav_top_plays: 'Top Plays', nav_farm_trending: 'Trending Farm', nav_farm_helper: 'Farm Helper',
+        remove: 'Remove', th_category: 'Category',
         loading: 'Loading…',
         title_rankings: 'Std Tracker — Global osu! Rankings',
         title_feed: 'Std Tracker — Live Feed',
@@ -309,6 +357,52 @@ const LANG_STRINGS = {
         filter_min_avg_pp: 'Min avg pp',
         th_avg_pp: 'Avg pp', th_max_pp: 'Max pp', th_recent_players: 'Recent Players',
         coverage_farm_trending: '{maps} maps with recent activity — last updated {time}',
+
+        farm_helper_view: 'View farm recommendations',
+        farm_helper_title: 'Farm Helper',
+        farm_helper_category_new: 'New',
+        farm_helper_category_improve: 'Improve',
+        farm_helper_ref: 'Reference score',
+        farm_helper_gain: 'Est. PP',
+        farm_helper_coverage: 'Peer data covers {n}/{total} nearby players',
+        farm_helper_not_ranked: 'This player isn’t in the tracked rankings yet, so peer comparison isn’t available.',
+        farm_helper_disclaimer: 'Recommendations use nearby-ranked players’ real scores, not a difficulty estimate; peer data is still being built up, so coverage (and accuracy) improves over time. Only compares each side’s top 100 scores, so a map you’ve played but scored low on can be missed.',
+        farm_helper_no_data: 'No recommendations yet — peer data may still be building, or you’re already ahead of nearby players.',
+        farm_helper_no_id: 'No player id given.',
+        farm_helper_failed: 'Failed to load the farm helper.',
+        farm_helper_landing_title: 'Maps worth farming',
+        farm_helper_my_own: 'View my ({username}) farm recommendations →',
+        farm_helper_landing_for: 'for',
+        farm_helper_ladder_title: 'Nearby players by pp',
+        farm_helper_recent: 'Recent',
+        farm_helper_explainer_title: 'Based on what nearby-pp players are scoring:',
+        farm_helper_desc_new: 'Popular among nearby players, you haven’t played it',
+        farm_helper_desc_improve: 'You have a score, but nearby players are scoring higher',
+        farm_helper_category_achieved: 'Achieved',
+        farm_helper_desc_achieved: 'Nearby players are playing this too — you’re already there',
+        farm_helper_tab_foryou: 'For You',
+        farm_helper_tab_popular: 'Popular',
+        farm_helper_sort_gain: 'Sort: pp gain',
+        farm_helper_sort_popularity: 'Sort: popularity',
+        farm_helper_popularity_col: 'Popularity',
+        farm_helper_filter_placeholder: 'Filter maps…',
+        farm_helper_peer_count: '{n} peers playing',
+        farm_helper_coverage_suffix: 'coverage',
+        farm_helper_panel_title: 'Who you’re compared against',
+        farm_helper_panel_sample: 'Sample: {n} nearby players ({covered} covered)',
+        farm_helper_panel_hint: 'Click a map on the left for a detailed breakdown',
+        farm_helper_target_median: 'Peer target {pp}pp',
+        farm_helper_target_yours: 'Your score {pp}pp',
+        farm_helper_target_progress: '{pct}% of nearby players have this',
+        farm_helper_too_hard: 'Too hard',
+        farm_helper_too_hard_desc: 'Beyond your level — hidden from recommendations until you score on it',
+        farm_helper_too_easy: 'Too easy',
+        farm_helper_too_easy_desc: 'Below your level — its target score will be raised',
+        farm_helper_who_competing: 'Who’s competing for this',
+        farm_helper_full_analysis: 'Full analysis →',
+        farm_helper_no_results_filtered: 'No maps match these filters',
+        farm_helper_feedback_saved: 'Recommendation preference updated',
+        farm_helper_feedback_failed: 'Failed to update, please try again',
     },
 };
 
@@ -884,6 +978,40 @@ function initPlayerSearch() {
     document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) results.hidden = true; });
     input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { results.hidden = true; input.blur(); } });
 }
+/* ---------- decorative background: falling hit circles ----------
+   std-tracker's own equivalent of catch-tracker's falling-banana
+   background — a plain ring ("hit circle") instead of a fruit, since
+   that's this ruleset's own signature shape (same glyph the site header
+   icon already uses). Desktop-only and skipped under
+   prefers-reduced-motion, matching catch-tracker's own restraint around
+   background animation (and the main site's, for mobile thermal reasons —
+   see project memory). transform-only keyframe (no layout properties), a
+   handful of elements, no blur/shadow. */
+function initCircleRain() {
+    if (window.matchMedia('(max-width: 700px)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const container = document.createElement('div');
+    container.className = 'circle-rain';
+    container.setAttribute('aria-hidden', 'true');
+    // A clear mix of big/small circles (not just one narrow size band) —
+    // small ones drift lighter/faster, big ones sit heavier/slower.
+    const COUNT = 16;
+    for (let i = 0; i < COUNT; i++) {
+        const span = document.createElement('span');
+        const big = i % 2 === 0;
+        const size = big ? 26 + Math.random() * 30 : 8 + Math.random() * 10;
+        span.style.left = `${(i / COUNT) * 100 + Math.random() * (100 / COUNT) * 0.6}%`;
+        span.style.width = `${size}px`;
+        span.style.height = `${size}px`;
+        span.style.opacity = (big ? 0.10 + Math.random() * 0.12 : 0.16 + Math.random() * 0.18).toFixed(2);
+        span.style.animationDuration = big ? `${22 + Math.random() * 14}s` : `${13 + Math.random() * 10}s`;
+        span.style.animationDelay = `${-Math.random() * 30}s`;
+        container.appendChild(span);
+    }
+    document.body.prepend(container);
+}
+initCircleRain();
 // common.js is loaded at the end of <body>, after the header markup, so the
 // DOM is already parsed — no need to wait for DOMContentLoaded here.
 initPlayerSearch();

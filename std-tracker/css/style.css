@@ -2019,33 +2019,38 @@ main:has(.pagination) { padding-bottom: 90px; }
     font-family: var(--font-display);
 }
 
-/* ---------- decorative falling-banana background ---------- */
+/* ---------- decorative falling-hit-circle background ----------
+   std-tracker's own take on catch-tracker's falling-banana motif (see that
+   site's common.js comment) — a ring-shaped "hit circle" nod instead of a
+   fruit, since that's this ruleset's own signature shape (same glyph the
+   site header/favicon already use). Rendered as plain bordered circles
+   (no fill, no blur/shadow) so it stays as cheap as the banana version. */
 
-.banana-rain { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.banana-rain span {
+.circle-rain { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.circle-rain span {
     position: absolute;
     top: -10vh;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
     will-change: transform;
-    animation-name: banana-fall;
+    animation-name: circle-fall;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
-    filter: grayscale(0.1);
 }
-@keyframes banana-fall {
-    from { transform: translateY(0) rotate(0deg); }
-    to { transform: translateY(120vh) rotate(300deg); }
+@keyframes circle-fall {
+    from { transform: translateY(0); }
+    to { transform: translateY(120vh); }
 }
 main, footer.site-footer { position: relative; z-index: 1; }
 /* header gets its OWN, higher z-index (not tied with main) — a real bug on
-   the replay page: main's top-mods badges use `transform: scale()` (for
-   the grade/pp/mods group), which creates a local stacking context: with
-   header and main previously sharing z-index:1, that tie broke in DOM
-   order (main comes after header), so main's content painted OVER every
-   header dropdown (theme popover, player-search autocomplete) instead of
-   under it. Both still sit comfortably above .banana-rain (z-index:0). */
+   catch-tracker's replay page carried over here defensively: a local
+   stacking context from a `transform: scale()` badge group could paint
+   main's content over header dropdowns otherwise. Both still sit
+   comfortably above .circle-rain (z-index:0). */
 header.site-header { position: relative; z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
-    .banana-rain { display: none; }
+    .circle-rain { display: none; }
 }
 
 /* ---------- map stat bars ---------- */
@@ -2079,7 +2084,7 @@ footer.site-footer {
 .footer-links a:hover { color: var(--accent); text-decoration: underline; }
 
 @media (max-width: 700px) {
-    .banana-rain { display: none; }
+    .circle-rain { display: none; }
 }
 
 @media (max-width: 640px) {
@@ -2693,10 +2698,10 @@ footer.site-footer {
 
 .replay-disclaimer-note { max-width: 1200px; margin: 14px auto 0; }
 
-/* Replay's own banana-rain default: off (the page is already visually
+/* Replay's own circle-rain default: off (the page is already visually
    busy) unless explicitly re-enabled via the visual-settings panel. */
-.page-replay .banana-rain { display: none; }
-.page-replay.show-banana-rain .banana-rain { display: block; }
+.page-replay .circle-rain { display: none; }
+.page-replay.show-circle-rain .circle-rain { display: block; }
 
 @media (max-width: 640px) {
     /* No min-height override here anymore — forcing one would fight the
