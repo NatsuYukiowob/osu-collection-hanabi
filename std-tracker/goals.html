@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Std Tracker — osu! Rankings</title>
+<title>Std Tracker — Goals</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,11 +17,11 @@
     </a>
     <div class="site-header-row2">
     <nav>
-        <a href="index.html" class="active" data-i18n="nav_home">Home</a>
+        <a href="index.html" data-i18n="nav_home">Home</a>
         <a href="rankings.html" data-i18n="nav_rankings">Rankings</a>
         <a href="feed.html" data-i18n="nav_feed">Live Feed</a>
         <a href="maps.html" data-i18n="nav_maps">Maps</a>
-        <a href="goals.html" data-i18n="nav_goals">Goals</a>
+        <a href="goals.html" class="active" data-i18n="nav_goals">Goals</a>
     </nav>
     <button class="lang-toggle" id="lang-toggle" type="button">EN</button>
     <a class="ct-login-btn" id="st-login-btn" href="/.netlify/functions/osu-login" data-i18n="login_with_osu">Login with osu!</a>
@@ -33,30 +33,10 @@
     <span class="ct-login-msg" id="st-login-msg" hidden></span>
     </div>
 </header>
-<main class="home">
-    <div class="home-hero">
-        <p class="home-hero-tagline" data-i18n="home_tagline">Tracking osu! players worldwide — rankings and live scores.</p>
-    </div>
-
-    <div class="home-grid">
-        <section class="home-panel home-panel--top">
-            <div class="home-panel-head">
-                <h2 data-i18n="home_top_players">Top Players</h2>
-                <a class="home-view-all" href="rankings.html" data-i18n="view_all">View all →</a>
-            </div>
-            <div class="home-top-list" id="home-top-list"></div>
-        </section>
-
-        <div class="home-col-right">
-            <section class="home-panel">
-                <div class="home-panel-head">
-                    <h2 data-i18n="home_recent_scores">Recent Scores</h2>
-                    <a class="home-view-all" href="feed.html" data-i18n="view_all">View all →</a>
-                </div>
-                <div class="home-recent-list" id="home-recent-list"></div>
-            </section>
-        </div>
-    </div>
+<main id="goals-main">
+    <h1><span data-i18n="h1_goals">Goals</span></h1>
+    <p class="coverage-note" data-i18n="goals_hint">Set a total-pp target and this page tracks your progress automatically — checked fresh against your live osu! stats every time you visit.</p>
+    <div id="goals-content"></div>
 </main>
 <footer class="site-footer">
     <span data-i18n="footer_main">Std Tracker — a companion site for osu-collection-hanabi. Data via the official osu! API.</span>
@@ -68,6 +48,6 @@
 <script src="js/common.js"></script>
 <script src="js/settings-panel.js"></script>
 <script src="js/api.js"></script>
-<script src="js/render-home.js"></script>
+<script src="js/render-goals.js"></script>
 </body>
 </html>

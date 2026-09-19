@@ -17,7 +17,7 @@ function escapeHtml(str) {
 
 const LANG_STRINGS = {
     zh: {
-        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態',
+        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_goals: '目標',
         loading: '載入中…',
         title_rankings: 'Std Tracker — osu! 全球排名',
         title_feed: 'Std Tracker — 即時動態',
@@ -111,9 +111,23 @@ const LANG_STRINGS = {
         empty_maps: '沒有符合條件的圖譜。',
         failed_maps: '圖譜庫載入失敗。',
         diff_count_suffix: '譜',
+
+        h1_goals: '目標',
+        goals_hint: '設定總PP目標，網站會在你每次來訪時，用你最新的 osu! 資料自動幫你檢查進度。',
+        goals_login_prompt: '請先登入 osu! 帳號才能設定與追蹤目標。',
+        goals_total_pp_label: '總PP達到',
+        goals_achieved: '已達成',
+        goals_remove: '刪除目標',
+        goals_current_progress: '目前 {pp}pp',
+        goals_current_total_pp: '你目前的總PP是 {pp}',
+        goals_set_new: '設定目標',
+        goals_empty: '還沒有設定任何目標 — 在上面輸入一個PP數字開始追蹤吧。',
+        goals_invalid_target: '請輸入有效的PP數字。',
+        goals_save_failed: '儲存失敗，請再試一次。',
+        goals_load_failed: '目標載入失敗。',
     },
     en: {
-        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed',
+        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_goals: 'Goals',
         loading: 'Loading…',
         title_rankings: 'Std Tracker — Global osu! Rankings',
         title_feed: 'Std Tracker — Live Feed',
@@ -207,6 +221,20 @@ const LANG_STRINGS = {
         empty_maps: 'No maps match these filters.',
         failed_maps: 'Failed to load the map catalog.',
         diff_count_suffix: ' diffs',
+
+        h1_goals: 'Goals',
+        goals_hint: 'Set a total-pp target and this page checks your progress automatically against your latest osu! stats every time you visit.',
+        goals_login_prompt: 'Login with your osu! account to set and track goals.',
+        goals_total_pp_label: 'Total pp reaches',
+        goals_achieved: 'Achieved',
+        goals_remove: 'Remove goal',
+        goals_current_progress: 'Currently {pp}pp',
+        goals_current_total_pp: 'Your current total pp is {pp}',
+        goals_set_new: 'Set goal',
+        goals_empty: 'No goals yet — enter a pp target above to start tracking.',
+        goals_invalid_target: 'Enter a valid pp number.',
+        goals_save_failed: 'Failed to save, please try again.',
+        goals_load_failed: 'Failed to load goals.',
     },
 };
 

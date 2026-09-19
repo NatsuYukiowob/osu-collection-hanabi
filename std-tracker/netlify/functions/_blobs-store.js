@@ -44,4 +44,12 @@ function getAuthStore() {
     return store('std-tracker-auth');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getAuthStore };
+// Personal goal tracking (goals.js) — `goals:{user_id}` -> array of
+// {id, type, target, achieved, achievedAt, createdAt}. Scoped to just the
+// "reach a total pp target" type for now (see goals.js), same as
+// catch-tracker's own first pass.
+function getGoalsStore() {
+    return store('std-tracker-goals');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getAuthStore, getGoalsStore };

@@ -36,13 +36,16 @@ mania-tracker.com — that hub isn't built yet.
   — those were catch-tracker's own later additions to this same page.
 - **Login** (header "Login with osu!") — a real osu! OAuth login (same
   authorization_code + encrypted-token-at-rest design as catch-tracker's
-  own), ready for the next login-gated feature to use. Nothing actually
-  gates on it yet — it's infrastructure built ahead of its first consumer.
+  own).
+- **Goals** (`goals.html`, login-gated) — set a total-pp target; checked
+  fresh against your live osu! stats every visit. Scoped to just this one
+  goal type for now, same as catch-tracker's own first pass (mania-
+  tracker.com's other 7 goal types need more per-type osu! API calls and
+  are deliberately left for later).
 
 Not built yet (all present on catch-tracker, deliberately deferred here):
-replay viewing, Farm Helper, Goals, a Discord server directory, a Discord
-bot — all of which need the login system above, which now exists. Skins
-is deliberately skipped for good, not deferred — a skin file isn't
+replay viewing, Farm Helper, a Discord server directory, a Discord bot.
+Skins is deliberately skipped for good, not deferred — a skin file isn't
 mode-specific, so a second, disconnected skins catalog per tracker would
 just be a wasteful duplicate; if this ever gets built it should be one
 shared catalog across every tracker, not std-tracker's own.
