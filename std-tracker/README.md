@@ -27,13 +27,17 @@ mania-tracker.com — that hub isn't built yet.
   badges, SR/mod/BPM/pp-range stat cards, grade tally, and an activity tab
   (osu!'s own monthly playcount history).
 - **Map** (`map.html?id=`) — grade/mod distribution for one beatmap, among
-  the tracked cohort's observed scores. No dedicated Maps catalog crawler
-  yet (that's a later addition, like catch-tracker's own `maps.html`).
+  the tracked cohort's observed scores; falls back to the Maps catalog's
+  basic metadata when no scores have been observed yet.
+- **Maps** (`maps.html`) — a lightweight catalog of every ranked + loved
+  osu!standard beatmap (search / status / sort by star, BPM, length, or
+  newest). No audio preview, download button, or favourite-count sort yet
+  — those were catch-tracker's own later additions to this same page.
 
 Not built yet (all present on catch-tracker, deliberately deferred here):
-site login, replay viewing, a Maps catalog, Farm Helper, Skins, Goals, a
-Discord server directory, a Discord bot, and rank-delta arrows (which need
-a daily rank-snapshot cron catch-tracker also has and this doesn't yet).
+site login, replay viewing, Farm Helper, Skins, Goals, a Discord server
+directory, a Discord bot, and rank-delta arrows (which need a daily
+rank-snapshot cron catch-tracker also has and this doesn't yet).
 
 ## How the data gets there
 
@@ -48,6 +52,11 @@ Two independent crons (see `netlify.toml`):
    polling each player's `GET /users/{id}/scores/recent?mode=osu` and
    detecting new scores by diffing against last poll's snapshot. New scores
    get prepended to the `feed:recent` ring buffer.
+3. **`maps-crawl-cron`** (every 30 min) — walks
+   `GET /beatmapsets/search?m=0` once per status in `MAP_STATUSES`
+   (`ranked`, `loved`), upserting into `maps:global`. Metadata only (star
+   rating, bpm, length, CS/AR/OD/HP straight from the search response) — no
+   local PP computation.
 
 Both are time-boxed (`budgetMs`) AND item-capped (`perRun`) per invocation,
 so a tick that can't finish the whole player pool just does a partial sweep

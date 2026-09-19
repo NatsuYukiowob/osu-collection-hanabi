@@ -26,8 +26,13 @@ const SCORE_POLL_PER_RUN_MANUAL = 30;
 
 const VALID_GRADES = new Set(['XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D', 'F']);
 
+// Statuses swept by the maps catalog crawler, in order — see
+// _maps-crawl-core.js. osu! API v2's /beatmapsets/search `s` param takes
+// one status per request, so these are crawled as separate passes.
+const MAP_STATUSES = ['ranked', 'loved'];
+
 module.exports = {
     MODE, MODE_NUM, FEED_CAP, LAST_SEEN_CAP,
     SCORE_POLL_PER_RUN_CRON, SCORE_POLL_PER_RUN_MANUAL,
-    VALID_GRADES,
+    VALID_GRADES, MAP_STATUSES,
 };

@@ -96,6 +96,17 @@ const LANG_STRINGS = {
         activity_month_count: '{month}：{n} 次遊玩',
         no_best_plays_filtered: '沒有符合篩選條件的成績。',
         filter_any_mod: '任何 Mod', sort_pp: '依 PP', sort_time: '依時間',
+
+        nav_maps: '圖譜庫',
+        h1_maps: 'osu! 圖譜庫',
+        maps_search_placeholder: '搜尋標題、藝術家、作者…',
+        status_any: '全部狀態', status_ranked: 'Ranked', status_loved: 'Loved',
+        sort_star_desc: '星數 高→低', sort_star_asc: '星數 低→高',
+        sort_bpm_desc: 'BPM 高→低', sort_length_desc: '長度 長→短', sort_newest: '最新上榜',
+        coverage_maps: '已收錄 {n} 張圖譜（Ranked {ranked}／Loved {loved}）',
+        empty_maps: '沒有符合條件的圖譜。',
+        failed_maps: '圖譜庫載入失敗。',
+        diff_count_suffix: '譜',
     },
     en: {
         nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed',
@@ -177,6 +188,17 @@ const LANG_STRINGS = {
         activity_month_count: '{month}: {n} plays',
         no_best_plays_filtered: 'No best plays match this filter.',
         filter_any_mod: 'Any mod', sort_pp: 'By PP', sort_time: 'By time',
+
+        nav_maps: 'Maps',
+        h1_maps: 'osu! Map Catalog',
+        maps_search_placeholder: 'Search title, artist, creator…',
+        status_any: 'Any status', status_ranked: 'Ranked', status_loved: 'Loved',
+        sort_star_desc: 'Stars high→low', sort_star_asc: 'Stars low→high',
+        sort_bpm_desc: 'BPM high→low', sort_length_desc: 'Length long→short', sort_newest: 'Newest',
+        coverage_maps: '{n} maps indexed (Ranked {ranked} / Loved {loved})',
+        empty_maps: 'No maps match these filters.',
+        failed_maps: 'Failed to load the map catalog.',
+        diff_count_suffix: ' diffs',
     },
 };
 
@@ -296,6 +318,13 @@ function fmtAccuracy(acc) {
     return acc != null ? `${(acc * 100).toFixed(2)}%` : '—';
 }
 
+function fmtLength(seconds) {
+    if (seconds == null) return '—';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function playerLink(userId, username) {
     return `<a class="player-link" href="player.html?id=${encodeURIComponent(userId)}">${escapeHtml(username || userId)}</a>`;
 }
@@ -324,6 +353,77 @@ function coverArtUrl(beatmapsetId) {
 // the map-banner-cell background above.
 function coverArtUrlCard(beatmapsetId) {
     return beatmapsetId ? `https://assets.ppy.sh/beatmaps/${beatmapsetId}/covers/card.jpg` : '';
+}
+
+/* ---------- map catalog: status badge + per-diff icon ----------
+   Ported from catch-tracker's own common.js. Small inline-SVG status
+   badges matching osu!'s own iconography (blue double-chevron for ranked,
+   pink heart for loved) instead of a plain text pill. */
+const STATUS_ICONS = {
+    ranked: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"></polyline><polyline points="6 20 12 14 18 20"></polyline></svg>',
+    loved: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.716-4.35-9.428-8.014C.29 9.86 1.1 6.2 4.2 4.9c2.1-.88 4.42-.1 5.8 1.62C11.38 4.8 13.7 4.02 15.8 4.9c3.1 1.3 3.91 4.96 1.63 8.086C18.716 16.65 12 21 12 21z"/></svg>',
+};
+function statusIcon(status) {
+    const svg = STATUS_ICONS[status];
+    return svg ? `<span class="status-icon ${status}" title="${escapeHtml(status)}">${svg}</span>` : '';
+}
+// `.map-status-badge` is absolutely positioned by default (pinned to a
+// cover thumbnail's top-left corner), so any call site that isn't sitting
+// inside a positioned cover container needs `inline: true`.
+function statusBadge(status, inline) {
+    if (!STATUS_ICONS[status]) return '';
+    const label = status === 'ranked' ? t('status_ranked') : t('status_loved');
+    return `<span class="map-status-badge${inline ? ' map-status-badge--inline' : ''} ${status}">${escapeHtml(label)}${statusIcon(status)}</span>`;
+}
+
+// Star-rating colour scale, ported verbatim from catch-tracker's own
+// common.js (itself from the main site's js/osu.js) so difficulty icons
+// read as visually "the same language" across sites.
+const STD_ICON_PATH = '<circle cx="50" cy="50" r="41"/><circle cx="50" cy="50" r="20" fill="currentColor" stroke="none"/>';
+const STAR_COLOR_STOPS = [
+    [0.1, [79, 192, 255]],
+    [1.25, [79, 192, 255]],
+    [2.0, [79, 255, 213]],
+    [2.5, [124, 255, 79]],
+    [3.3, [246, 240, 92]],
+    [4.2, [255, 128, 104]],
+    [4.9, [255, 78, 111]],
+    [5.8, [198, 69, 184]],
+    [6.7, [101, 99, 222]],
+    [7.7, [24, 21, 142]],
+    [9.0, [0, 0, 0]],
+];
+function liftForContrast(rgb, minLum = 92) {
+    const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+    if (lum >= minLum) return rgb;
+    const r = (minLum - lum) / (255 - lum);
+    return rgb.map(v => v + (255 - v) * r);
+}
+function rgbHex(rgb) {
+    return '#' + rgb.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+}
+function starRatingColor(stars) {
+    stars = Number(stars) || 0;
+    const stops = STAR_COLOR_STOPS;
+    if (stars <= 0) return '#888';
+    if (stars <= stops[0][0]) return rgbHex(liftForContrast(stops[0][1]));
+    for (let i = 1; i < stops.length; i++) {
+        if (stars <= stops[i][0]) {
+            const [s0, c0] = stops[i - 1];
+            const [s1, c1] = stops[i];
+            const frac = (stars - s0) / (s1 - s0);
+            return rgbHex(liftForContrast(c0.map((v, idx) => v + (c1[idx] - v) * frac)));
+        }
+    }
+    return rgbHex(liftForContrast(stops[stops.length - 1][1]));
+}
+function diffIcon(beatmapId, stars, label) {
+    const color = starRatingColor(stars);
+    const starsStr = (Number(stars) || 0).toFixed(2);
+    const title = label ? `${label} ${starsStr} ★` : `${starsStr} ★`;
+    return `<a class="diff-icon" href="map.html?id=${encodeURIComponent(beatmapId)}" title="${escapeHtml(title)}" onclick="event.stopPropagation()" style="color:${color}">
+        <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6">${STD_ICON_PATH}</svg>
+    </a>`;
 }
 
 /* ---------- country flags ----------

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Std Tracker — Live Feed</title>
+<title>Std Tracker — Map Catalog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,40 +19,34 @@
     <nav>
         <a href="index.html" data-i18n="nav_home">Home</a>
         <a href="rankings.html" data-i18n="nav_rankings">Rankings</a>
-        <a href="feed.html" class="active" data-i18n="nav_feed">Live Feed</a>
-        <a href="maps.html" data-i18n="nav_maps">Maps</a>
+        <a href="feed.html" data-i18n="nav_feed">Live Feed</a>
+        <a href="maps.html" class="active" data-i18n="nav_maps">Maps</a>
     </nav>
     <button class="lang-toggle" id="lang-toggle" type="button">EN</button>
     </div>
 </header>
 <main class="wide">
-    <h1 data-i18n="h1_feed">Live Score Feed</h1>
+    <h1 class="maps-title">
+        <svg class="maps-title-icon" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6"><circle cx="50" cy="50" r="41"/><circle cx="50" cy="50" r="20" fill="currentColor" stroke="none"/></svg>
+        <span data-i18n="h1_maps">osu! Map Catalog</span>
+    </h1>
     <p class="coverage-note" id="coverage-note" data-i18n="loading">Loading…</p>
-    <div class="feed-active-row" id="feed-active-row" hidden>
-        <span class="feed-active-label" data-i18n="currently_active">Currently playing</span>
-        <div class="feed-active-avatars" id="feed-active-avatars"></div>
-    </div>
     <div class="filters">
-        <div class="pill-group" id="filter-grade-group"></div>
-        <button type="button" class="pill toggle" id="filter-fc" data-i18n="filter_fc_only">FC only</button>
-        <button type="button" class="pill toggle" id="filter-choke" data-i18n="filter_choke_only">Choke/fail only</button>
-        <div class="flag-select" id="filter-country-combo">
-            <button type="button" class="flag-select-btn" id="filter-country-btn" aria-haspopup="listbox" aria-expanded="false">
-                <img class="flag-select-flag" id="filter-country-flag" alt="" hidden>
-                <span id="filter-country-label" data-i18n="filter_all_countries">All countries</span>
-                <svg class="flag-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="flag-select-panel" id="filter-country-panel" role="listbox" hidden></div>
+        <input type="text" id="maps-search" class="search-input" style="width:220px" data-i18n-placeholder="maps_search_placeholder" placeholder="Search title, artist, creator…">
+        <div class="pill-group" id="status-filter">
+            <button type="button" class="pill active" data-status="" data-i18n="status_any">Any status</button>
+            <button type="button" class="pill" data-status="ranked" data-i18n="status_ranked">Ranked</button>
+            <button type="button" class="pill" data-status="loved" data-i18n="status_loved">Loved</button>
         </div>
+        <select id="maps-sort">
+            <option value="star_desc" data-i18n="sort_star_desc">Stars high→low</option>
+            <option value="star_asc" data-i18n="sort_star_asc">Stars low→high</option>
+            <option value="bpm_desc" data-i18n="sort_bpm_desc">BPM high→low</option>
+            <option value="length_desc" data-i18n="sort_length_desc">Length long→short</option>
+            <option value="newest" data-i18n="sort_newest">Newest</option>
+        </select>
     </div>
-    <div class="table-wrap">
-    <table>
-        <thead>
-            <tr><th data-i18n="th_player">Player</th><th data-i18n="th_map">Map</th><th data-i18n="th_mods">Mods</th><th data-i18n="th_grade">Grade</th><th data-i18n="th_acc">Acc</th><th data-i18n="th_pp">pp</th><th data-i18n="th_when">When</th></tr>
-        </thead>
-        <tbody id="feed-body"></tbody>
-    </table>
-    </div>
+    <div class="map-grid" id="maps-grid"></div>
     <div class="pagination">
         <button id="prev-page" data-i18n="prev">← Prev</button>
         <span id="page-label"></span>
@@ -60,7 +54,7 @@
     </div>
 </main>
 <footer class="site-footer">
-    <span data-i18n="footer_feed">Auto-refreshes every 45s. Std Tracker — a companion site for osu-collection-hanabi.</span>
+    <span data-i18n="footer_main">Std Tracker — a companion site for osu-collection-hanabi. Data via the official osu! API.</span>
     <span class="footer-links">
         <a href="https://github.com/hanabirn/osu-collection-hanabi/commits/main/std-tracker" target="_blank" rel="noopener noreferrer" data-i18n="footer_changelog">Changelog</a>
         <a href="https://github.com/hanabirn/osu-collection-hanabi/issues/new" target="_blank" rel="noopener noreferrer" data-i18n="footer_feedback">Feedback</a>
@@ -69,6 +63,6 @@
 <script src="js/common.js"></script>
 <script src="js/settings-panel.js"></script>
 <script src="js/api.js"></script>
-<script src="js/render-feed.js"></script>
+<script src="js/render-maps.js"></script>
 </body>
 </html>

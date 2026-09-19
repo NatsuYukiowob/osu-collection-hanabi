@@ -29,4 +29,10 @@ function getFeedStore() {
     return store('std-tracker-feed');
 }
 
-module.exports = { getRankingsStore, getFeedStore };
+// Map catalog sweep: `maps:global` (gzip array of every ranked+loved std
+// beatmap) + `maps-crawl-state` (plain JSON cursor/diagnostics).
+function getMapsStore() {
+    return store('std-tracker-maps');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore };

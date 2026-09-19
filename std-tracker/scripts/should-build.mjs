@@ -20,7 +20,7 @@ import { execFileSync } from 'node:child_process';
 
 const RELEVANT = [
     'std-tracker/index.html', 'std-tracker/rankings.html', 'std-tracker/feed.html',
-    'std-tracker/player.html', 'std-tracker/map.html',
+    'std-tracker/player.html', 'std-tracker/map.html', 'std-tracker/maps.html',
     'std-tracker/css', 'std-tracker/js', 'std-tracker/assets',
     'std-tracker/netlify', 'std-tracker/netlify.toml',
     'std-tracker/package.json', 'std-tracker/package-lock.json',

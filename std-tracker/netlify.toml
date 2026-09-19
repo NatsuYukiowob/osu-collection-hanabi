@@ -23,3 +23,10 @@
 # catch-tracker's own cadence.
 [functions."scores-poll-cron"]
   schedule = "*/5 * * * *"
+
+# Map catalog sweep: every ranked + loved std beatmap, for the Maps page.
+# See netlify/functions/_maps-crawl-core.js. 30 min, matching
+# catch-tracker's own cadence — this only needs to keep pace with newly
+# ranked/loved maps, nothing time-sensitive.
+[functions."maps-crawl-cron"]
+  schedule = "*/30 * * * *"

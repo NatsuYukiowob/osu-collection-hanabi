@@ -1,7 +1,7 @@
 /* Ported from catch-tracker's own render-map.js, minus its score-detail
    modal registration and replay links (neither feature exists on this site
-   yet) and its Maps-catalog status badge (this site has no catalog crawler
-   for v1 — map-stats.js's `meta.status` is always null here). */
+   yet). The Maps-catalog status badge is back now that this site's own
+   Maps catalog crawler exists — see map-stats.js's fallback. */
 async function loadMap() {
     const main = document.getElementById('map-main');
     const params = new URLSearchParams(location.search);
@@ -44,6 +44,7 @@ async function loadMap() {
                     <h1 style="margin:0 0 6px">${escapeHtml(m.artist)} - ${escapeHtml(m.title)} [${escapeHtml(m.version)}]</h1>
                     <p style="color:var(--text-dim);margin:0">${t('mapped_by', { creator: escapeHtml(m.creator) })} · ${m.difficulty_rating != null ? m.difficulty_rating.toFixed(2) + '★' : ''}</p>
                 </div>
+                ${m.status ? statusBadge(m.status, true) : ''}
             </div>
             <p class="coverage-note">${t('map_coverage', { n: data.sampleSize, fc: fcRate })}</p>
             <div style="display:flex;gap:18px;flex-wrap:wrap">

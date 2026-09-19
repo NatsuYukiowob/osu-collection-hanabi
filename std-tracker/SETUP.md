@@ -44,6 +44,9 @@ curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/rankings-
 
 curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/scores-poll-run \
   -H "x-std-tracker-secret: <STD_TRACKER_CRAWL_SECRET>"
+
+curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/maps-crawl-run \
+  -H "x-std-tracker-secret: <STD_TRACKER_CRAWL_SECRET>"
 ```
 
 Run `rankings-crawl-run` first (and enough times to complete a full sweep —
