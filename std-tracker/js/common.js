@@ -996,11 +996,11 @@ function initCircleRain() {
     container.setAttribute('aria-hidden', 'true');
     // A clear mix of big/small circles (not just one narrow size band) —
     // small ones drift lighter/faster, big ones sit heavier/slower.
-    const COUNT = 16;
+    const COUNT = 28;
     for (let i = 0; i < COUNT; i++) {
         const span = document.createElement('span');
         const big = i % 2 === 0;
-        const size = big ? 26 + Math.random() * 30 : 8 + Math.random() * 10;
+        const size = big ? 46 + Math.random() * 54 : 16 + Math.random() * 18;
         span.style.left = `${(i / COUNT) * 100 + Math.random() * (100 / COUNT) * 0.6}%`;
         span.style.width = `${size}px`;
         span.style.height = `${size}px`;

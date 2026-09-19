@@ -2030,9 +2030,8 @@ main:has(.pagination) { padding-bottom: 90px; }
 .circle-rain span {
     position: absolute;
     top: -10vh;
-    box-sizing: border-box;
     border-radius: 50%;
-    border: 2px solid var(--accent);
+    background: var(--accent);
     will-change: transform;
     animation-name: circle-fall;
     animation-timing-function: linear;
