@@ -1,0 +1,9 @@
+{
+  "name": "osu-std-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "osu!standard live score tracker for players worldwide — rankings, a live score feed, and player/map profiles. Standalone Netlify site, sibling to the main osu-collection-hanabi site and to catch-tracker; see SETUP.md. Plain static frontend, no build step — actual function dependencies live in netlify/functions/package.json (installed by @netlify/plugin-functions-install-core, same as the other sites).",
+  "engines": {
+    "node": ">=20"
+  }
+}

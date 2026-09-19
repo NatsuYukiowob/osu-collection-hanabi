@@ -1,0 +1,25 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  # Skip the build+deploy entirely when a push only touched files outside
+  # std-tracker/ (e.g. the main site, catch-tracker, or mp-bot). Saves build
+  # credits — mirrors catch-tracker's own netlify.toml `ignore` pattern. See
+  # scripts/should-build.mjs for the path list.
+  ignore = "node scripts/should-build.mjs"
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
+# Rankings sweep: refresh global std pp-rankings + discover newly-ranked
+# players — see netlify/functions/_rankings-crawl-core.js. pp-rankings move
+# slowly, so hourly is plenty; this also doubles as player discovery for the
+# score-poller's queue.
+[functions."rankings-crawl-cron"]
+  schedule = "0 * * * *"
+
+# Score-poll sweep: the "live" part of "live score tracker" — round-robins
+# over the tracked player pool and detects new scores. See
+# netlify/functions/_scores-poll-core.js. Every 5 min, matching
+# catch-tracker's own cadence.
+[functions."scores-poll-cron"]
+  schedule = "*/5 * * * *"

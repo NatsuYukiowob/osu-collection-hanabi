@@ -1,0 +1,7 @@
+{
+  "name": "std-tracker-functions",
+  "private": true,
+  "dependencies": {
+    "@netlify/blobs": "^10.0.0"
+  }
+}
