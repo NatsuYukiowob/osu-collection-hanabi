@@ -1,6 +1,6 @@
 /* Dedicated "best scores across everyone" page — ported from catch-tracker's
-   own render-top-plays.js, minus its replay-link column (no replay viewer
-   on this site yet). 24h/3d/7d/30d range tabs, distinct from the Live Feed
+   own render-top-plays.js, replay-link column included now that Watch
+   Replay exists here too. 24h/3d/7d/30d range tabs, distinct from the Live Feed
    page (chronological, every grade) and the home page's teaser (fixed to
    a handful of recent bests, no paging/range control): this is the full,
    paginated, always-pp-sorted view. Reuses feed-list.js's sort=pp path
@@ -105,8 +105,9 @@ async function loadTopPlays() {
                     <td>${fmtAccuracy(s.accuracy)}</td>
                     <td>${fmtPP(s.pp)}</td>
                     <td>${relTime(s.created_at)}</td>
+                    <td>${replayLink(s)}</td>
                 </tr>`).join('')
-            : `<tr><td colspan="7" class="empty-state">${t('empty_feed')}</td></tr>`;
+            : `<tr><td colspan="8" class="empty-state">${t('empty_feed')}</td></tr>`;
 
         populateCountryFilter(data.countries);
 

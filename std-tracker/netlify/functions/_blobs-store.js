@@ -75,7 +75,16 @@ function getFarmHelperStore() {
     return store('std-tracker-farm-helper');
 }
 
+// Watch Replay's forever-cache of downloaded .osr bytes (replay-download.js
+// — `replay:{score_id}` -> raw arrayBuffer). A finished score's replay
+// never changes, so this is never invalidated; it just avoids re-hitting
+// osu!'s download endpoint (and the requesting user's own rate limit) on
+// every repeat view of the same score.
+function getReplayCacheStore() {
+    return store('std-tracker-replay-cache');
+}
+
 module.exports = {
     getRankingsStore, getFeedStore, getMapsStore, getAuthStore, getGoalsStore, getCommunitiesStore,
-    getPeerStore, getFarmHelperStore,
+    getPeerStore, getFarmHelperStore, getReplayCacheStore,
 };

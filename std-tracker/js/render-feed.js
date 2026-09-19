@@ -1,6 +1,6 @@
-/* Ported from catch-tracker's own render-feed.js, minus its replay-link
-   column (no replay viewer on this site yet — see README.md's "not built
-   yet" list). */
+/* Ported from catch-tracker's own render-feed.js. Replay-link column is
+   back now that Watch Replay exists here too (see common.js's
+   replayLink()). */
 let _page = 0;
 let _grade = '';
 let _country = '';
@@ -142,8 +142,9 @@ async function loadFeed() {
                     <td>${fmtAccuracy(s.accuracy)}</td>
                     <td>${fmtPP(s.pp)}</td>
                     <td>${relTime(s.created_at)}</td>
+                    <td>${replayLink(s)}</td>
                 </tr>`).join('')
-            : `<tr><td colspan="7" class="empty-state">${t('empty_feed')}</td></tr>`;
+            : `<tr><td colspan="8" class="empty-state">${t('empty_feed')}</td></tr>`;
 
         populateCountryFilter(data.countries);
         renderActivePlayers(data.activePlayers);

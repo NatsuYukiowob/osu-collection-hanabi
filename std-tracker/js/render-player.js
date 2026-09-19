@@ -1,9 +1,15 @@
 /* Ported from catch-tracker's own render-player.js, trimmed for v1: no
-   Farm Helper link, no score-detail modal (score-modal.js), no replay
-   links, and no 關于/bio tab (needs a BBCode-to-HTML renderer this site
-   doesn't have — unparsed BBCode markup would just look broken). Rank-
-   delta badges ARE back, now that a daily rank-snapshot cron exists here
-   too. See README.md's "not built yet" list. */
+   Farm Helper link, no score-detail modal (score-modal.js), and no
+   關于/bio tab (needs a BBCode-to-HTML renderer this site doesn't have —
+   unparsed BBCode markup would just look broken). Rank-delta badges ARE
+   back, now that a daily rank-snapshot cron exists here too. Replay links
+   ARE back too, now that Watch Replay exists. See README.md's "not built
+   yet" list. */
+
+// Score records on this page don't carry their own username/user_id (this
+// whole page is scoped to one player already) — replayLink() needs both
+// for its query string, so stash them here once the profile loads.
+let _currentPlayer = { id: null, username: '' };
 
 const GRADE_COUNT_FIELDS = [
     ['x', 'ss'], ['xh', 'ssh'], ['s', 's'], ['sh', 'sh'], ['a', 'a'],
@@ -28,13 +34,14 @@ function scoreRow(s) {
         <td>${fmtAccuracy(s.accuracy)}</td>
         <td>${fmtPP(s.pp)}</td>
         <td>${relTime(s.created_at)}</td>
+        <td>${replayLink(s, _currentPlayer.username, _currentPlayer.id)}</td>
     </tr>`;
 }
 
 function scoreTable(scores, emptyMsg) {
     if (!scores.length) return `<p class="empty-state">${emptyMsg}</p>`;
     return `<div class="table-wrap"><table>
-        <thead><tr><th>${t('th_map')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th></tr></thead>
+        <thead><tr><th>${t('th_map')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th><th></th></tr></thead>
         <tbody>${scores.map(s => scoreRow(s)).join('')}</tbody>
     </table></div>`;
 }
@@ -242,6 +249,7 @@ async function loadPlayer() {
         const data = await apiGet('player-get', { user_id: userId });
         const p = data.profile;
         document.title = `Std Tracker — ${p.username || userId}`;
+        _currentPlayer = { id: userId, username: p.username || '' };
 
         const extraStats = [];
         const joinDate = fmtJoinDate(p.join_date);

@@ -1,7 +1,8 @@
 /* Ported from catch-tracker's own render-map.js, minus its score-detail
-   modal registration and replay links (neither feature exists on this site
-   yet). The Maps-catalog status badge is back now that this site's own
-   Maps catalog crawler exists — see map-stats.js's fallback. */
+   modal registration (that feature doesn't exist on this site). Replay
+   links are back now that Watch Replay exists here too. The Maps-catalog
+   status badge is back now that this site's own Maps catalog crawler
+   exists — see map-stats.js's fallback. */
 async function loadMap() {
     const main = document.getElementById('map-main');
     const params = new URLSearchParams(location.search);
@@ -60,7 +61,7 @@ async function loadMap() {
             <h2>${t('tracked_scores')}</h2>
             <div class="table-wrap">
             <table>
-                <thead><tr><th>${t('th_player')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th></tr></thead>
+                <thead><tr><th>${t('th_player')}</th><th>${t('th_mods')}</th><th>${t('th_grade')}</th><th>${t('th_acc')}</th><th>${t('th_pp')}</th><th>${t('th_when')}</th><th></th></tr></thead>
                 <tbody>${data.scores.map(s => `
                     <tr>
                         <td>${playerLink(s.user_id, s.username)}</td>
@@ -69,7 +70,8 @@ async function loadMap() {
                         <td>${fmtAccuracy(s.accuracy)}</td>
                         <td>${fmtPP(s.pp)}</td>
                         <td>${relTime(s.created_at)}</td>
-                    </tr>`).join('') || `<tr><td colspan="6" class="empty-state">${t('no_scores_short')}</td></tr>`}</tbody>
+                        <td>${replayLink(s)}</td>
+                    </tr>`).join('') || `<tr><td colspan="7" class="empty-state">${t('no_scores_short')}</td></tr>`}</tbody>
             </table>
             </div>
         `;

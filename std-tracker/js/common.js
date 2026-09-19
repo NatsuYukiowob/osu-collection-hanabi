@@ -1,11 +1,12 @@
 /* Small shared helpers: grade badge rendering, mod formatting, relative
    time, HTML escaping, and a tiny two-language (zh-Hant / en) i18n layer.
-   Ported from catch-tracker's own common.js, trimmed down to what this
-   site's v1 pages (Home/Rankings/Feed/Player/Map) actually use — no login,
-   replay viewer, Farm Helper, Maps catalog, Skins, Goals, or Discord
-   directory yet (see README.md for the full "not built yet" list). Global
-   from day one, so unlike catch-tracker's own history there's no
-   "originally single-country" caveat here. */
+   Ported from catch-tracker's own common.js — originally trimmed down for
+   this site's v1 pages only, since grown to cover login, Farm Helper,
+   Maps catalog, Goals, Discord directory, and Watch Replay too (see
+   README.md for what's still "not built yet"). Skins is deliberately
+   skipped for good, not deferred. Global from day one, so unlike
+   catch-tracker's own history there's no "originally single-country"
+   caveat here. */
 
 function escapeHtml(str) {
     return String(str ?? '').replace(/[&<>"']/g, c => ({
@@ -19,7 +20,7 @@ const LANG_STRINGS = {
     zh: {
         nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_goals: '目標', nav_discord: 'Discord',
         nav_top_plays: '最佳成績', nav_farm_trending: '刷分熱門', nav_farm_helper: '刷圖助手',
-        remove: '移除', th_category: '分類',
+        remove: '移除', th_category: '分類', watch_replay: '看回放',
         loading: '載入中…',
         title_rankings: 'Std Tracker — osu! 全球排名',
         title_feed: 'Std Tracker — 即時動態',
@@ -213,7 +214,7 @@ const LANG_STRINGS = {
     en: {
         nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_goals: 'Goals', nav_discord: 'Discord',
         nav_top_plays: 'Top Plays', nav_farm_trending: 'Trending Farm', nav_farm_helper: 'Farm Helper',
-        remove: 'Remove', th_category: 'Category',
+        remove: 'Remove', th_category: 'Category', watch_replay: 'Watch replay',
         loading: 'Loading…',
         title_rankings: 'Std Tracker — Global osu! Rankings',
         title_feed: 'Std Tracker — Live Feed',
@@ -630,6 +631,30 @@ function mapBannerCell(beatmapsetId, innerHtml) {
     const cover = coverArtUrlCard(beatmapsetId);
     const style = cover ? ` style="background-image:url('${cover.replace(/'/g, '%27')}')"` : '';
     return `<td class="map-banner-cell"${style}><div class="map-banner-cell-inner">${innerHtml}</div></td>`;
+}
+
+// Shared "看回放" entry point for any score row (player best/recent plays,
+// map score lists, live feed, top plays) — only renders when has_replay is
+// true (osu! only retains a downloadable replay when the score is notable
+// enough on its beatmap, so this is false for most ordinary scores, not a
+// bug). Ported from catch-tracker's own replayLink(). username/userId
+// override params let a caller that already knows them (e.g. the player
+// page) avoid relying on the score record carrying them itself.
+function replayLink(s, username, userId) {
+    if (!s.has_replay || !s.score_id) return '';
+    const params = new URLSearchParams({ score_id: s.score_id, beatmap_id: s.beatmap_id });
+    if (s.beatmapset_id) params.set('beatmapset_id', s.beatmapset_id);
+    if (s.mods && s.mods.length) params.set('mods', s.mods.join(','));
+    if (s.title) params.set('title', s.title);
+    if (s.artist) params.set('artist', s.artist);
+    if (s.version) params.set('version', s.version);
+    if (s.rank) params.set('rank', s.rank);
+    if (s.pp != null) params.set('pp', s.pp);
+    const uname = username || s.username;
+    if (uname) params.set('username', uname);
+    const uid = userId || s.user_id;
+    if (uid) params.set('user_id', uid);
+    return `<a class="pill" href="replay.html?${params.toString()}">${escapeHtml(t('watch_replay'))}</a>`;
 }
 
 // osu!'s stable beatmapset-cover CDN pattern — no extra API call needed,
