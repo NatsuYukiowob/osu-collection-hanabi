@@ -20,9 +20,7 @@
 ## 2. Environment variables
 
 Set these on the **new** site (Site configuration → Environment variables).
-Nothing is inherited from the other sites automatically. Unlike
-catch-tracker, this site has no site-login feature yet, so it needs no
-`OSU_REPLAY_*`/`OSU_AUTH_SECRET`/`TOKEN_ENC_KEY` variables at all.
+Nothing is inherited from the other sites automatically.
 
 | Variable | Value | Notes |
 |---|---|---|
@@ -30,7 +28,22 @@ catch-tracker, this site has no site-login feature yet, so it needs no
 | `OSU_CLIENT_SECRET` | same as the main site's / catch-tracker's | ditto |
 | `NETLIFY_BLOBS_SITE_ID` | **new** — this site's own Project ID | Site configuration → General → Project information. Must NOT be another site's id — reusing one would write into that site's blob storage. |
 | `NETLIFY_BLOBS_TOKEN` | **new** — a personal access token | User settings → Applications → New access token |
-| `STD_TRACKER_CRAWL_SECRET` | freshly generated random string | gates `rankings-crawl-run` / `scores-poll-run` |
+| `STD_TRACKER_CRAWL_SECRET` | freshly generated random string | gates `rankings-crawl-run` / `scores-poll-run` / `maps-crawl-run` / `rank-snapshot-run` |
+| `OSU_LOGIN_CLIENT_ID` | **new osu! OAuth app**, separate from `OSU_CLIENT_ID` | `authorization_code` binds a redirect URI to one app — see below |
+| `OSU_LOGIN_CLIENT_SECRET` | that new app's secret | |
+| `OSU_LOGIN_REDIRECT_URI` | `https://<std-tracker-site>.netlify.app/.netlify/functions/osu-callback` | must exactly match the callback URL registered on the new osu! OAuth app |
+| `OSU_AUTH_SECRET` | freshly generated random string | signs the site login's identity token — do NOT reuse another site's value |
+| `TOKEN_ENC_KEY` | `openssl rand -base64 32` | encrypts each logged-in user's osu! access/refresh token at rest (see `_token-crypto.js`) |
+
+### The site login's osu! OAuth app
+
+1. On osu!, go to Account Settings → OAuth → **New OAuth Application**.
+2. Application Callback URLs: the exact `OSU_LOGIN_REDIRECT_URI` above.
+3. Copy the generated Client ID/Secret into the two env vars above.
+4. This app is used ONLY for the login flow — the existing
+   `OSU_CLIENT_ID`/`OSU_CLIENT_SECRET` (shared with the main site and
+   catch-tracker, `client_credentials` only) are untouched and keep
+   working exactly as before.
 
 ## 3. Seed the data
 

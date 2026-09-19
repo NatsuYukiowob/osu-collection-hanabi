@@ -34,13 +34,18 @@ mania-tracker.com — that hub isn't built yet.
   osu!standard beatmap (search / status / sort by star, BPM, length, or
   newest). No audio preview, download button, or favourite-count sort yet
   — those were catch-tracker's own later additions to this same page.
+- **Login** (header "Login with osu!") — a real osu! OAuth login (same
+  authorization_code + encrypted-token-at-rest design as catch-tracker's
+  own), ready for the next login-gated feature to use. Nothing actually
+  gates on it yet — it's infrastructure built ahead of its first consumer.
 
 Not built yet (all present on catch-tracker, deliberately deferred here):
-site login, replay viewing, Farm Helper, Goals, a Discord server directory,
-a Discord bot. Skins is deliberately skipped for good, not deferred — a
-skin file isn't mode-specific, so a second, disconnected skins catalog per
-tracker would just be a wasteful duplicate; if this ever gets built it
-should be one shared catalog across every tracker, not std-tracker's own.
+replay viewing, Farm Helper, Goals, a Discord server directory, a Discord
+bot — all of which need the login system above, which now exists. Skins
+is deliberately skipped for good, not deferred — a skin file isn't
+mode-specific, so a second, disconnected skins catalog per tracker would
+just be a wasteful duplicate; if this ever gets built it should be one
+shared catalog across every tracker, not std-tracker's own.
 
 ## How the data gets there
 

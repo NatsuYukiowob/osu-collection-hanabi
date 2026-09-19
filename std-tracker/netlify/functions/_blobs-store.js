@@ -35,4 +35,13 @@ function getMapsStore() {
     return store('std-tracker-maps');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore };
+// Site login (osu-login.js/osu-callback.js, _user-auth.js):
+// `user-token:{user_id}` → encrypted {access_token, refresh_token,
+// expires_at} (see _token-crypto.js) so a login-gated feature can call
+// osu!'s API again on a later visit without asking the user to re-login
+// every time.
+function getAuthStore() {
+    return store('std-tracker-auth');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getAuthStore };

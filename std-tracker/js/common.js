@@ -39,6 +39,9 @@ const LANG_STRINGS = {
         failed_rankings: '排行榜載入失敗。',
         filter_all_countries: '所有國家',
         prev: '← 上一頁', next: '下一頁 →', page_label: '第 {n} 頁',
+        login_with_osu: '使用 osu! 登入',
+        logout: '登出',
+        login_failed: '登入失敗，請再試一次',
 
         h1_feed: '即時分數動態',
         filter_any_grade: '任何評級', filter_fc_only: '僅 FC', filter_choke_only: '僅撞/失敗',
@@ -132,6 +135,9 @@ const LANG_STRINGS = {
         failed_rankings: 'Failed to load rankings.',
         filter_all_countries: 'All countries',
         prev: '← Prev', next: 'Next →', page_label: 'Page {n}',
+        login_with_osu: 'Login with osu!',
+        logout: 'Logout',
+        login_failed: 'Login failed, please try again',
 
         h1_feed: 'Live Score Feed',
         filter_any_grade: 'Any grade', filter_fc_only: 'FC only', filter_choke_only: 'Choke/fail only',
@@ -243,6 +249,91 @@ function applyStaticI18n() {
     document.documentElement.lang = getLang() === 'zh' ? 'zh-Hant' : 'en';
 }
 applyStaticI18n();
+
+/* ---------- osu! OAuth login ----------
+   netlify/functions/osu-login.js + osu-callback.js run the
+   authorization-code flow and redirect back here with
+   ?st_login=<id>&st_login_name=<name>&st_login_token=<signed token> (or
+   ?st_login_error=<stage> on failure). The real osu! access token is
+   never sent to the client — it stays encrypted server-side (see
+   _user-auth.js) so a login-gated feature can reuse it on a later visit
+   without asking the user to re-login every time. Ported from
+   catch-tracker's own common.js (its own login was originally Watch-
+   Replay-only, later rebuilt as general login — this site never had that
+   history, so it's named plainly from the start). */
+const ST_LOGIN_STORAGE_KEY = 'st_logged_in_user';
+
+function getStLoggedInUser() {
+    try { return JSON.parse(localStorage.getItem(ST_LOGIN_STORAGE_KEY)); }
+    catch { return null; }
+}
+
+function getStAuthToken() {
+    const user = getStLoggedInUser();
+    return user && user.token ? user.token : null;
+}
+
+function logoutStUser() {
+    localStorage.removeItem(ST_LOGIN_STORAGE_KEY);
+    applyStLoggedInUser();
+}
+
+function stLoginUrl() {
+    const returnTo = location.pathname + location.search;
+    return `/.netlify/functions/osu-login?${new URLSearchParams({ return_to: returnTo })}`;
+}
+
+function applyStLoggedInUser() {
+    const user = getStLoggedInUser();
+    const loginBtn = document.getElementById('st-login-btn');
+    const pill = document.getElementById('st-logged-in-pill');
+    if (loginBtn) {
+        loginBtn.style.display = user ? 'none' : '';
+        loginBtn.href = stLoginUrl();
+    }
+    if (pill) pill.style.display = user ? '' : 'none';
+    if (!user) return;
+    const nameEl = document.getElementById('st-logged-in-name');
+    const avatarEl = document.getElementById('st-logged-in-avatar');
+    if (nameEl) nameEl.textContent = user.username || `#${user.id}`;
+    if (avatarEl) avatarEl.src = `https://a.ppy.sh/${user.id}`;
+}
+
+function showStLoginMsg(msg) {
+    const el = document.getElementById('st-login-msg');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    setTimeout(() => { el.hidden = true; }, 6000);
+}
+
+function checkStLoginFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('st_login');
+    const loginFailed = params.get('st_login_error');
+
+    if (id) {
+        localStorage.setItem(ST_LOGIN_STORAGE_KEY, JSON.stringify({
+            id,
+            username: params.get('st_login_name') || '',
+            token: params.get('st_login_token') || null,
+        }));
+    }
+    if (id || loginFailed) {
+        params.delete('st_login');
+        params.delete('st_login_name');
+        params.delete('st_login_token');
+        params.delete('st_login_error');
+        const qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+        if (loginFailed) showStLoginMsg(t('login_failed'));
+    }
+
+    applyStLoggedInUser();
+    const logoutBtn = document.getElementById('st-logout-btn');
+    if (logoutBtn) logoutBtn.addEventListener('click', logoutStUser);
+}
+checkStLoginFromUrl();
 
 /* ---------- grade badges / mods / relative time ---------- */
 

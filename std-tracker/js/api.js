@@ -1,6 +1,5 @@
 /* Thin same-origin fetch wrapper for this site's own Netlify Functions.
-   Ported from catch-tracker's own api.js, minus its apiPost() (this site
-   has no login-gated writes yet — v1 is read-only). */
+   Ported from catch-tracker's own api.js. */
 const API_BASE = '/.netlify/functions';
 
 async function apiGet(fn, params) {
@@ -15,6 +14,19 @@ async function apiGet(fn, params) {
         if (search) qs = '?' + search;
     }
     const res = await fetch(`${API_BASE}/${fn}${qs}`);
+    if (!res.ok) throw new Error(`${fn} failed: ${res.status}`);
+    return res.json();
+}
+
+// Same-origin POST with the logged-in user's signed identity token attached
+// (see common.js's getStAuthToken()) — used by future login-gated writes.
+async function apiPost(fn, body) {
+    const token = getStAuthToken();
+    const res = await fetch(`${API_BASE}/${fn}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'x-st-auth-token': token } : {}) },
+        body: JSON.stringify(body),
+    });
     if (!res.ok) throw new Error(`${fn} failed: ${res.status}`);
     return res.json();
 }

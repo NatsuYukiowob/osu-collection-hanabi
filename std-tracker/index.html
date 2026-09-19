@@ -23,6 +23,13 @@
         <a href="maps.html" data-i18n="nav_maps">Maps</a>
     </nav>
     <button class="lang-toggle" id="lang-toggle" type="button">EN</button>
+    <a class="ct-login-btn" id="st-login-btn" href="/.netlify/functions/osu-login" data-i18n="login_with_osu">Login with osu!</a>
+    <div class="ct-login-pill" id="st-logged-in-pill" style="display:none">
+        <img id="st-logged-in-avatar" class="ct-login-avatar" alt="">
+        <span id="st-logged-in-name"></span>
+        <button type="button" id="st-logout-btn" class="ct-logout-btn" data-i18n="logout">Logout</button>
+    </div>
+    <span class="ct-login-msg" id="st-login-msg" hidden></span>
     </div>
 </header>
 <main class="home">
