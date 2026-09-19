@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Std Tracker — osu! Rankings</title>
+<title>Std Tracker — Trending Farm Maps</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -18,10 +18,10 @@
     <div class="site-header-row2">
     <nav>
         <a href="index.html" data-i18n="nav_home">Home</a>
-        <a href="rankings.html" class="active" data-i18n="nav_rankings">Rankings</a>
+        <a href="rankings.html" data-i18n="nav_rankings">Rankings</a>
         <a href="feed.html" data-i18n="nav_feed">Live Feed</a>
         <a href="top-plays.html" data-i18n="nav_top_plays">Top Plays</a>
-        <a href="farm-trending.html" data-i18n="nav_farm_trending">Trending Farm</a>
+        <a href="farm-trending.html" class="active" data-i18n="nav_farm_trending">Trending Farm</a>
         <a href="maps.html" data-i18n="nav_maps">Maps</a>
         <a href="goals.html" data-i18n="nav_goals">Goals</a>
         <a href="discord.html" data-i18n="nav_discord">Discord</a>
@@ -36,26 +36,32 @@
     <span class="ct-login-msg" id="st-login-msg" hidden></span>
     </div>
 </header>
-<main>
-    <h1><span data-i18n="h1_rankings">osu! Rankings</span></h1>
+<main class="wide">
+    <h1><span data-i18n="h1_farm_trending">Trending Farm Maps</span></h1>
     <p class="coverage-note" id="coverage-note" data-i18n="loading">Loading…</p>
+    <p class="farm-trending-hint" data-i18n="farm_trending_hint">Which maps the tracked pool has actually been grinding lately — not a lifetime total, just recent activity.</p>
     <div class="filters">
-        <div class="flag-select" id="filter-country-combo">
-            <button type="button" class="flag-select-btn" id="filter-country-btn" aria-haspopup="listbox" aria-expanded="false">
-                <img class="flag-select-flag" id="filter-country-flag" alt="" hidden>
-                <span id="filter-country-label" data-i18n="filter_all_countries">All countries</span>
-                <svg class="flag-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="flag-select-panel" id="filter-country-panel" role="listbox" hidden></div>
-        </div>
+        <select id="farm-trending-sort">
+            <option value="playcount" data-i18n="sort_farm_playcount">Most recent plays</option>
+            <option value="avgpp" data-i18n="sort_farm_avgpp">Highest avg pp</option>
+            <option value="maxpp" data-i18n="sort_farm_maxpp">Highest single pp</option>
+            <option value="recent" data-i18n="sort_farm_recent">Most recently played</option>
+        </select>
+        <input type="number" id="farm-trending-minpp" class="search-input" style="width:140px" min="0" step="10" data-i18n-placeholder="filter_min_avg_pp" placeholder="Min avg pp">
     </div>
-
     <div class="table-wrap">
     <table>
         <thead>
-            <tr><th data-i18n="th_rank">#</th><th data-i18n="th_player">Player</th><th data-i18n="th_delta_global">Global Δ</th><th data-i18n="th_delta_country">Country Δ</th><th data-i18n="th_accuracy">Accuracy</th><th data-i18n="th_playcount">Play Count</th><th data-i18n="th_pp">pp</th><th class="rankings-th-grade rankings-th-grade--ss" data-i18n="th_ss">SS</th><th class="rankings-th-grade rankings-th-grade--s" data-i18n="th_s">S</th><th class="rankings-th-grade rankings-th-grade--a" data-i18n="th_a">A</th></tr>
+            <tr>
+                <th data-i18n="th_map">Map</th>
+                <th data-i18n="th_playcount">Play Count</th>
+                <th data-i18n="th_avg_pp">Avg pp</th>
+                <th data-i18n="th_max_pp">Max pp</th>
+                <th data-i18n="th_recent_players">Recent Players</th>
+                <th data-i18n="th_when">When</th>
+            </tr>
         </thead>
-        <tbody id="rankings-body"></tbody>
+        <tbody id="farm-trending-body"></tbody>
     </table>
     </div>
     <div class="pagination">
@@ -74,6 +80,6 @@
 <script src="js/common.js"></script>
 <script src="js/settings-panel.js"></script>
 <script src="js/api.js"></script>
-<script src="js/render-rankings.js"></script>
+<script src="js/render-farm-trending.js"></script>
 </body>
 </html>

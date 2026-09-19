@@ -17,7 +17,8 @@ function escapeHtml(str) {
 
 const LANG_STRINGS = {
     zh: {
-        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_goals: '目標',
+        nav_home: '首頁', nav_rankings: '排行榜', nav_feed: '即時動態', nav_goals: '目標', nav_discord: 'Discord',
+        nav_top_plays: '最佳成績', nav_farm_trending: '刷分熱門',
         loading: '載入中…',
         title_rankings: 'Std Tracker — osu! 全球排名',
         title_feed: 'Std Tracker — 即時動態',
@@ -111,6 +112,10 @@ const LANG_STRINGS = {
         empty_maps: '沒有符合條件的圖譜。',
         failed_maps: '圖譜庫載入失敗。',
         diff_count_suffix: '譜',
+        sort_playcount_desc: '遊玩次數最多', sort_favourites_desc: '收藏數最多',
+        star_any: '任何星數', bpm_any: '任何 BPM', length_any: '任何長度',
+        random_map: '🎲 隨機',
+        download_osz: '下載 .osz',
 
         h1_goals: '目標',
         goals_hint: '設定總PP目標，網站會在你每次來訪時，用你最新的 osu! 資料自動幫你檢查進度。',
@@ -125,9 +130,42 @@ const LANG_STRINGS = {
         goals_invalid_target: '請輸入有效的PP數字。',
         goals_save_failed: '儲存失敗，請再試一次。',
         goals_load_failed: '目標載入失敗。',
+
+        h1_discord: 'Discord 伺服器',
+        discord_submit_toggle: '發布你的伺服器',
+        discord_search_placeholder: '搜尋伺服器或標籤…',
+        discord_empty: '還沒有任何伺服器 — 當第一個發布的人吧！',
+        discord_coverage: '共 {n} 個社群 Discord 伺服器',
+        discord_failed: '載入失敗。',
+        discord_join: '加入',
+        discord_submitted_by: '發布者：{name}',
+        discord_remove: '下架',
+        discord_login_prompt: '請先登入 osu! 帳號才能發布伺服器。',
+        discord_name_placeholder: '伺服器名稱',
+        discord_invite_placeholder: 'https://discord.gg/...',
+        discord_icon_placeholder: '圖示圖片網址（選填）',
+        discord_desc_placeholder: '簡短描述（選填）',
+        discord_tags_placeholder: '標籤，用逗號分隔（選填）',
+        discord_submit: '發布',
+        discord_missing_name: '請輸入伺服器名稱。',
+        discord_missing_invite: '請輸入邀請連結。',
+        discord_submitting: '發布中…',
+        discord_submit_success: '發布成功！',
+        discord_submit_failed: '發布失敗，請確認邀請連結格式是否正確（discord.gg 或 discord.com/invite）。',
+
+        h1_top_plays: '最佳成績',
+        filter_range_24h: '24小時', filter_range_3d: '3天', filter_range_7d: '7天', filter_range_30d: '30天',
+        h1_farm_trending: '刷分熱門地圖',
+        farm_trending_hint: '追蹤名單最近實際在刷的圖 — 不是累計總次數，只看最近的活動量。',
+        sort_farm_playcount: '最近遊玩次數', sort_farm_avgpp: '平均PP最高',
+        sort_farm_maxpp: '單次PP最高', sort_farm_recent: '最近遊玩時間',
+        filter_min_avg_pp: '最低平均PP',
+        th_avg_pp: '平均PP', th_max_pp: '最高PP', th_recent_players: '最近遊玩者',
+        coverage_farm_trending: '共 {maps} 張圖有近期活動 — 上次更新 {time}',
     },
     en: {
-        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_goals: 'Goals',
+        nav_home: 'Home', nav_rankings: 'Rankings', nav_feed: 'Live Feed', nav_goals: 'Goals', nav_discord: 'Discord',
+        nav_top_plays: 'Top Plays', nav_farm_trending: 'Trending Farm',
         loading: 'Loading…',
         title_rankings: 'Std Tracker — Global osu! Rankings',
         title_feed: 'Std Tracker — Live Feed',
@@ -221,6 +259,10 @@ const LANG_STRINGS = {
         empty_maps: 'No maps match these filters.',
         failed_maps: 'Failed to load the map catalog.',
         diff_count_suffix: ' diffs',
+        sort_playcount_desc: 'Most played', sort_favourites_desc: 'Most favourited',
+        star_any: 'Any star', bpm_any: 'Any BPM', length_any: 'Any length',
+        random_map: '🎲 Random',
+        download_osz: 'Download .osz',
 
         h1_goals: 'Goals',
         goals_hint: 'Set a total-pp target and this page checks your progress automatically against your latest osu! stats every time you visit.',
@@ -235,6 +277,38 @@ const LANG_STRINGS = {
         goals_invalid_target: 'Enter a valid pp number.',
         goals_save_failed: 'Failed to save, please try again.',
         goals_load_failed: 'Failed to load goals.',
+
+        h1_discord: 'Discord Servers',
+        discord_submit_toggle: 'Submit your server',
+        discord_search_placeholder: 'Search servers or tags…',
+        discord_empty: 'No servers yet — be the first to submit one!',
+        discord_coverage: '{n} community Discord servers',
+        discord_failed: 'Failed to load.',
+        discord_join: 'Join',
+        discord_submitted_by: 'Submitted by {name}',
+        discord_remove: 'Remove',
+        discord_login_prompt: 'Login with your osu! account to submit a server.',
+        discord_name_placeholder: 'Server name',
+        discord_invite_placeholder: 'https://discord.gg/...',
+        discord_icon_placeholder: 'Icon image URL (optional)',
+        discord_desc_placeholder: 'Short description (optional)',
+        discord_tags_placeholder: 'Tags, comma-separated (optional)',
+        discord_submit: 'Submit',
+        discord_missing_name: 'Enter a server name.',
+        discord_missing_invite: 'Enter an invite link.',
+        discord_submitting: 'Submitting…',
+        discord_submit_success: 'Submitted!',
+        discord_submit_failed: 'Failed to submit — check the invite link is a discord.gg or discord.com/invite URL.',
+
+        h1_top_plays: 'Top Plays',
+        filter_range_24h: '24h', filter_range_3d: '3d', filter_range_7d: '7d', filter_range_30d: '30d',
+        h1_farm_trending: 'Trending Farm Maps',
+        farm_trending_hint: "What the tracked pool has actually been grinding lately — not a lifetime total, just recent activity.",
+        sort_farm_playcount: 'Most recent plays', sort_farm_avgpp: 'Highest avg pp',
+        sort_farm_maxpp: 'Highest single pp', sort_farm_recent: 'Most recently played',
+        filter_min_avg_pp: 'Min avg pp',
+        th_avg_pp: 'Avg pp', th_max_pp: 'Max pp', th_recent_players: 'Recent Players',
+        coverage_farm_trending: '{maps} maps with recent activity — last updated {time}',
     },
 };
 
@@ -562,6 +636,205 @@ function avatarWithFlagHtml(avatarUrl, countryCode, avatarClass) {
         <img class="${cls}" src="${escapeHtml(avatarUrl || '')}" alt="">
         ${flag ? `<img class="avatar-flag-badge" src="${flag}" alt="${escapeHtml(countryCode)}" onerror="this.style.display='none';">` : ''}
     </span>`;
+}
+
+/* ---------- audio preview button + floating mini-player ----------
+   Ported from catch-tracker's own common.js. Plain <audio> playback needs
+   no CORS at all (that's only a Web Audio API/AnalyserNode requirement) —
+   the in-card bars are a decorative simulated equalizer, not driven by
+   actual audio analysis, so this stays a plain <audio> element with zero
+   backend involvement.
+
+   A page that renders preview buttons (currently just render-maps.js)
+   calls resetPreviewQueue() once before rendering a batch of cards, then
+   previewButton() for each card — each call appends {beatmapsetId, title,
+   artist, cover} to _previewQueue and bakes that item's queue index into
+   the button's onclick. This is what lets the floating mini-player's
+   prev/next step through "whatever's currently on screen" without the
+   page needing its own separate queue logic. Only one preview plays at a
+   time; starting a new one stops whichever was already playing. */
+let _previewAudio = null;
+let _previewIndex = -1;
+let _previewQueue = [];
+let _previewVolume = (() => {
+    try { const v = parseFloat(localStorage.getItem('st_preview_volume')); return Number.isFinite(v) ? v : 0.6; }
+    catch { return 0.6; }
+})();
+let _previewLoop = false;
+
+function resetPreviewQueue() {
+    _previewQueue = [];
+}
+
+function previewButtons() {
+    return document.querySelectorAll('.preview-btn');
+}
+
+function stopPreview() {
+    if (_previewAudio) _previewAudio.pause();
+    const btn = previewButtons()[_previewIndex];
+    if (btn) btn.classList.remove('playing', 'paused');
+    _previewAudio = null;
+    _previewIndex = -1;
+    hideMiniPlayer();
+}
+
+function startPreviewAt(index) {
+    const item = _previewQueue[index];
+    if (!item) return;
+    const prevBtn = previewButtons()[_previewIndex];
+    if (prevBtn) prevBtn.classList.remove('playing', 'paused');
+    if (_previewAudio) _previewAudio.pause();
+
+    const audio = new Audio(`https://b.ppy.sh/preview/${item.beatmapsetId}.mp3`);
+    audio.volume = _previewVolume;
+    audio.loop = _previewLoop;
+    audio.addEventListener('ended', nextPreview);
+    audio.addEventListener('error', stopPreview);
+    audio.addEventListener('timeupdate', updateMiniPlayerProgress);
+    audio.addEventListener('loadedmetadata', updateMiniPlayerProgress);
+    audio.addEventListener('play', updateMiniPlayerPlayState);
+    audio.addEventListener('pause', updateMiniPlayerPlayState);
+    audio.play().catch(stopPreview);
+
+    const btn = previewButtons()[index];
+    if (btn) btn.classList.add('playing');
+    _previewAudio = audio;
+    _previewIndex = index;
+    showMiniPlayer(item);
+}
+
+function togglePreviewAt(index) {
+    if (_previewIndex === index) { stopPreview(); return; }
+    startPreviewAt(index);
+}
+
+function nextPreview() {
+    if (!_previewQueue.length) return stopPreview();
+    startPreviewAt((_previewIndex + 1 + _previewQueue.length) % _previewQueue.length);
+}
+function prevPreview() {
+    if (!_previewQueue.length) return stopPreview();
+    startPreviewAt((_previewIndex - 1 + _previewQueue.length) % _previewQueue.length);
+}
+function togglePlayPause() {
+    if (!_previewAudio) return;
+    if (_previewAudio.paused) _previewAudio.play().catch(stopPreview); else _previewAudio.pause();
+}
+function toggleLoop() {
+    _previewLoop = !_previewLoop;
+    if (_previewAudio) _previewAudio.loop = _previewLoop;
+    const btn = document.getElementById('mini-player-loop');
+    if (btn) btn.classList.toggle('active', _previewLoop);
+}
+
+function fmtPreviewTime(s) {
+    if (!Number.isFinite(s) || s < 0) return '0:00';
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+}
+
+const MINI_PLAYER_PLAY_ICON = '<path d="M8 5v14l11-7z"/>';
+const MINI_PLAYER_PAUSE_ICON = '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
+
+function updateMiniPlayerPlayState() {
+    if (!_previewAudio) return;
+    const playBtn = document.getElementById('mini-player-playpause');
+    if (playBtn) playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${_previewAudio.paused ? MINI_PLAYER_PLAY_ICON : MINI_PLAYER_PAUSE_ICON}</svg>`;
+    const activeBtn = previewButtons()[_previewIndex];
+    if (activeBtn) activeBtn.classList.toggle('paused', _previewAudio.paused);
+}
+
+function updateMiniPlayerProgress() {
+    if (!_previewAudio) return;
+    const seek = document.getElementById('mini-player-seek');
+    const time = document.getElementById('mini-player-time');
+    if (!seek || !time) return;
+    const duration = _previewAudio.duration || 0;
+    const current = _previewAudio.currentTime || 0;
+    if (document.activeElement !== seek) seek.value = duration ? String(current / duration) : '0';
+    time.textContent = `${fmtPreviewTime(current)} / ${fmtPreviewTime(duration)}`;
+}
+
+function ensureMiniPlayer() {
+    if (document.getElementById('mini-player')) return;
+    const el = document.createElement('div');
+    el.id = 'mini-player';
+    el.className = 'mini-player';
+    el.hidden = true;
+    el.innerHTML = `
+        <div class="mini-player-top">
+            <img class="mini-player-cover" id="mini-player-cover" alt="">
+            <div class="mini-player-info">
+                <div class="mini-player-title" id="mini-player-title"></div>
+                <div class="mini-player-artist" id="mini-player-artist"></div>
+            </div>
+            <svg class="mini-player-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+            <input type="range" id="mini-player-volume" min="0" max="1" step="0.01" title="Volume">
+            <button type="button" class="mini-player-icon-btn" id="mini-player-close" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+        </div>
+        <div class="mini-player-controls">
+            <button type="button" class="mini-player-icon-btn" id="mini-player-prev" title="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-11-7z"/></svg></button>
+            <button type="button" class="mini-player-icon-btn" id="mini-player-playpause" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor">${MINI_PLAYER_PAUSE_ICON}</svg></button>
+            <button type="button" class="mini-player-icon-btn" id="mini-player-next" title="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+            <button type="button" class="mini-player-icon-btn" id="mini-player-loop" title="Loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></button>
+            <input type="range" id="mini-player-seek" min="0" max="1" step="0.001">
+            <span class="mini-player-time" id="mini-player-time">0:00 / 0:00</span>
+        </div>`;
+    document.body.appendChild(el);
+
+    document.getElementById('mini-player-close').addEventListener('click', stopPreview);
+    document.getElementById('mini-player-playpause').addEventListener('click', togglePlayPause);
+    document.getElementById('mini-player-prev').addEventListener('click', prevPreview);
+    document.getElementById('mini-player-next').addEventListener('click', nextPreview);
+    document.getElementById('mini-player-loop').addEventListener('click', toggleLoop);
+    document.getElementById('mini-player-volume').addEventListener('input', (e) => {
+        _previewVolume = parseFloat(e.target.value);
+        if (_previewAudio) _previewAudio.volume = _previewVolume;
+        try { localStorage.setItem('st_preview_volume', String(_previewVolume)); } catch { /* private mode etc. — just skip persisting */ }
+    });
+    document.getElementById('mini-player-seek').addEventListener('input', (e) => {
+        if (_previewAudio && _previewAudio.duration) _previewAudio.currentTime = parseFloat(e.target.value) * _previewAudio.duration;
+    });
+}
+
+function showMiniPlayer(item) {
+    ensureMiniPlayer();
+    document.getElementById('mini-player').hidden = false;
+    document.getElementById('mini-player-cover').src = item.cover || '';
+    document.getElementById('mini-player-title').textContent = item.title || '';
+    document.getElementById('mini-player-artist').textContent = item.artist || '';
+    document.getElementById('mini-player-volume').value = String(_previewVolume);
+    document.getElementById('mini-player-seek').value = '0';
+    document.getElementById('mini-player-time').textContent = '0:00 / 0:00';
+    updateMiniPlayerPlayState();
+}
+
+function hideMiniPlayer() {
+    const el = document.getElementById('mini-player');
+    if (el) el.hidden = true;
+}
+
+function previewButton(beatmapsetId, bpm, title, artist, cover) {
+    if (!beatmapsetId) return '';
+    const index = _previewQueue.length;
+    _previewQueue.push({ beatmapsetId, title: title || '', artist: artist || '', cover: cover || '' });
+    // 12 bars — see the CSS's .icon-eq span:nth-child(1..12) for the
+    // hand-tuned per-bar height/duration/delay that gives the full-width
+    // playing-state visualizer its wave look. Each bar's animation-duration
+    // is `calc(var(--beat-s) * <per-bar multiplier>)` rather than a fixed
+    // length, so the whole visualizer's bounce rate actually tracks this
+    // specific map's tempo — --beat-s (one beat's length in seconds,
+    // 60/bpm) is set inline here per card since bpm varies per map.
+    const REFERENCE_BPM = 150, BEAT_EXPONENT = 1.5;
+    const MIN_BEAT_S = 0.12, MAX_BEAT_S = 0.9;
+    const beatSeconds = bpm && bpm > 0
+        ? Math.min(MAX_BEAT_S, Math.max(MIN_BEAT_S, 0.4 * Math.pow(REFERENCE_BPM / bpm, BEAT_EXPONENT)))
+        : 0.4;
+    const bars = '<span></span>'.repeat(12);
+    return `<button type="button" class="preview-btn" style="--beat-s:${beatSeconds.toFixed(4)}s" onclick="event.stopPropagation();togglePreviewAt(${index})" title="Preview">
+        <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <span class="icon-eq">${bars}</span>
+    </button>`;
 }
 
 /* ---------- header player search ---------- */

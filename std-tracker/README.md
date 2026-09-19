@@ -30,10 +30,19 @@ mania-tracker.com — that hub isn't built yet.
 - **Map** (`map.html?id=`) — grade/mod distribution for one beatmap, among
   the tracked cohort's observed scores; falls back to the Maps catalog's
   basic metadata when no scores have been observed yet.
-- **Maps** (`maps.html`) — a lightweight catalog of every ranked + loved
-  osu!standard beatmap (search / status / sort by star, BPM, length, or
-  newest). No audio preview, download button, or favourite-count sort yet
-  — those were catch-tracker's own later additions to this same page.
+- **Maps** (`maps.html`) — a catalog of every ranked + loved osu!standard
+  beatmap: search / status / sort (star, BPM, length, newest, most played,
+  most favourited) / BPM+length range sliders, an audio-preview button +
+  floating mini-player, a direct .osz download button, and a 🎲 Random
+  button that respects whatever filters are currently active.
+- **Top Plays** (`top-plays.html`) — the best scores across every tracked
+  player, with 24h/3d/7d/30d range tabs (distinct from Live Feed's
+  chronological view). Reuses `feed-list.js`'s existing sort=pp path plus
+  a `sinceHours` param — no new backend dataset.
+- **Trending Farm** (`farm-trending.html`) — which maps the tracked pool
+  has actually been grinding lately, grouped from the same live feed data
+  (not a lifetime play-count total, which never resets and always favours
+  old maps).
 - **Login** (header "Login with osu!") — a real osu! OAuth login (same
   authorization_code + encrypted-token-at-rest design as catch-tracker's
   own).
@@ -42,13 +51,18 @@ mania-tracker.com — that hub isn't built yet.
   goal type for now, same as catch-tracker's own first pass (mania-
   tracker.com's other 7 goal types need more per-type osu! API calls and
   are deliberately left for later).
+- **Discord** (`discord.html`, submission login-gated) — a community-
+  submitted Discord server directory for std players, scoped to this site
+  the same way catch-tracker's own directory is scoped to catch (a
+  Discord community is genuinely mode-specific, unlike a skin file — see
+  the Skins note below).
 
-Not built yet (all present on catch-tracker, deliberately deferred here):
-replay viewing, Farm Helper, a Discord server directory, a Discord bot.
-Skins is deliberately skipped for good, not deferred — a skin file isn't
-mode-specific, so a second, disconnected skins catalog per tracker would
-just be a wasteful duplicate; if this ever gets built it should be one
-shared catalog across every tracker, not std-tracker's own.
+Not built yet (present on catch-tracker, deliberately deferred here):
+replay viewing, Farm Helper, a Discord bot. Skins is deliberately skipped
+for good, not deferred — a skin file isn't mode-specific, so a second,
+disconnected skins catalog per tracker would just be a wasteful
+duplicate; if this ever gets built it should be one shared catalog across
+every tracker, not std-tracker's own.
 
 ## How the data gets there
 

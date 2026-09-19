@@ -43,6 +43,12 @@ exports.handler = async (event) => {
     // 'pp' powers the homepage's "recent best plays"-style views; default is
     // newest-first, the live-feed view.
     const sort = qs.sort === 'pp' ? 'pp' : 'recent';
+    // Powers the Top Plays page's 24h/3d/7d/30d tabs. Filters on
+    // `created_at` (when the score was set), not `seenAt` (when our
+    // poller happened to pick it up), so a score doesn't fall out of
+    // "last 24h" just because the poller was briefly behind.
+    const sinceHoursRaw = parseFloat(qs.sinceHours);
+    const sinceHours = Number.isFinite(sinceHoursRaw) && sinceHoursRaw > 0 ? sinceHoursRaw : null;
 
     try {
         const feedStore = getFeedStore();
@@ -86,6 +92,10 @@ exports.handler = async (event) => {
         if (fcOnly) items = items.filter(r => r.is_fc);
         if (chokeOnly) items = items.filter(r => !r.is_fc);
         if (country) items = items.filter(r => r.country_code === country);
+        if (sinceHours) {
+            const cutoff = Date.now() - sinceHours * 3600 * 1000;
+            items = items.filter(r => r.created_at && new Date(r.created_at).getTime() >= cutoff);
+        }
         if (sort === 'pp') {
             items = items.filter(r => r.pp != null).sort((a, b) => b.pp - a.pp);
         }

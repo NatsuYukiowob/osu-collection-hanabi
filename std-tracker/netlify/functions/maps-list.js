@@ -71,6 +71,8 @@ const SORTERS = {
     bpm_desc: (a, b) => (b.bpm || 0) - (a.bpm || 0),
     length_desc: (a, b) => (b.total_length || 0) - (a.total_length || 0),
     newest: (a, b) => new Date(b.ranked_date || 0) - new Date(a.ranked_date || 0),
+    playcount_desc: (a, b) => (b.play_count || 0) - (a.play_count || 0),
+    favourites_desc: (a, b) => (b.favourite_count || 0) - (a.favourite_count || 0),
 };
 
 exports.handler = async (event) => {
@@ -90,6 +92,11 @@ exports.handler = async (event) => {
     const pageSize = Math.max(1, Math.min(60, parseInt(qs.limit, 10) || PAGE_SIZE));
     const sortKey = SORTERS[qs.sort] ? qs.sort : 'star_desc';
 
+    const num = (v) => (v !== undefined && v !== '' && Number.isFinite(parseFloat(v)) ? parseFloat(v) : null);
+    const starMin = num(qs.starMin), starMax = num(qs.starMax);
+    const bpmMin = num(qs.bpmMin), bpmMax = num(qs.bpmMax);
+    const lengthMin = num(qs.lengthMin), lengthMax = num(qs.lengthMax);
+
     try {
         const store = getMapsStore();
         const { maps, sets } = await loadSets(store);
@@ -102,6 +109,26 @@ exports.handler = async (event) => {
                 (r.artist || '').toLowerCase().includes(q) ||
                 (r.creator || '').toLowerCase().includes(q)
             );
+        }
+        // A set matches a star range if ANY of its difficulties fall in
+        // it — a 1★-9★ set shouldn't disappear just because starMax=5.
+        if (starMin !== null) items = items.filter(r => (r.star_max ?? 0) >= starMin);
+        if (starMax !== null) items = items.filter(r => (r.star_min ?? 0) <= starMax);
+        if (bpmMin !== null) items = items.filter(r => (r.bpm || 0) >= bpmMin);
+        if (bpmMax !== null) items = items.filter(r => (r.bpm || 0) <= bpmMax);
+        if (lengthMin !== null) items = items.filter(r => (r.total_length || 0) >= lengthMin);
+        if (lengthMax !== null) items = items.filter(r => (r.total_length || 0) <= lengthMax);
+
+        // Random-pick mode ("隨機" button): honours every filter above but
+        // ignores sort/pagination — ties the pick to the SAME filtered
+        // pool the viewer is currently looking at, not the whole catalog.
+        if (qs.random === '1') {
+            const pick = items.length ? items[Math.floor(Math.random() * items.length)] : null;
+            return {
+                statusCode: 200,
+                headers: { ...headers, 'Cache-Control': 'no-store' },
+                body: JSON.stringify({ item: pick }),
+            };
         }
 
         items = [...items].sort(SORTERS[sortKey]);

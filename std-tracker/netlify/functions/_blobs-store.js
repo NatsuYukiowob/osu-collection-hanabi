@@ -52,4 +52,14 @@ function getGoalsStore() {
     return store('std-tracker-goals');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getAuthStore, getGoalsStore };
+// Community-submitted Discord server directory (communities.js) — scoped
+// to std the same way catch-tracker's own is scoped to catch (a Discord
+// community for one mode's players is genuinely different from another's,
+// unlike a skin file — this is NOT the same "shouldn't be duplicated"
+// case as Skins). Single key `index` -> array of {id, name, inviteUrl,
+// description, tags, iconUrl, submittedById, submittedByName, createdAt}.
+function getCommunitiesStore() {
+    return store('std-tracker-communities');
+}
+
+module.exports = { getRankingsStore, getFeedStore, getMapsStore, getAuthStore, getGoalsStore, getCommunitiesStore };
