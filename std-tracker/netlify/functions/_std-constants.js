@@ -24,6 +24,11 @@ const LAST_SEEN_CAP = 100;
 const SCORE_POLL_PER_RUN_CRON = 300;
 const SCORE_POLL_PER_RUN_MANUAL = 30;
 
+// Farm helper's peer best-plays sweep (see _peer-crawl-core.js) — same two-
+// lever budgetMs/perRun cap shape as the score-poller above.
+const PEER_CRAWL_PER_RUN_CRON = 150;
+const PEER_CRAWL_PER_RUN_MANUAL = 20;
+
 const VALID_GRADES = new Set(['XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D', 'F']);
 
 // Statuses swept by the maps catalog crawler, in order — see
@@ -34,5 +39,6 @@ const MAP_STATUSES = ['ranked', 'loved'];
 module.exports = {
     MODE, MODE_NUM, FEED_CAP, LAST_SEEN_CAP,
     SCORE_POLL_PER_RUN_CRON, SCORE_POLL_PER_RUN_MANUAL,
+    PEER_CRAWL_PER_RUN_CRON, PEER_CRAWL_PER_RUN_MANUAL,
     VALID_GRADES, MAP_STATUSES,
 };

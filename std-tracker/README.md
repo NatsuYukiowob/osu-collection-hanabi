@@ -56,13 +56,19 @@ mania-tracker.com — that hub isn't built yet.
   the same way catch-tracker's own directory is scoped to catch (a
   Discord community is genuinely mode-specific, unlike a skin file — see
   the Skins note below).
+- **Farm Helper** (`farm-helper.html`, feedback login-gated) — recommends
+  specific maps by estimated pp gain, using nearby-ranked peers' own real
+  best plays as the target (not a difficulty estimate) — ported from
+  catch-tracker's own farm helper. 為你推薦 (pp-gain sort) / 熱門
+  (popularity sort) tabs, a per-map detail panel, and 太難了/太簡單
+  feedback that tunes future recommendations for the account they're for.
 
 Not built yet (present on catch-tracker, deliberately deferred here):
-replay viewing, Farm Helper, a Discord bot. Skins is deliberately skipped
-for good, not deferred — a skin file isn't mode-specific, so a second,
-disconnected skins catalog per tracker would just be a wasteful
-duplicate; if this ever gets built it should be one shared catalog across
-every tracker, not std-tracker's own.
+replay viewing, a Discord bot. Skins is deliberately skipped for good, not
+deferred — a skin file isn't mode-specific, so a second, disconnected
+skins catalog per tracker would just be a wasteful duplicate; if this ever
+gets built it should be one shared catalog across every tracker, not
+std-tracker's own.
 
 ## How the data gets there
 
@@ -88,6 +94,12 @@ Two independent crons (see `netlify.toml`):
    compact per-day blob. `rankings-list.js`/`player-get.js` diff a
    player's current numbers against the OLDEST retained snapshot to power
    the rank-delta arrows.
+5. **`peer-crawl-cron`** (every 10 min) — round-robins over `rankings:global`
+   caching each tracked player's own top-100 best plays
+   (`peer-bestplays:{user_id}`). Farm Helper reads ~100 of these (a target
+   player's rank-adjacent window) per request to build its recommendations,
+   entirely from this cache — no extra osu! API calls beyond the target's
+   own best plays.
 
 Both are time-boxed (`budgetMs`) AND item-capped (`perRun`) per invocation,
 so a tick that can't finish the whole player pool just does a partial sweep

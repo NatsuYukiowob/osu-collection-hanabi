@@ -62,4 +62,20 @@ function getCommunitiesStore() {
     return store('std-tracker-communities');
 }
 
-module.exports = { getRankingsStore, getFeedStore, getMapsStore, getAuthStore, getGoalsStore, getCommunitiesStore };
+// Farm helper (farm-helper.js / _peer-crawl-core.js): `peer-bestplays:
+// {user_id}` (lean cache of each tracked player's own top-100 best plays)
+// + `peer-crawl-state` (plain JSON cursor/diagnostics).
+function getPeerStore() {
+    return store('std-tracker-peer');
+}
+
+// Farm helper per-user feedback (farm-helper-prefs.js): `prefs:{user_id}`
+// -> {hidden: [beatmap_id], easy: [beatmap_id]}.
+function getFarmHelperStore() {
+    return store('std-tracker-farm-helper');
+}
+
+module.exports = {
+    getRankingsStore, getFeedStore, getMapsStore, getAuthStore, getGoalsStore, getCommunitiesStore,
+    getPeerStore, getFarmHelperStore,
+};

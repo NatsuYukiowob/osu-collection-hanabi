@@ -37,3 +37,10 @@
 # few hours isn't meaningful.
 [functions."rank-snapshot-cron"]
   schedule = "0 4 * * *"
+
+# Farm helper's peer best-plays sweep: caches each tracked player's own
+# top-100 best plays for nearby-rank peer comparison. See
+# _peer-crawl-core.js. Every 10 min, matching catch-tracker's own cadence
+# (between rankings' hourly and score-poll's 5-min).
+[functions."peer-crawl-cron"]
+  schedule = "*/10 * * * *"

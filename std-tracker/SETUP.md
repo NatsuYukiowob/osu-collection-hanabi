@@ -28,7 +28,7 @@ Nothing is inherited from the other sites automatically.
 | `OSU_CLIENT_SECRET` | same as the main site's / catch-tracker's | ditto |
 | `NETLIFY_BLOBS_SITE_ID` | **new** — this site's own Project ID | Site configuration → General → Project information. Must NOT be another site's id — reusing one would write into that site's blob storage. |
 | `NETLIFY_BLOBS_TOKEN` | **new** — a personal access token | User settings → Applications → New access token |
-| `STD_TRACKER_CRAWL_SECRET` | freshly generated random string | gates `rankings-crawl-run` / `scores-poll-run` / `maps-crawl-run` / `rank-snapshot-run` |
+| `STD_TRACKER_CRAWL_SECRET` | freshly generated random string | gates `rankings-crawl-run` / `scores-poll-run` / `maps-crawl-run` / `rank-snapshot-run` / `peer-crawl-run` |
 | `OSU_LOGIN_CLIENT_ID` | **new osu! OAuth app**, separate from `OSU_CLIENT_ID` | `authorization_code` binds a redirect URI to one app — see below |
 | `OSU_LOGIN_CLIENT_SECRET` | that new app's secret | |
 | `OSU_LOGIN_REDIRECT_URI` | `https://<std-tracker-site>.netlify.app/.netlify/functions/osu-callback` | must exactly match the callback URL registered on the new osu! OAuth app |
@@ -63,17 +63,23 @@ curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/maps-craw
 
 curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/rank-snapshot-run \
   -H "x-std-tracker-secret: <STD_TRACKER_CRAWL_SECRET>"
+
+curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/peer-crawl-run \
+  -H "x-std-tracker-secret: <STD_TRACKER_CRAWL_SECRET>"
 ```
 
 Run `rankings-crawl-run` first (and enough times to complete a full sweep —
 watch the response's `sweepCompleted` field) so `players:index` exists
-before `scores-poll-run` has anything to poll, and so `rank-snapshot-run`
-has real rank/pp data to snapshot. Running `scores-poll-run` twice in a
-row with no real new scores in between should report `newScoreCount: 0`
-the second time — that's the de-dup logic working. Rank-delta arrows won't
-show anything until there are at least two days' worth of snapshots (today
-vs. the oldest retained one) — running `rank-snapshot-run` once now just
-seeds day one.
+before `scores-poll-run` has anything to poll, and so `rank-snapshot-run`/
+`peer-crawl-run` have real rank/pp data to work from. Running
+`scores-poll-run` twice in a row with no real new scores in between should
+report `newScoreCount: 0` the second time — that's the de-dup logic
+working. Rank-delta arrows won't show anything until there are at least
+two days' worth of snapshots (today vs. the oldest retained one) — running
+`rank-snapshot-run` once now just seeds day one. Farm Helper needs several
+`peer-crawl-run` calls (each covers `PEER_CRAWL_PER_RUN_MANUAL` = 20
+players) before a given account's nearby-rank window has enough cached
+peer best-plays to produce recommendations.
 
 ## 4. Verify
 
