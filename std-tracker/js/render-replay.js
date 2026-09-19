@@ -1,16 +1,17 @@
-/* Watch Replay (osu!standard) — STEP 2 of the incremental build described
+/* Watch Replay (osu!standard) — STEP 3 of the incremental build described
    in the saved plan (.claude/plans/synthetic-wibbling-hennessy.md,
-   summarized in memory as an 8-step order). This step only proves the
-   parsing + canvas geometry pipeline: real beatmap decode (osu-parsers +
-   osu-standard-stable), real hit-object timing/position/radius, a
-   wall-clock-driven approach-circle animation. Deliberately NOT yet
-   included (later steps): cursor rendering (needs the real replay-frame
-   interpolation + audio-sync clock, step 3), any judgement/combo/HP/pp
-   (step 4-6), slider path tessellation / spinner rotation art (rendered
-   here as a generic circle placeholder at the object's own start
-   position + a kind marker, not a real slider body/spinner disc yet),
-   mods (step 7), and all polish (skin import, settings drawer, hit
-   sounds, leaderboard panel — step 8).
+   summarized in memory as an 8-step order). This step adds the real
+   replay cursor (binary-search + linear interpolation between actual
+   recorded frames, generalized from catch-tracker's own 1D catcherXAt()
+   to 2D) and the real audio-sync clock (ReplayPlayer.tick()'s hybrid
+   wall-clock/exponential-blend-toward-audio-clock technique, ported
+   near-verbatim from catch-tracker's own render-replay.js). Still NOT
+   included (later steps): any judgement/combo/HP/pp (step 4-6, though
+   the frame `buttons` bitmask needed for it is already extracted here
+   since it comes for free alongside x/y), slider path tessellation /
+   spinner rotation art (still a generic circle placeholder + kind
+   marker), mods (step 7), and all polish (skin import, settings drawer,
+   hit sounds, leaderboard panel — step 8).
 
    Backend calls ported from catch-tracker's own render-replay.js:
    beatmap-file.js (raw .osu text, cached) and replay-download.js (auth'd
@@ -23,6 +24,7 @@ const PARSERS_URL = 'https://esm.sh/osu-parsers@4.1.7';
 const STANDARD_STABLE_URL = 'https://esm.sh/osu-standard-stable@5.0.1';
 const PLAYFIELD_W = 512;
 const PLAYFIELD_H = 384;
+const AUDIO_URL = beatmapsetId => `https://mirror.hinamizawa.ai/v3/osu/music/audio/${beatmapsetId}`;
 
 const main = document.getElementById('replay-main');
 
@@ -117,16 +119,59 @@ function objectPos(h) {
     return { x: p.x, y: p.y };
 }
 
-/* ---------- canvas playback (step 2 scope: no cursor, no judgement) ----------
-   Wall-clock only for now — real audio-sync (ReplayPlayer.tick()'s
-   exponential-blend-toward-audio-clock technique) lands in step 3
-   alongside real cursor interpolation, since both need the same replay
-   frame data this step doesn't touch yet. */
-class ReplayPlayerStep2 {
-    constructor(canvas, items, minTime, maxTime, onTick) {
+/* ---------- replay frames (osu-parsers' ScoreDecoder output) ----------
+   Confirmed live this session (dumped a real decoded frame): fields are
+   `startTime` (already an absolute, cumulative ms — the decoder itself
+   accumulates the .osr format's own per-frame ms-deltas, so no manual
+   summing needed here), `position: {x, y}`, and `buttonState` (the
+   M1=1/M2=2/K1=4/K2=8 bitmask — not used for anything yet, kept for
+   step 4's judgement engine since it comes for free alongside x/y). */
+function extractFrames(parsedScore) {
+    const raw = (parsedScore.replay && parsedScore.replay.frames) || [];
+    return raw
+        .map(f => ({ time: f.startTime, x: f.position ? f.position.x : null, y: f.position ? f.position.y : null, buttons: f.buttonState || 0 }))
+        .filter(f => typeof f.time === 'number' && f.x !== null && f.y !== null)
+        .sort((a, b) => a.time - b.time);
+}
+
+// Binary-search + linear interpolation between the two nearest real
+// recorded frames — the same faithful-replay-playback technique
+// catch-tracker's own catcherXAt() already uses for its 1D catcher X,
+// generalized here to both axes (std needs real 2D cursor position, not
+// just a left/right catcher position).
+function cursorAt(frames, t) {
+    if (!frames.length) return null;
+    if (t <= frames[0].time) return frames[0];
+    if (t >= frames[frames.length - 1].time) return frames[frames.length - 1];
+    let lo = 0, hi = frames.length - 1;
+    while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (frames[mid].time <= t) lo = mid; else hi = mid;
+    }
+    const a = frames[lo], b = frames[hi];
+    const span = b.time - a.time;
+    const frac = span > 0 ? (t - a.time) / span : 0;
+    return {
+        x: a.x + (b.x - a.x) * frac,
+        y: a.y + (b.y - a.y) * frac,
+        buttons: a.buttons,
+    };
+}
+
+/* ---------- canvas playback ----------
+   Clock is a hybrid, ported near-verbatim from catch-tracker's own
+   ReplayPlayer.tick(): wall-clock-driven mapTime that continuously,
+   exponentially blends toward the real <audio> clock (rather than
+   snapping to it every frame, which visibly "staircases" since the
+   audio element's own clock doesn't update every rAF tick on every
+   browser) whenever audio is actually playing and ready. play()/seek()
+   hard-sync audio.currentTime/playbackRate at each discrete action. */
+class ReplayPlayer {
+    constructor(canvas, items, frames, minTime, maxTime, audioEl, onTick) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.items = items;
+        this.frames = frames;
         this.minTime = minTime;
         this.maxTime = maxTime;
         this.mapTime = minTime;
@@ -135,6 +180,28 @@ class ReplayPlayerStep2 {
         this.lastWall = 0;
         this.rafId = null;
         this.onTick = onTick || (() => {});
+
+        this.audio = audioEl || null;
+        this.audioReady = false;
+        if (this.audio) {
+            this.audio.addEventListener('canplay', () => {
+                this.audioReady = true;
+                if (this.playing) {
+                    this.audio.currentTime = Math.max(0, this.mapTime / 1000);
+                    this.audio.playbackRate = this.speed;
+                    this.audio.play().catch(() => { this.audioReady = false; });
+                }
+            }, { once: true });
+            this.audio.addEventListener('error', () => { this.audioReady = false; });
+            this.audio.addEventListener('ended', () => {
+                if (this.mapTime < this.maxTime - 250) {
+                    this.audioReady = false;
+                    this.lastWall = performance.now();
+                } else {
+                    this.playing = false;
+                }
+            });
+        }
     }
     resize(w, h) {
         this.canvas.width = Math.max(1, Math.round(w));
@@ -143,6 +210,7 @@ class ReplayPlayerStep2 {
     }
     seek(mapTime) {
         this.mapTime = Math.max(this.minTime, Math.min(this.maxTime, mapTime));
+        if (this.audio && this.audioReady) this.audio.currentTime = Math.max(0, this.mapTime / 1000);
         this.draw();
         this.onTick(this.mapTime, this.minTime, this.maxTime, this.playing);
     }
@@ -150,18 +218,29 @@ class ReplayPlayerStep2 {
         if (this.playing) return;
         this.playing = true;
         this.lastWall = performance.now();
+        if (this.audio && this.audioReady) {
+            this.audio.currentTime = Math.max(0, this.mapTime / 1000);
+            this.audio.playbackRate = this.speed;
+            this.audio.play().catch(() => { this.audioReady = false; });
+        }
         this.tick(this.lastWall);
     }
     pause() {
         this.playing = false;
         if (this.rafId) cancelAnimationFrame(this.rafId);
         this.rafId = null;
+        if (this.audio) this.audio.pause();
     }
     tick(wallNow) {
         const dt = wallNow - this.lastWall;
         this.lastWall = wallNow;
         if (this.playing) {
             this.mapTime += dt * this.speed;
+            if (this.audio && this.audioReady) {
+                const audioMs = this.audio.currentTime * 1000;
+                const drift = audioMs - this.mapTime;
+                this.mapTime += drift * Math.min(1, dt / 200);
+            }
             if (this.mapTime >= this.maxTime) {
                 this.mapTime = this.maxTime;
                 this.playing = false;
@@ -247,6 +326,27 @@ class ReplayPlayerStep2 {
             ctx.fillText(label, p.x, p.y);
         }
         ctx.globalAlpha = 1;
+
+        // Real replay cursor — interpolated from the actual recorded
+        // frames (cursorAt()), not simulated. A held button (M1/M2/K1/K2,
+        // bit != 0) gets a filled dot; otherwise just an outlined ring,
+        // matching the "am I clicking right now" glance real osu!
+        // clients give you. No judgement yet (step 4), so this is purely
+        // the raw path — it doesn't yet reflect hit/miss.
+        const cursor = cursorAt(this.frames, this.mapTime);
+        if (cursor) {
+            const cp = toPx(cursor.x, cursor.y);
+            ctx.beginPath();
+            ctx.arc(cp.x, cp.y, 6, 0, Math.PI * 2);
+            if (cursor.buttons) {
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.fill();
+            } else {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                ctx.stroke();
+            }
+        }
     }
 }
 
@@ -265,12 +365,13 @@ function theaterHtml(meta) {
         <h2 style="margin:0 0 4px">${escapeHtml(`${meta.artist} - ${meta.title} [${meta.version}]`)}</h2>
         <p class="coverage-note">
             ${escapeHtml(`${meta.username} ${meta.rank || ''}`)} —
-            Watch Replay 開發中,目前只有圖譜幾何與時間軸,還沒有游標、判定、滑條/轉盤真實外觀。
+            Watch Replay 開發中,目前有真實圖譜幾何、游標軌跡與音樂同步,還沒有判定、滑條/轉盤真實外觀。
         </p>
         <div class="replay-theater-wrap">
             <div class="replay-theater" id="replay-theater">
                 <div class="replay-theater-scrim"></div>
                 <canvas id="replay-canvas" class="replay-canvas-full"></canvas>
+                <audio id="replay-audio" preload="auto"></audio>
                 <div class="replay-bottom-bar">
                     <div class="replay-bottom-controls">
                         <button type="button" id="replay-playpause" class="replay-play-btn">▶</button>
@@ -287,6 +388,7 @@ async function run() {
     const params = new URLSearchParams(location.search);
     const scoreId = params.get('score_id');
     const beatmapId = params.get('beatmap_id');
+    const beatmapsetId = params.get('beatmapset_id');
     const meta = {
         title: params.get('title') || '',
         artist: params.get('artist') || '',
@@ -342,12 +444,9 @@ async function run() {
             };
         }).sort((a, b) => a.spawnTime - b.spawnTime);
 
-        // Parsed here (and reported) purely to confirm the replay itself
-        // decodes correctly — not rendered/used until step 3's cursor
-        // interpolation.
         const parsedScore = await new ScoreDecoder().decodeFromBuffer(new Uint8Array(replayBuffer));
-        const frameCount = (parsedScore.replay && parsedScore.replay.frames) ? parsedScore.replay.frames.length : 0;
-        console.log(`[replay] parsed ${items.length} hit objects, ${frameCount} replay frames`);
+        const frames = extractFrames(parsedScore);
+        console.log(`[replay] parsed ${items.length} hit objects, ${frames.length} replay frames`);
 
         if (!items.length) {
             setStatus(errorHtml(t('replay_not_found')));
@@ -356,14 +455,24 @@ async function run() {
 
         setStatus(theaterHtml(meta));
         const canvas = document.getElementById('replay-canvas');
+        const audioEl = document.getElementById('replay-audio');
         const playBtn = document.getElementById('replay-playpause');
         const scrub = document.getElementById('replay-scrub');
         const timeDisplay = document.getElementById('replay-time');
 
-        const minTime = items[0].spawnTime;
-        const maxTime = items[items.length - 1].startTime + 2000;
+        if (beatmapsetId) {
+            audioEl.src = AUDIO_URL(beatmapsetId);
+            audioEl.load();
+        }
 
-        const player = new ReplayPlayerStep2(canvas, items, minTime, maxTime, (mapTime, lo, hi, playing) => {
+        const itemMin = items[0].spawnTime;
+        const itemMax = items[items.length - 1].startTime + 2000;
+        const frameMin = frames.length ? frames[0].time : itemMin;
+        const frameMax = frames.length ? frames[frames.length - 1].time : itemMax;
+        const minTime = Math.min(itemMin, frameMin);
+        const maxTime = Math.max(itemMax, frameMax);
+
+        const player = new ReplayPlayer(canvas, items, frames, minTime, maxTime, beatmapsetId ? audioEl : null, (mapTime, lo, hi, playing) => {
             const pct = hi > lo ? ((mapTime - lo) / (hi - lo)) * 1000 : 0;
             scrub.value = String(pct);
             playBtn.textContent = playing ? '⏸' : '▶';
