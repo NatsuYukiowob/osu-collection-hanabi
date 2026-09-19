@@ -1,9 +1,9 @@
 /* Ported from catch-tracker's own render-player.js, trimmed for v1: no
-   rank-delta badges (needs a daily rank-snapshot cron this site doesn't
-   build yet), no Farm Helper link, no score-detail modal (score-modal.js),
-   no replay links, and no 關于/bio tab (needs a BBCode-to-HTML renderer this
-   site doesn't have — unparsed BBCode markup would just look broken). See
-   README.md's "not built yet" list. */
+   Farm Helper link, no score-detail modal (score-modal.js), no replay
+   links, and no 關于/bio tab (needs a BBCode-to-HTML renderer this site
+   doesn't have — unparsed BBCode markup would just look broken). Rank-
+   delta badges ARE back, now that a daily rank-snapshot cron exists here
+   too. See README.md's "not built yet" list. */
 
 const GRADE_COUNT_FIELDS = [
     ['x', 'ss'], ['xh', 'ssh'], ['s', 's'], ['sh', 'sh'], ['a', 'a'],
@@ -61,19 +61,33 @@ function fmtJoinDate(iso) {
 
 /* ---------- header rank badges + derived stat cards ---------- */
 
+// value's sign is already "positive = improved" from the API (player-get.js
+// flips the raw rank-number diff so a lower rank number reads as a gain,
+// same direction as a pp gain) — this just renders it.
+function rankDeltaHtml(value, days, suffix) {
+    if (value == null || !days || value === 0) return '';
+    const up = value > 0;
+    const shown = `${Math.abs(value).toLocaleString()}${suffix || ''}`;
+    return `<span class="player-rank-badge-delta player-rank-badge-delta--${up ? 'up' : 'down'}">${up ? '▲' : '▼'}${shown} · ${t('rank_delta_days', { n: days })}</span>`;
+}
+
 function rankBadgesHtml(p) {
+    const d = p.rank_delta;
     return `<div class="player-rank-badges">
         <div class="player-rank-badge player-rank-badge--accent">
             <span class="player-rank-badge-label">${t('rank_global')}</span>
             <span class="player-rank-badge-value">#${fmtNum(p.global_rank)}</span>
+            ${d ? rankDeltaHtml(d.global, d.days) : ''}
         </div>
         <div class="player-rank-badge">
             <span class="player-rank-badge-label">${t('rank_country')}${p.country_code ? ` (${escapeHtml(p.country_code)})` : ''}</span>
             <span class="player-rank-badge-value">#${fmtNum(p.country_rank)}</span>
+            ${d ? rankDeltaHtml(d.country, d.days) : ''}
         </div>
         <div class="player-rank-badge player-rank-badge--pp">
             <span class="player-rank-badge-label">${t('total_pp')}</span>
             <span class="player-rank-badge-value">${fmtPP(p.pp)}</span>
+            ${d ? rankDeltaHtml(d.pp, d.days, 'pp') : ''}
         </div>
     </div>`;
 }

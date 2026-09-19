@@ -24,7 +24,8 @@ mania-tracker.com — that hub isn't built yet.
 - **Live Feed** (`feed.html`) — a rolling feed of recently-detected scores
   from tracked players, filterable by grade / FC / choke / country.
 - **Player** (`player.html?id=`) — one player's best + recent plays, rank
-  badges, SR/mod/BPM/pp-range stat cards, grade tally, and an activity tab
+  badges (with ▲/▼ rank-delta arrows once at least two days' snapshots
+  exist), SR/mod/BPM/pp-range stat cards, grade tally, and an activity tab
   (osu!'s own monthly playcount history).
 - **Map** (`map.html?id=`) — grade/mod distribution for one beatmap, among
   the tracked cohort's observed scores; falls back to the Maps catalog's
@@ -35,9 +36,11 @@ mania-tracker.com — that hub isn't built yet.
   — those were catch-tracker's own later additions to this same page.
 
 Not built yet (all present on catch-tracker, deliberately deferred here):
-site login, replay viewing, Farm Helper, Skins, Goals, a Discord server
-directory, a Discord bot, and rank-delta arrows (which need a daily
-rank-snapshot cron catch-tracker also has and this doesn't yet).
+site login, replay viewing, Farm Helper, Goals, a Discord server directory,
+a Discord bot. Skins is deliberately skipped for good, not deferred — a
+skin file isn't mode-specific, so a second, disconnected skins catalog per
+tracker would just be a wasteful duplicate; if this ever gets built it
+should be one shared catalog across every tracker, not std-tracker's own.
 
 ## How the data gets there
 
@@ -57,6 +60,12 @@ Two independent crons (see `netlify.toml`):
    (`ranked`, `loved`), upserting into `maps:global`. Metadata only (star
    rating, bpm, length, CS/AR/OD/HP straight from the search response) — no
    local PP computation.
+4. **`rank-snapshot-cron`** (daily) — makes no osu! API calls of its own;
+   just reads the already-fresh `rankings:global` dataset and writes today's
+   `{global_rank, country_rank, pp}` for every tracked player into a
+   compact per-day blob. `rankings-list.js`/`player-get.js` diff a
+   player's current numbers against the OLDEST retained snapshot to power
+   the rank-delta arrows.
 
 Both are time-boxed (`budgetMs`) AND item-capped (`perRun`) per invocation,
 so a tick that can't finish the whole player pool just does a partial sweep

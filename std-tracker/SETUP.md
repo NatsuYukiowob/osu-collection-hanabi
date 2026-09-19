@@ -47,13 +47,20 @@ curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/scores-po
 
 curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/maps-crawl-run \
   -H "x-std-tracker-secret: <STD_TRACKER_CRAWL_SECRET>"
+
+curl -X POST https://<std-tracker-site>.netlify.app/.netlify/functions/rank-snapshot-run \
+  -H "x-std-tracker-secret: <STD_TRACKER_CRAWL_SECRET>"
 ```
 
 Run `rankings-crawl-run` first (and enough times to complete a full sweep —
 watch the response's `sweepCompleted` field) so `players:index` exists
-before `scores-poll-run` has anything to poll. Running `scores-poll-run`
-twice in a row with no real new scores in between should report
-`newScoreCount: 0` the second time — that's the de-dup logic working.
+before `scores-poll-run` has anything to poll, and so `rank-snapshot-run`
+has real rank/pp data to snapshot. Running `scores-poll-run` twice in a
+row with no real new scores in between should report `newScoreCount: 0`
+the second time — that's the de-dup logic working. Rank-delta arrows won't
+show anything until there are at least two days' worth of snapshots (today
+vs. the oldest retained one) — running `rank-snapshot-run` once now just
+seeds day one.
 
 ## 4. Verify
 

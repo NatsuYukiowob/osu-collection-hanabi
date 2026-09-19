@@ -1,11 +1,12 @@
 /* Public, paginated view over the global std pp-rankings (rankings:global,
    written by rankings-crawl-cron.js / rankings-crawl-run.js — see
    _rankings-crawl-core.js). Pure read-only GET + TTL cache + honest
-   coverage-block shape, same pattern as catch-tracker's own rankings-list.js
-   (which additionally diffs against daily rank snapshots for rank-delta
-   columns — not built here yet, v1 scope). */
+   coverage-block shape, ported from catch-tracker's own rankings-list.js —
+   including its rank-delta columns, now that _rank-snapshot-core.js's
+   daily snapshot exists here too. */
 const { getRankingsStore } = require('./_blobs-store');
 const { getJSONGz } = require('./_blob-json');
+const { INDEX_KEY: RANK_HISTORY_INDEX_KEY, snapshotKey: rankSnapshotKey } = require('./_rank-snapshot-core');
 
 const PAGE_SIZE = 50;
 const DS_CACHE_TTL_MS = 60_000; // rankings move slowly, fine to cache longer than the feed
@@ -62,7 +63,34 @@ exports.handler = async (event) => {
         if (country) sorted = sorted.filter(r => r.country_code === country);
         if (q) sorted = sorted.filter(r => (r.username || '').toLowerCase().includes(q));
         const total = sorted.length;
-        const pageItems = sorted.slice(page * pageSize, (page + 1) * pageSize);
+        let pageItems = sorted.slice(page * pageSize, (page + 1) * pageSize);
+
+        // Rank-delta columns ("全球Δ"/"國內Δ"): load the oldest retained
+        // daily snapshot ONCE per request and diff every row on this page
+        // against it, instead of one blob read per player. Not actually a
+        // fixed window (see _rank-snapshot-core.js — it grows day by day
+        // since this site's own launch), so `days` rides along per-row for
+        // the frontend to show as a tooltip rather than a header lying
+        // about the window. Best-effort — a page still renders fine
+        // without deltas if there's no snapshot yet or a player isn't in
+        // it (e.g. newly ranked since).
+        try {
+            const historyIndex = (await store.get(RANK_HISTORY_INDEX_KEY, { type: 'json' })) || [];
+            if (historyIndex.length) {
+                const oldestDate = historyIndex[0];
+                const oldSnapshot = (await getJSONGz(store, rankSnapshotKey(oldestDate))) || {};
+                const days = Math.max(1, Math.round((Date.now() - new Date(`${oldestDate}T00:00:00Z`).getTime()) / 86400000));
+                pageItems = pageItems.map(r => {
+                    const old = oldSnapshot[r.user_id];
+                    if (!old) return r;
+                    const [oldGlobal, oldCountry] = old;
+                    const delta = { days };
+                    if (oldGlobal != null && r.global_rank != null) delta.global = oldGlobal - r.global_rank;
+                    if (oldCountry != null && r.country_rank != null) delta.country = oldCountry - r.country_rank;
+                    return (delta.global != null || delta.country != null) ? { ...r, rank_delta: delta } : r;
+                });
+            }
+        } catch { /* delta is a nice-to-have; the table still renders without it */ }
 
         const state = (await store.get('rankings-crawl-state', { type: 'json' })) || {};
         const coverage = {

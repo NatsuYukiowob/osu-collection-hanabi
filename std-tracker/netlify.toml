@@ -30,3 +30,10 @@
 # ranked/loved maps, nothing time-sensitive.
 [functions."maps-crawl-cron"]
   schedule = "*/30 * * * *"
+
+# Daily rank-history snapshot (player page's rank-delta arrows): reads the
+# already-cached rankings:global dataset, no osu! API calls of its own —
+# see _rank-snapshot-core.js. Once a day is plenty; rank movement over a
+# few hours isn't meaningful.
+[functions."rank-snapshot-cron"]
+  schedule = "0 4 * * *"
