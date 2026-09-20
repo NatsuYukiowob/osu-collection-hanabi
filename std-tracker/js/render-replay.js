@@ -20,6 +20,25 @@
    real path/rotation art (step 5-6), mods (step 7), all polish (skin
    import, settings drawer, hit sounds, leaderboard panel — step 8).
 
+   **Known limitation confirmed live this session, expected until step
+   7**: a replay recorded with a position-affecting mod (HR's vertical
+   flip is the one actually seen) will show mostly/entirely wrong
+   judgements right now — NOT a judging-logic bug. `ruleset.
+   applyToBeatmap()` never had HR applied to it, so hit objects still
+   sit at their un-mirrored positions while the replay's own recorded
+   cursor coordinates are for the HR-mirrored playfield the player
+   actually saw; every press ends up ~150-280px away from "its" object
+   even though the timing lines up almost exactly (confirmed by dumping
+   a real HR replay's near-miss press events: dt within ~10ms, distance
+   150-280px). Verified the judging algorithm ITSELF is correct by
+   re-running it against a real NM (no-mod) FC score instead: 1724/25/0/0
+   out of 1749 circles (300/100/50/miss) — zero misses, matching a real
+   FC, and a circles-only accuracy of ~99.05% closely tracking (not
+   identical to, since sliders aren't counted yet) the real 98.91% full
+   accuracy. Don't "fix" HR judgement inside this step — it's step 7's
+   job to mirror hit-object positions (and adjust CS/AR/OD) for every
+   position/difficulty-affecting mod at once.
+
    Backend calls ported from catch-tracker's own render-replay.js:
    beatmap-file.js (raw .osu text, cached) and replay-download.js (auth'd
    .osr bytes, cached). Loaded as a <script type="module"> — this site has
