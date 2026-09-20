@@ -1,24 +1,28 @@
-/* Watch Replay (osu!standard) — STEP 4 of the incremental build described
+/* Watch Replay (osu!standard) — STEP 5 of the incremental build described
    in the saved plan (.claude/plans/synthetic-wibbling-hennessy.md,
-   summarized in memory as an 8-step order). This step adds bit-perfect
-   HIT-CIRCLE judgement (per the user's explicit call: real hit windows +
-   real press-event detection + real radius check, not an approximation)
-   — see judgeCircles() below for the algorithm and where its numbers
-   come from. Sliders/spinners are deliberately EXCLUDED from judgement
-   this step (still visual placeholders) — since most std maps are
-   mostly sliders by object count, wiring up aggregate combo/accuracy/pp/
-   rank HUD numbers now would show a plausible-looking but WRONG number
-   (missing most of the map's real combo contribution) rather than
-   something honestly partial. Those land once slider (step 5) and
-   spinner (step 6) judging exist too, so every object type feeds them
-   before they're first shown. This step's own verification is instead
-   visual: each hit circle is expected to flip to a judgement colour/
-   text (300/100/50/X) at the moment it's actually resolved, watchable
-   frame-by-frame against what really happened.
+   summarized in memory as an 8-step order). This step adds real slider
+   path rendering (path.positionAt() sampling — osu-standard-stable does
+   all the bezier/catmull/perfect-circle tessellation internally, no
+   hand-rolled curve math needed) AND bit-perfect slider BODY judgement
+   (continuous tracking-state check at each tick/repeat/tail's own exact
+   position+time — see judgeSliderBody()'s own comment for the algorithm
+   and its one deliberate approximation). The slider HEAD was already
+   judged as of step 4 (circles and slider heads share one combined
+   press-consumption pass — see the comment above judgeCircles()'s call
+   site in run()).
 
-   Still NOT included (later steps): slider/spinner judgement + their
-   real path/rotation art (step 5-6), mods (step 7), all polish (skin
-   import, settings drawer, hit sounds, leaderboard panel — step 8).
+   Spinners are still EXCLUDED from judgement this step (still a plain
+   circle placeholder) — aggregate combo/accuracy/pp/rank HUD numbers
+   still aren't wired up for the same reason as step 4: showing them
+   before EVERY object type contributes would show a plausible-looking
+   but wrong number. That lands once spinner judging exists too (step 6).
+   This step's own verification is visual: each tick/repeat/tail is
+   expected to flip green (tracked) or red (not tracked) at its own
+   exact moment, watchable frame-by-frame against what really happened.
+
+   Still NOT included (later steps): spinner judgement + rotation art
+   (step 6), mods (step 7), all polish (skin import, settings drawer,
+   hit sounds, leaderboard panel — step 8).
 
    **Known limitation confirmed live this session, expected until step
    7**: a replay recorded with a position-affecting mod (HR's vertical
@@ -216,6 +220,41 @@ function judgeCircles(circles, pressEvents) {
     }
 }
 
+// Real osu!lazer constant (Slider.FOLLOW_AREA): the follow circle a
+// player can wander inside of while still "tracking" a slider is 2.4x
+// the hit circle's own radius. The real follow circle also animates
+// growing from 1x up to 2.4x over a short duration right after the head
+// resolves — simplified here to the full 2.4x for the slider's entire
+// active duration (the one deliberate approximation in this step, called
+// out since ticks landing in the first ~100ms after the head are rare
+// enough that this is very unlikely to flip a real judgement).
+const SLIDER_FOLLOW_AREA = 2.4;
+
+// A slider's body (ticks/repeats/tail) isn't judged by discrete presses
+// like a circle — it's a continuous "are you still tracking" check.
+// cursorAt() already gives both the interpolated cursor position AND the
+// held-button state (from the frame at/before the queried time) at any
+// instant, so "is tracking" at a nested object's own exact time is just:
+// some button held AND cursor within the follow circle of THAT object's
+// own real position (each tick/repeat/tail already carries its own exact
+// position along the path, straight from osu-standard-stable — no path
+// interpolation needed for judging, only for the ball's live visual).
+// Tail judging trusts the library's own `SliderTail.startTime` as the
+// real judge instant rather than re-deriving it — osu-standard-stable
+// already exposes a `legacyLastTickOffset` (confirmed live: 36ms on a
+// real slider) it applies internally to distinguish this from the
+// slider's true geometric end, so subtracting it again here would
+// double-apply an adjustment the library already made.
+function judgeSliderBody(slider, frames) {
+    const followRadius = slider.radius * SLIDER_FOLLOW_AREA;
+    for (const n of slider.nested) {
+        const cursor = cursorAt(frames, n.time);
+        const dx = cursor.x - n.x, dy = cursor.y - n.y;
+        const tracking = cursor.buttons !== 0 && (dx * dx + dy * dy) <= followRadius * followRadius;
+        n.hit = tracking;
+    }
+}
+
 /* ---------- replay frames (osu-parsers' ScoreDecoder output) ----------
    Confirmed live this session (dumped a real decoded frame): fields are
    `startTime` (already an absolute, cumulative ms — the decoder itself
@@ -388,7 +427,7 @@ class ReplayPlayer {
             if (this.mapTime < it.startTime) {
                 alpha = Math.min(1, (this.mapTime - it.spawnTime) / it.fadeIn);
             } else {
-                alpha = Math.max(0, 1 - (this.mapTime - it.startTime) / (it.hideTime - it.startTime));
+                alpha = Math.max(0, 1 - (this.mapTime - it.startTime) / (it.headHideTime - it.startTime));
             }
             ctx.globalAlpha = Math.max(0, alpha);
 
@@ -432,6 +471,62 @@ class ReplayPlayer {
                 ? (it.judgement === 'miss' ? 'X' : String(it.judgement))
                 : it.kind === 'slider' ? 'S' : it.kind === 'spinner' ? '◎' : String(it.number);
             ctx.fillText(label, p.x, p.y);
+
+            // Slider body: real path (sampled via the library's own
+            // path.positionAt(), no hand-rolled bezier/catmull/perfect-
+            // circle tessellation needed), tick/repeat/tail markers
+            // coloured by judgeSliderBody()'s own tracking result, and a
+            // moving ball + follow circle while the slider is actually
+            // playing out. Drawn whenever the slider is at all relevant
+            // (spawnTime..hideTime), not gated by the head's own alpha.
+            if (it.kind === 'slider') {
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                const steps = 40;
+                for (let i = 0; i <= steps; i++) {
+                    const off = it.path.positionAt(i / steps);
+                    const q = toPx(it.x + off.x, it.y + off.y);
+                    if (i === 0) ctx.moveTo(q.x, q.y); else ctx.lineTo(q.x, q.y);
+                }
+                ctx.lineWidth = Math.max(2, r * 1.6);
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = it.color;
+                ctx.stroke();
+
+                for (const n of it.nested) {
+                    if (this.mapTime < it.spawnTime) continue;
+                    const np = toPx(n.x, n.y);
+                    const nResolved = n.hit !== undefined && this.mapTime >= n.time;
+                    ctx.globalAlpha = nResolved ? Math.max(0, 1 - (this.mapTime - n.time) / 400) : 0.8;
+                    ctx.beginPath();
+                    ctx.arc(np.x, np.y, n.kind === 'tick' ? 3 : 6, 0, Math.PI * 2);
+                    ctx.fillStyle = nResolved ? (n.hit ? JUDGEMENT_COLORS[300] : JUDGEMENT_COLORS.miss) : '#fff';
+                    ctx.fill();
+                }
+
+                if (this.mapTime >= it.startTime && this.mapTime <= it.hideTime - 400) {
+                    const elapsed = this.mapTime - it.startTime;
+                    const spanIdx = Math.min(it.repeats, Math.floor(elapsed / it.spanMs));
+                    let frac = Math.max(0, Math.min(1, (elapsed - spanIdx * it.spanMs) / it.spanMs));
+                    if (spanIdx % 2 === 1) frac = 1 - frac;
+                    const off = it.path.positionAt(frac);
+                    const bp = toPx(it.x + off.x, it.y + off.y);
+                    const cur = cursorAt(this.frames, this.mapTime);
+                    const dx = cur.x - (it.x + off.x), dy = cur.y - (it.y + off.y);
+                    const tracking = cur.buttons !== 0 && (dx * dx + dy * dy) <= (it.radius * SLIDER_FOLLOW_AREA) ** 2;
+                    ctx.globalAlpha = 0.9;
+                    ctx.beginPath();
+                    ctx.arc(bp.x, bp.y, r * SLIDER_FOLLOW_AREA, 0, Math.PI * 2);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = tracking ? 'rgba(255,255,255,0.9)' : 'rgba(255,90,90,0.9)';
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(bp.x, bp.y, r * 0.5, 0, Math.PI * 2);
+                    ctx.fillStyle = it.color;
+                    ctx.fill();
+                }
+            }
         }
         ctx.globalAlpha = 1;
 
@@ -473,7 +568,7 @@ function theaterHtml(meta) {
         <h2 style="margin:0 0 4px">${escapeHtml(`${meta.artist} - ${meta.title} [${meta.version}]`)}</h2>
         <p class="coverage-note">
             ${escapeHtml(`${meta.username} ${meta.rank || ''}`)} —
-            Watch Replay 開發中,打擊圈已有真實判定(300/100/50/miss),滑條/轉盤還沒有真實外觀或判定,分數/連段/pp 面板尚未加入。
+            Watch Replay 開發中,打擊圈與滑條(含 tick/repeat/尾端)已有真實判定,轉盤還沒有真實外觀或判定,分數/連段/pp 面板尚未加入,mods 尚未套用(HR 等會導致判定看起來錯誤,屬已知限制)。
         </p>
         <div class="replay-theater-wrap">
             <div class="replay-theater" id="replay-theater">
@@ -525,7 +620,7 @@ async function run() {
         const { BeatmapDecoder, ScoreDecoder } = await import(PARSERS_URL);
         const standardStable = await import(STANDARD_STABLE_URL);
         const { HitResult } = await import(CLASSES_URL);
-        const { StandardRuleset, Slider, Spinner } = standardStable;
+        const { StandardRuleset, Slider, Spinner, SliderTick, SliderRepeat, SliderTail } = standardStable;
         const classes = { Slider, Spinner };
 
         const ruleset = new StandardRuleset();
@@ -536,23 +631,48 @@ async function run() {
         const { colourOf, numberOf } = computeComboColourMap(standardBeatmap.hitObjects, comboColours);
 
         const items = standardBeatmap.hitObjects.map(h => {
+            // For a slider, x/y/radius/hit-windows below are the HEAD's
+            // own geometry — the slider's top-level item doubles as "the
+            // clickable circle at its start", judged exactly like a plain
+            // circle (see the combined judging pass below). Its body
+            // (ticks/repeats/tail) is judged separately in
+            // judgeSliderBody() using each nested object's own real
+            // position/time, and its path/ball/ticks get extra rendering
+            // beyond the shared circle-drawing code (see draw()).
             const pos = objectPos(h);
             const kind = objectKind(h, classes);
             const startTime = h.startTime;
             const preempt = h.timePreempt;
             const fadeIn = h.timeFadeIn;
-            const windows = kind === 'circle' ? extractHitWindows(h, HitResult) : null;
+            const windows = (kind === 'circle' || kind === 'slider') ? extractHitWindows(h, HitResult) : null;
+            const sliderExtra = kind === 'slider' ? {
+                path: h.path,
+                repeats: h.repeats,
+                spanMs: h.path.distance / h.velocity,
+                nested: h.nestedHitObjects
+                    .filter(n => n instanceof SliderTick || n instanceof SliderRepeat || n instanceof SliderTail)
+                    .map(n => {
+                        const np = objectPos(n);
+                        return {
+                            kind: n instanceof SliderTail ? 'tail' : n instanceof SliderRepeat ? 'repeat' : 'tick',
+                            time: n.startTime, x: np.x, y: np.y,
+                        };
+                    }),
+            } : null;
             return {
                 kind, x: pos.x, y: pos.y, startTime,
                 spawnTime: startTime - preempt,
-                // Placeholder hide window for slider/spinner (not judged
-                // this step) — a judged circle gets a real, judgement-
-                // resolved hideTime set below instead.
+                // Placeholder hide window for spinner (not judged this
+                // step) and for a slider's own BODY duration — a judged
+                // circle/slider-head gets a real, judgement-resolved
+                // hideTime/headHideTime set below instead.
                 hideTime: startTime + 250,
+                headHideTime: startTime + 250,
                 preempt, fadeIn, radius: h.radius,
                 color: colourOf.get(h),
                 number: numberOf.get(h),
                 ...(windows || {}),
+                ...(sliderExtra || {}),
             };
         }).sort((a, b) => a.spawnTime - b.spawnTime);
 
@@ -560,18 +680,32 @@ async function run() {
         const frames = extractFrames(parsedScore);
         console.log(`[replay] parsed ${items.length} hit objects, ${frames.length} replay frames`);
 
-        // Bit-perfect circle judgement (see judgeCircles()'s own comment)
-        // — sliders/spinners aren't judged yet, so they're excluded from
-        // this pass entirely; their own turn is steps 5-6.
+        // Bit-perfect judgement: circles AND slider heads are judged
+        // together in one chronological pass against the same shared
+        // press-event pool (see judgeCircles()'s own comment) — a slider
+        // head consumes a press exactly like a circle would, so an
+        // earlier object can't "steal" a press meant for one and vice
+        // versa. Slider BODIES (ticks/repeats/tail) are judged separately
+        // in judgeSliderBody() below, since that's a continuous-tracking
+        // check against held keys, not a discrete press-consumption one.
+        // Spinners still aren't judged at all this step (step 6).
         const pressEvents = extractPressEvents(frames);
-        const circleItems = items.filter(it => it.kind === 'circle');
-        judgeCircles(circleItems, pressEvents);
-        for (const it of circleItems) {
-            // Fade out shortly after the judgement actually resolves,
-            // instead of the earlier fixed startTime+250 placeholder —
-            // a hit fades right after the press that resolved it, a miss
-            // fades right after its window expires.
-            it.hideTime = it.resolvedTime + 400;
+        const clickable = items.filter(it => it.kind === 'circle' || it.kind === 'slider');
+        judgeCircles(clickable, pressEvents);
+        for (const it of clickable) {
+            // headHideTime controls how fast the HEAD circle itself fades
+            // (quick, right after its own judgement resolves) — kept
+            // separate from hideTime, which controls how long the item
+            // stays in the draw loop at all (for a slider, that's its
+            // whole body's duration, well past the head's own fade).
+            it.headHideTime = it.resolvedTime + 400;
+            if (it.kind === 'circle') {
+                it.hideTime = it.headHideTime;
+            } else {
+                judgeSliderBody(it, frames);
+                const lastNested = it.nested[it.nested.length - 1];
+                it.hideTime = Math.max(it.headHideTime, (lastNested ? lastNested.time : it.resolvedTime) + 400);
+            }
         }
 
         if (!items.length) {
