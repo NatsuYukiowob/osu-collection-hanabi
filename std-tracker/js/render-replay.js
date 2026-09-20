@@ -1,17 +1,24 @@
-/* Watch Replay (osu!standard) — STEP 3 of the incremental build described
+/* Watch Replay (osu!standard) — STEP 4 of the incremental build described
    in the saved plan (.claude/plans/synthetic-wibbling-hennessy.md,
-   summarized in memory as an 8-step order). This step adds the real
-   replay cursor (binary-search + linear interpolation between actual
-   recorded frames, generalized from catch-tracker's own 1D catcherXAt()
-   to 2D) and the real audio-sync clock (ReplayPlayer.tick()'s hybrid
-   wall-clock/exponential-blend-toward-audio-clock technique, ported
-   near-verbatim from catch-tracker's own render-replay.js). Still NOT
-   included (later steps): any judgement/combo/HP/pp (step 4-6, though
-   the frame `buttons` bitmask needed for it is already extracted here
-   since it comes for free alongside x/y), slider path tessellation /
-   spinner rotation art (still a generic circle placeholder + kind
-   marker), mods (step 7), and all polish (skin import, settings drawer,
-   hit sounds, leaderboard panel — step 8).
+   summarized in memory as an 8-step order). This step adds bit-perfect
+   HIT-CIRCLE judgement (per the user's explicit call: real hit windows +
+   real press-event detection + real radius check, not an approximation)
+   — see judgeCircles() below for the algorithm and where its numbers
+   come from. Sliders/spinners are deliberately EXCLUDED from judgement
+   this step (still visual placeholders) — since most std maps are
+   mostly sliders by object count, wiring up aggregate combo/accuracy/pp/
+   rank HUD numbers now would show a plausible-looking but WRONG number
+   (missing most of the map's real combo contribution) rather than
+   something honestly partial. Those land once slider (step 5) and
+   spinner (step 6) judging exist too, so every object type feeds them
+   before they're first shown. This step's own verification is instead
+   visual: each hit circle is expected to flip to a judgement colour/
+   text (300/100/50/X) at the moment it's actually resolved, watchable
+   frame-by-frame against what really happened.
+
+   Still NOT included (later steps): slider/spinner judgement + their
+   real path/rotation art (step 5-6), mods (step 7), all polish (skin
+   import, settings drawer, hit sounds, leaderboard panel — step 8).
 
    Backend calls ported from catch-tracker's own render-replay.js:
    beatmap-file.js (raw .osu text, cached) and replay-download.js (auth'd
@@ -22,9 +29,12 @@
 
 const PARSERS_URL = 'https://esm.sh/osu-parsers@4.1.7';
 const STANDARD_STABLE_URL = 'https://esm.sh/osu-standard-stable@5.0.1';
+const CLASSES_URL = 'https://esm.sh/osu-classes@3.1.0';
 const PLAYFIELD_W = 512;
 const PLAYFIELD_H = 384;
 const AUDIO_URL = beatmapsetId => `https://mirror.hinamizawa.ai/v3/osu/music/audio/${beatmapsetId}`;
+
+const JUDGEMENT_COLORS = { 300: '#7fd1ff', 100: '#8ce87a', 50: '#e8d97a', miss: '#ff5a5a' };
 
 const main = document.getElementById('replay-main');
 
@@ -115,8 +125,76 @@ function objectPos(h) {
     // `startPosition` is the real field name on osu-standard-stable's
     // decoded hit objects (confirmed live — `position`/`stackedPosition`
     // are both undefined on it, unlike osu-catch-stable's own objects).
+    // `_stackOffset` (confirmed live too — no public stacked-position
+    // getter exists on this library's objects) must be added manually to
+    // get the real on-screen/judged position in a stacked note stream;
+    // without it, dense stream sections would render every note at the
+    // same unstacked spot and judge them against the wrong position.
     const p = h.startPosition || { x: PLAYFIELD_W / 2, y: PLAYFIELD_H / 2 };
-    return { x: p.x, y: p.y };
+    const off = h._stackOffset || { x: 0, y: 0 };
+    return { x: p.x + off.x, y: p.y + off.y };
+}
+
+/* ---------- bit-perfect hit-circle judgement ----------
+   Per the user's explicit call: real hit windows, real press-event
+   detection, real radius check — not an approximation. Hit windows come
+   straight from the object's own `hitWindows.windowFor(HitResult.*)`
+   (confirmed live this session — osu-standard-stable computes these
+   itself from OD, no need to hand-roll the OD formula). */
+function extractHitWindows(h, HitResult) {
+    return {
+        h300: h.hitWindows.windowFor(HitResult.Great),
+        h100: h.hitWindows.windowFor(HitResult.Ok),
+        h50: h.hitWindows.windowFor(HitResult.Meh),
+    };
+}
+
+// A "press event" is any frame where a previously-unset button bit
+// (M1=1/M2=2/K1=4/K2=8) becomes set — any NEW key going down counts as a
+// click, even while another key is already held. Uses the press-frame's
+// own recorded position (not interpolated) since that's the real cursor
+// position osu! itself would judge against at that exact input.
+function extractPressEvents(frames) {
+    const events = [];
+    let prevButtons = 0;
+    for (const f of frames) {
+        if ((f.buttons & ~prevButtons) !== 0) events.push({ time: f.time, x: f.x, y: f.y });
+        prevButtons = f.buttons;
+    }
+    return events;
+}
+
+// Walks circle objects in time order against the (also time-ordered)
+// press events, consuming the EARLIEST still-unused press inside each
+// object's own ±h50 window that also lands within its radius. A press
+// event is exhausted (permanently skippable for every later object too)
+// once its time falls before the current object's own window start,
+// since objects only move forward in time — safe to advance `cursor`
+// past those rather than rescanning from the start each time.
+function judgeCircles(circles, pressEvents) {
+    const used = new Array(pressEvents.length).fill(false);
+    let cursor = 0;
+    for (const it of circles) {
+        const lo = it.startTime - it.h50;
+        const hi = it.startTime + it.h50;
+        while (cursor < pressEvents.length && pressEvents[cursor].time < lo) cursor++;
+        let result = 'miss';
+        let resolvedTime = hi;
+        for (let i = cursor; i < pressEvents.length && pressEvents[i].time <= hi; i++) {
+            if (used[i]) continue;
+            const ev = pressEvents[i];
+            const dx = ev.x - it.x, dy = ev.y - it.y;
+            if (dx * dx + dy * dy <= it.radius * it.radius) {
+                const dt = Math.abs(ev.time - it.startTime);
+                result = dt <= it.h300 ? 300 : dt <= it.h100 ? 100 : 50;
+                resolvedTime = ev.time;
+                used[i] = true;
+                break;
+            }
+        }
+        it.judgement = result;
+        it.resolvedTime = resolvedTime;
+    }
 }
 
 /* ---------- replay frames (osu-parsers' ScoreDecoder output) ----------
@@ -278,6 +356,14 @@ class ReplayPlayer {
             if (this.mapTime < it.spawnTime || this.mapTime > it.hideTime) continue;
             const p = toPx(it.x, it.y);
             const r = it.radius * scale;
+            // Once a circle's judgement is actually resolved (a real press
+            // consumed it, or the miss window expired with none), it
+            // switches from its combo colour to a judgement colour — the
+            // direct visual check this step's own comment describes:
+            // watch a real replay and confirm each circle flips to the
+            // right 300/100/50/miss colour at the right moment.
+            const judged = it.judgement !== undefined && this.mapTime >= it.resolvedTime;
+            const drawColor = judged ? JUDGEMENT_COLORS[it.judgement] : it.color;
 
             let alpha = 1;
             if (this.mapTime < it.startTime) {
@@ -287,15 +373,16 @@ class ReplayPlayer {
             }
             ctx.globalAlpha = Math.max(0, alpha);
 
-            // Hit circle body, tinted by combo colour.
+            // Hit circle body, tinted by combo colour (or judgement colour
+            // once resolved).
             ctx.beginPath();
             ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-            ctx.fillStyle = it.color;
+            ctx.fillStyle = drawColor;
             ctx.globalAlpha *= 0.35;
             ctx.fill();
             ctx.globalAlpha = Math.max(0, alpha);
             ctx.lineWidth = 2;
-            ctx.strokeStyle = it.color;
+            ctx.strokeStyle = drawColor;
             ctx.stroke();
 
             // Approach circle: real osu! shrinks it from 3x the hit
@@ -322,7 +409,9 @@ class ReplayPlayer {
             ctx.font = `${Math.max(10, r * 0.6)}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const label = it.kind === 'slider' ? 'S' : it.kind === 'spinner' ? '◎' : String(it.number);
+            const label = judged
+                ? (it.judgement === 'miss' ? 'X' : String(it.judgement))
+                : it.kind === 'slider' ? 'S' : it.kind === 'spinner' ? '◎' : String(it.number);
             ctx.fillText(label, p.x, p.y);
         }
         ctx.globalAlpha = 1;
@@ -365,7 +454,7 @@ function theaterHtml(meta) {
         <h2 style="margin:0 0 4px">${escapeHtml(`${meta.artist} - ${meta.title} [${meta.version}]`)}</h2>
         <p class="coverage-note">
             ${escapeHtml(`${meta.username} ${meta.rank || ''}`)} —
-            Watch Replay 開發中,目前有真實圖譜幾何、游標軌跡與音樂同步,還沒有判定、滑條/轉盤真實外觀。
+            Watch Replay 開發中,打擊圈已有真實判定(300/100/50/miss),滑條/轉盤還沒有真實外觀或判定,分數/連段/pp 面板尚未加入。
         </p>
         <div class="replay-theater-wrap">
             <div class="replay-theater" id="replay-theater">
@@ -416,6 +505,7 @@ async function run() {
 
         const { BeatmapDecoder, ScoreDecoder } = await import(PARSERS_URL);
         const standardStable = await import(STANDARD_STABLE_URL);
+        const { HitResult } = await import(CLASSES_URL);
         const { StandardRuleset, Slider, Spinner } = standardStable;
         const classes = { Slider, Spinner };
 
@@ -432,21 +522,38 @@ async function run() {
             const startTime = h.startTime;
             const preempt = h.timePreempt;
             const fadeIn = h.timeFadeIn;
+            const windows = kind === 'circle' ? extractHitWindows(h, HitResult) : null;
             return {
                 kind, x: pos.x, y: pos.y, startTime,
                 spawnTime: startTime - preempt,
-                // Placeholder visual-hide window — real per-object judgement
-                // (and its exact hit-window-based fade) lands in step 4.
+                // Placeholder hide window for slider/spinner (not judged
+                // this step) — a judged circle gets a real, judgement-
+                // resolved hideTime set below instead.
                 hideTime: startTime + 250,
                 preempt, fadeIn, radius: h.radius,
                 color: colourOf.get(h),
                 number: numberOf.get(h),
+                ...(windows || {}),
             };
         }).sort((a, b) => a.spawnTime - b.spawnTime);
 
         const parsedScore = await new ScoreDecoder().decodeFromBuffer(new Uint8Array(replayBuffer));
         const frames = extractFrames(parsedScore);
         console.log(`[replay] parsed ${items.length} hit objects, ${frames.length} replay frames`);
+
+        // Bit-perfect circle judgement (see judgeCircles()'s own comment)
+        // — sliders/spinners aren't judged yet, so they're excluded from
+        // this pass entirely; their own turn is steps 5-6.
+        const pressEvents = extractPressEvents(frames);
+        const circleItems = items.filter(it => it.kind === 'circle');
+        judgeCircles(circleItems, pressEvents);
+        for (const it of circleItems) {
+            // Fade out shortly after the judgement actually resolves,
+            // instead of the earlier fixed startTime+250 placeholder —
+            // a hit fades right after the press that resolved it, a miss
+            // fades right after its window expires.
+            it.hideTime = it.resolvedTime + 400;
+        }
 
         if (!items.length) {
             setStatus(errorHtml(t('replay_not_found')));
